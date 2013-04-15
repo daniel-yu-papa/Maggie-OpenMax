@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE agilelog SYSTEM "agilelog.dtd">
+
+<agilelog version="1.0">
+        <!-- Global configuration applied to whole project -->
+	<global_config>
+		<!-- output: file, logcat, stdout, socket -->
+		<output>stdout</output>
+
+                <!-- debug level: fatal, error, warning, info, debug, verbose-->
+                <!-- it could be overrided by module debugging level -->
+                <debug level = "verbose"/>
+
+                <!-- add the timestamp for each log item or NOT -->
+                <timestamp on = "true"/>
+	</global_config>
+
+        <module_config>
+        
+        </module_config>
+</agilelog>
