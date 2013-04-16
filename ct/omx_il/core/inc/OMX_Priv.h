@@ -33,7 +33,9 @@ typedef struct{
 
 typedef struct{
     List_t staticLoadCompListHead;
+    OMX_U32 staticCompNumber;
     List_t dynamicLoadCompListHead;
+    OMX_U32 dynamicCompNumber;
 }Maggie_OMX_t;
 /** construct and initialize component
  * This is called only upon @ref OMX_GetHandle(), to instantiate component.
