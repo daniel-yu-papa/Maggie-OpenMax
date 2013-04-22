@@ -1,5 +1,7 @@
-#ifndef _MAGGIE_LIST_H__
-#define _MAGGIE_LIST_H__
+#ifndef _MAG_LIST_H__
+#define _MAG_LIST_H__
+
+#include <stdlib.h>
 
 typedef struct list_t{
     struct list_t *next;

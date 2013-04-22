@@ -62,12 +62,12 @@ tinyxml2.cpp
 
 
 ifndef BINDIR
-BINDIR ?= $(SOURCE_DIR)/bin
+BINDIR ?= ./bin
 $(shell mkdir -p $(BINDIR))
 endif
 
 ifndef OBJDIR
-OBJDIR ?= $(SOURCE_DIR)/obj
+OBJDIR ?= ./obj
 $(shell mkdir -p $(OBJDIR))
 endif
 

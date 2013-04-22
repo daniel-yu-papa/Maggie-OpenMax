@@ -300,8 +300,8 @@ void AgileLog::printLog(int prio, const char *module, const char *caller, int li
 void AgileLog::setDefaultValue(){
     mConfigValue.config_output.type  = OUTPUT_STDOUT;
     mWriteToLogFunc = WriteToStdOut;
-    mConfigValue.config_debug_level  = DEBUG_LEVEL_WARNING;
-    mConfigValue.config_timestamp_on = false;
+    mConfigValue.config_debug_level  = DEBUG_LEVEL_VERBOSE;
+    mConfigValue.config_timestamp_on = true;
 
     mConfigValue.moduleNum = 0;
     mConfigValue.pModules  = NULL;
