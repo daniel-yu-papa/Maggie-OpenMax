@@ -2,16 +2,17 @@
 #define _HASHTABLE_H__
 
 #include <stdlib.h>
+#include <stdint.h>
 
 namespace AGILELOG {
 
 /*BEGIN: The Macros for hlist operations*/
-
-#define ht_offsetof(TYPE, MEMBER) ((unsigned int) &((TYPE *)0)->MEMBER)
+/*uintptr_t is an unsigned int that is guaranteed to be the same size as a pointer. in <stdint.h>*/
+#define ht_offsetof(TYPE, MEMBER) ( reinterpret_cast<uintptr_t> (&((TYPE *)0)->MEMBER) ) 
 
 #define container_of(ptr, type, member) ({			\
 	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
-	(type *)( (char *)__mptr - ht_offsetof(type,member) );})
+	(type *)( (const char *)__mptr - ht_offsetof(type,member) );})
 
 #define hlist_entry(ptr, type, member) container_of(ptr,type,member)
 
@@ -64,7 +65,7 @@ public:
     void *getHashItem(const char *str);
     void printHashTable(void);
 private:
-    unsigned int calcDJBHashValue(char* str, unsigned int len);
+    unsigned int calcDJBHashValue(const char* str, unsigned int len);
 
     /*handle the hlist.*/
     inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)

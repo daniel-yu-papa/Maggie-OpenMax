@@ -7,6 +7,7 @@ typedef enum{
     MAG_NoMemory,
     MAG_ErrMutexCreate,
     MAG_ErrCondCreate,
+    MAG_ErrThreadCreate,
     MAG_ErrGetTime,
     MAG_TimeOut,
     MAG_BadParameter,

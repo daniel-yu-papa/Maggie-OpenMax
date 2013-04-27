@@ -37,5 +37,10 @@
     Agile_printLog(AGILE_##priority, module, __FUNCTION__, __LINE__, __VA_ARGS__)
 #endif
 
+#define MODULE_TAG_D(tag) \
+    "#ifdef MODULE_TAG"  \
+    "#undef MODULE_TAG"  \
+    "#endif"             \
+    "#define MODULE_TAG ##tag"
 
 #endif

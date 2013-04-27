@@ -74,7 +74,7 @@ endif
 #-DANDROID -DANDROID_NDK
 #-Werror
 CPPFLAGS += -g -fpermissive
-CPPFLAGS += -Wno-unused-parameter -Wno-missing-field-initializers
+CPPFLAGS += -Wno-unused-parameter -Werror -Wno-missing-field-initializers
 CPPFLAGS += $(addprefix -I,$(LIB_INC_PATH))
 
 

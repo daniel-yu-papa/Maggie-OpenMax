@@ -95,7 +95,7 @@ void HashTable::printHashTable(void){
     printf("\t-------  END  --------\n");
 }
 
-unsigned int HashTable::calcDJBHashValue(char* str, unsigned int len){
+unsigned int HashTable::calcDJBHashValue(const char* str, unsigned int len){
    unsigned int hash = 5381;
    unsigned int i    = 0;
 

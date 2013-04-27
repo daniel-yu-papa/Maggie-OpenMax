@@ -6,6 +6,9 @@
 #include <errno.h>
 #include <stdio.h>
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif 
 #define MODULE_TAG "AGILELOG_TEST"
 
 static void loadComponentLib(const char *file, void *arg){
@@ -53,6 +56,7 @@ static void loadComponentRecursive(char *loadPath,
 int main(){
     int i = 9;
     char str[30] = "Hello world - AgileLog";
+    char dir[30] = "/home/yujun/testdir/";
     
     AGILE_LOGD("debug log: %s - %d", str, i);
     usleep(10000);
@@ -67,7 +71,7 @@ int main(){
     AGILE_LOG_FATAL("fatal log: %s - %d", str, i);
 
     int num = 0;
-    loadComponentRecursive("/home/yujun/testdir/", loadComponentLib, &num);
+    loadComponentRecursive(dir, loadComponentLib, &num);
     AGILE_LOGI("%d files are found", num);
     return 0;
 }

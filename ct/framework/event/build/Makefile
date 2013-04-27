@@ -33,12 +33,13 @@ CPPFLAGS += -Wno-unused-parameter -Wno-missing-field-initializers
 CPPFLAGS += $(addprefix -I,$(LIB_INC_PATH))
 
 CFLAGS += -g -DMAG_DEBUG
-CFLAGS += -Wno-unused-parameter -Wno-missing-field-initializers
+CFLAGS += -Wno-unused-parameter -Werror -Wno-missing-field-initializers
 CFLAGS += $(addprefix -I,$(LIB_INC_PATH))
 
 LIB_OBJS=$(patsubst %.c, $(OBJDIR)/%.o, $(LIB_SRCS))
 
 LDFLAGS += -lpthread -L/home/yujun/code/csa_1077_sdk/hardware/marvell/ct/framework/agilelog/build/bin -lagilelog
+LDFLAGS += -lrt
 
 .PHONY: all clean
 
