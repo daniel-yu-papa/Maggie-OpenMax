@@ -90,11 +90,11 @@ MagErr_t Mag_DestroyEvent(MagEventHandle evtHandle){
     
     pthread_mutex_destroy(&evtHandle->pEvtCommon->lock);
     free(evtHandle->pEvtCommon);
-    AGILE_LOGD("11111");
+
     ret = Mag_UnregisterEventCallback(evtHandle);
     if(evtHandle->pEvtCallBack->hCallback)
         free(evtHandle->pEvtCallBack->hCallback);
-    AGILE_LOGD("22222");
+
     pthread_mutex_destroy(&evtHandle->pEvtCallBack->lock);
     free(evtHandle->pEvtCallBack);
 
@@ -133,10 +133,9 @@ MagErr_t  Mag_SetEvent(MagEventHandle evtHandle){
     if(NULL != evtGrp){
         rc = pthread_mutex_lock(&evtGrp->lock);
         MAG_ASSERT(0 == rc);
-
+        
         rc = pthread_mutex_lock(&evtHandle->pEvtCommon->lock);
         MAG_ASSERT(0 == rc);
-
         evtHandle->pEvtCommon->signal = MAG_TRUE;
 
         rc = pthread_cond_signal(&evtGrp->cond);
@@ -144,12 +143,11 @@ MagErr_t  Mag_SetEvent(MagEventHandle evtHandle){
 
         rc = pthread_mutex_unlock(&evtHandle->pEvtCommon->lock);
         MAG_ASSERT(0 == rc);
-
+        
         rc = pthread_mutex_unlock(&evtGrp->lock);
         MAG_ASSERT(0 == rc);
     }else{
-        AGILE_LOGV("The event element(0x%lx) is not Added into the event group!", 
-                   (unsigned long)evtHandle);
+        //AGILE_LOGV("The event element(0x%lx) is not Added into the event group!", (unsigned long)evtHandle);
     }
 
     if ((NULL != pEvtCB->hCallback) && (NULL != pEvtCB->hEvtScheduler)){
@@ -180,9 +178,9 @@ MagErr_t  Mag_SetEvent(MagEventHandle evtHandle){
             }else{
                 Mag_EvtCbTimeStamp_t *prev;
                 prev = (Mag_EvtCbTimeStamp_t *)list_entry(pEvtCB->hEvtScheduler->cbTimeStampListH.prev, Mag_EvtCbTimeStamp_t, tsListNode);
-                evtTSHandle->timeDiff = (now.tv_sec - prev->timeStamp.tv_sec)*1000000 + (now.tv_nsec - prev->timeStamp.tv_nsec)/1000;//in ms
+                evtTSHandle->timeDiff = (now.tv_sec - prev->timeStamp.tv_sec)*1000000 + (now.tv_nsec - prev->timeStamp.tv_nsec)/1000;//in us
             }
-            AGILE_LOGD("add TimeStamp event cb: tv_sec = %d, tv_nsec = %ld, timeDiff = %d",
+            AGILE_LOGV("add TimeStamp event cb: tv_sec = %d, tv_nsec = %ld, timeDiff = %d",
                         evtTSHandle->timeStamp.tv_sec, evtTSHandle->timeStamp.tv_nsec, evtTSHandle->timeDiff);
             list_add_tail(&evtTSHandle->tsListNode, &pEvtCB->hEvtScheduler->cbTimeStampListH);
         }else{
@@ -198,8 +196,7 @@ MagErr_t  Mag_SetEvent(MagEventHandle evtHandle){
         rc = pthread_mutex_unlock(&pEvtCB->hEvtScheduler->lock);
         MAG_ASSERT(0 == rc);
     }else{
-        AGILE_LOGV("The event element(0x%lx) has no callback registered!", 
-                   (unsigned long)evtHandle);
+        //AGILE_LOGV("The event element(0x%lx) has no callback registered!", (unsigned long)evtHandle);
     }
     return ret;
 }
@@ -232,6 +229,8 @@ MagErr_t Mag_RegisterEventCallback(MagEventSchedulerHandle schedHandle, MagEvent
 
     INIT_LIST(&pEvtCB->hCallback->exeEntry);
     pEvtCB->hCallback->exeNum    = 0;
+    pthread_mutex_init(&pEvtCB->hCallback->lock, NULL);
+    MAG_ASSERT(0 == rc);
     pEvtCB->hCallback->pCallback = pCallback;
     pEvtCB->hCallback->pContext  = pContext;
     pEvtCB->hEvtScheduler        = schedHandle;
@@ -258,24 +257,31 @@ MagErr_t Mag_UnregisterEventCallback(MagEventHandle evtHandle){
         AGILE_LOGE("the event(0x%lx) was not added into the event scheduler", (uintptr_t)evtHandle);
         return MAG_Failure;
     }
-    
+
     rc = pthread_mutex_lock(&pEvtCB->hEvtScheduler->lock);
     MAG_ASSERT(0 == rc);
     
     rc = pthread_mutex_lock(&pEvtCB->lock);
     MAG_ASSERT(0 == rc);
 
+    rc = pthread_mutex_lock(&pEvtCB->hCallback->lock);
+    MAG_ASSERT(0 == rc);
+
     pEvtCB->hCallback->pCallback = NULL;
     pEvtCB->hCallback->pContext  = NULL;
-    pEvtCB->hEvtScheduler        = NULL;
+    pEvtCB->hCallback->exeNum    = 0;
+    list_del(&pEvtCB->hCallback->exeEntry);
     list_del(&pEvtCB->entry);
-    
+
+    rc = pthread_mutex_unlock(&pEvtCB->hCallback->lock);
+    MAG_ASSERT(0 == rc);
+
     rc = pthread_mutex_unlock(&pEvtCB->lock);
     MAG_ASSERT(0 == rc);
-    
+
     rc = pthread_mutex_unlock(&pEvtCB->hEvtScheduler->lock);
     MAG_ASSERT(0 == rc);
-    
+
     return ret;
 }
 
@@ -415,9 +421,10 @@ static MagErr_t Mag_EventStatusCheck(MagEventGroupHandle evtGrphandle, MAG_EVENT
     MagErr_t ret = MAG_EventStatusErr;
     int rc;
     int signalEvtNum = 0;
-    
+
     while (tmpNode != &evtGrphandle->EventGroupHead){
         pEventCommon = (Mag_EventCommon_t *)list_entry(tmpNode, Mag_EventCommon_t, entry);
+
         rc = pthread_mutex_lock(&pEventCommon->lock);
         MAG_ASSERT(0 == rc);
             
@@ -434,7 +441,7 @@ static MagErr_t Mag_EventStatusCheck(MagEventGroupHandle evtGrphandle, MAG_EVENT
 
         tmpNode = tmpNode->next;
     }
-    
+
     if (MAG_EG_OR == op){
         if (signalEvtNum > 0){
 #ifdef MAG_DEBUG
@@ -520,6 +527,7 @@ MagErr_t Mag_WaitForEventGroup(MagEventGroupHandle evtGrphandle, MAG_EVENT_GROUP
 
         MAG_ASSERT(0 == rc);
     }
+
     Mag_ClearAllEvents(evtGrphandle);
 
 done:
@@ -539,7 +547,6 @@ static MagErr_t getCallbackExeList(MagEventSchedulerHandle schedHandle, List_t *
     MagErr_t ret = MAG_ErrNone;
     MagEventCallbackHandle cbHandle;
 
-    AGILE_LOGD("start ...");
     /* add all priority HIGH callbacks into the list*/
     tmpNode = schedHandle->listHead[MAG_EVT_PRIO_HIGH].next;
     while(tmpNode != &schedHandle->listHead[MAG_EVT_PRIO_HIGH]){
@@ -573,7 +580,8 @@ static MagErr_t getCallbackExeList(MagEventSchedulerHandle schedHandle, List_t *
 H_done:
         tmpNode = tmpNode->next;
     }
-
+    AGILE_LOGD("highPrioTotal = %d", highPrioTotal);
+    
     /*go through the default prio event list*/
     tmpNode = schedHandle->cbTimeStampListH.next;
     while(tmpNode != &schedHandle->cbTimeStampListH){
@@ -588,6 +596,7 @@ H_done:
         /* - if the number of the high priority events are less than 4, all default priority events' callbacks would be executed
               * - if more than 4 high prio events are executed, then only pick up at most 4 default prio events for handling
               */
+        defPrioTotal++;
         if ((highPrioTotal <= 4) || (defPrioTotal <= 4)){
             if (is_added_list(&cbHandle->exeEntry)){
                 cbHandle->exeNum++;
@@ -596,21 +605,20 @@ H_done:
                 cbHandle->exeNum = 1;
             }
         }else{
-            if (timeStampNode->timeDiff < 100){
-                calcTimeOut = 100; /*at least 100ms timeout*/
+            if (timeStampNode->timeDiff < 10000){
+                calcTimeOut = 10; /*at least 10ms timeout*/
             }else{
-                calcTimeOut = timeStampNode->timeDiff;
+                calcTimeOut = timeStampNode->timeDiff/1000;
             }
             break;
         }
         list_del(tmpNode);
         list_add_tail(tmpNode, &schedHandle->cbTimeStampFreeListH);
-        defPrioTotal++;
         
 def_done:
         tmpNode = schedHandle->cbTimeStampListH.next;
     }
-    AGILE_LOGD("defPrioTotal = %d", defPrioTotal);
+    AGILE_LOGD("defPrioTotal = %d, timeout = %d", defPrioTotal, calcTimeOut);
     
     if(calcTimeOut == 0)
         calcTimeOut = MAG_TIMEOUT_INFINITE;
@@ -660,10 +668,15 @@ static void processEventCallbacks(List_t *exeListHead){
     List_t *tmpNode = exeListHead->next;
     MagEventCallbackHandle evtCbHandle;
     int i = 0;
-    AGILE_LOGD("start ...");
+    int rc;
+    
     while (tmpNode != exeListHead){
         evtCbHandle = (MagEventCallbackHandle)list_entry(tmpNode, MagEventCallbackObj_t, exeEntry);
         AGILE_LOGD("exeNum is %d", evtCbHandle->exeNum);
+        
+        rc = pthread_mutex_lock(&evtCbHandle->lock);
+        MAG_ASSERT(0 == rc);
+        
         for (i = 0; i < evtCbHandle->exeNum; i++){
             if (evtCbHandle->pCallback)
                 evtCbHandle->pCallback(evtCbHandle->pContext);
@@ -672,6 +685,10 @@ static void processEventCallbacks(List_t *exeListHead){
         }
         evtCbHandle->exeNum = 0;
         list_del(tmpNode);
+
+        rc = pthread_mutex_unlock(&evtCbHandle->lock);
+        MAG_ASSERT(0 == rc);
+        
         tmpNode = exeListHead->next;
     }
 }

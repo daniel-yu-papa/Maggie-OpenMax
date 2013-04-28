@@ -53,9 +53,10 @@ typedef struct mag_event_scheduler_obj{
 typedef Mag_EventScheduler_t *MagEventSchedulerHandle;
 
 typedef struct mag_event_callback_obj{
-    List_t        exeEntry;
-    unsigned int  exeNum;
-
+    List_t          exeEntry;
+    unsigned int    exeNum;
+    pthread_mutex_t lock;
+    
     void (*pCallback)(void *);
     void *pContext;
 }MagEventCallbackObj_t;
@@ -80,12 +81,12 @@ typedef struct mag_event_common_obj{
 typedef struct mag_event_callback_t{
     List_t                  entry;
 
-    MagEventSchedulerHandle hEvtScheduler;
     pthread_mutex_t         lock;            /* mutex for protecting the object handling */
     unsigned int            armed;          /* >0: the event callback is armed. =0: not armed*/
     MAG_EVENT_PRIO_t        priority;
 
     MagEventCallbackHandle  hCallback;
+    MagEventSchedulerHandle hEvtScheduler;
 }Mag_EventCallback_t;
 
 typedef struct mag_event{
