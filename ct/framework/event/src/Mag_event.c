@@ -47,6 +47,7 @@ MagErr_t Mag_CreateEvent(MagEventHandle *evtHandle, MAG_EVENT_PRIO_t prio){
     if(rc != 0){
         goto err_cb_mutex;
     }
+
     INIT_LIST(&(*evtHandle)->pEvtCallBack->entry);
     (*evtHandle)->pEvtCallBack->priority      = prio;
     (*evtHandle)->pEvtCallBack->armed         = 0;
@@ -87,19 +88,20 @@ MagErr_t Mag_DestroyEvent(MagEventHandle evtHandle){
     if (evtHandle->pEvtCommon->hEventGroup){
         ret = Mag_RemoveEventGroup(evtHandle->pEvtCommon->hEventGroup, evtHandle);
     }
-    
+
     pthread_mutex_destroy(&evtHandle->pEvtCommon->lock);
     free(evtHandle->pEvtCommon);
 
     ret = Mag_UnregisterEventCallback(evtHandle);
     if(evtHandle->pEvtCallBack->hCallback)
         free(evtHandle->pEvtCallBack->hCallback);
-
+    
     pthread_mutex_destroy(&evtHandle->pEvtCallBack->lock);
     free(evtHandle->pEvtCallBack);
 
     free(evtHandle);
-
+    evtHandle = NULL;
+    
     return ret;
 }
 
@@ -122,13 +124,19 @@ static MagErr_t MagPriv_ms2timespec(struct timespec *target, int timeoutMsec){
 
 MagErr_t  Mag_SetEvent(MagEventHandle evtHandle){
     int rc;
-    MagEventGroupHandle evtGrp = evtHandle->pEvtCommon->hEventGroup;
-    Mag_EventCallback_t *pEvtCB  = evtHandle->pEvtCallBack;
+    MagEventGroupHandle evtGrp;
+    Mag_EventCallback_t *pEvtCB;
     MagErr_t ret = MAG_ErrNone;
     struct timespec now;
     Mag_EvtCbTimeStamp_t *evtTSHandle;
     Mag_EvtCbTimeStamp_t *htmpTS;
     List_t *tmpNode;
+
+    if (NULL == evtHandle)
+        return MAG_BadParameter;
+        
+    evtGrp = evtHandle->pEvtCommon->hEventGroup;
+    pEvtCB  = evtHandle->pEvtCallBack;
     
     if(NULL != evtGrp){
         rc = pthread_mutex_lock(&evtGrp->lock);
@@ -198,6 +206,7 @@ MagErr_t  Mag_SetEvent(MagEventHandle evtHandle){
     }else{
         //AGILE_LOGV("The event element(0x%lx) has no callback registered!", (unsigned long)evtHandle);
     }
+
     return ret;
 }
 
@@ -325,7 +334,7 @@ void Mag_DestroyEventGroup(MagEventGroupHandle evtGrphandle){
     MagEventHandle pEvent;
 
     while (tmpNode != &evtGrphandle->EventGroupHead){
-        pEvent = (MagEventHandle)list_entry(tmpNode, Mag_EventCommon_t, entry);
+        pEvent = (MagEventHandle)tmpNode->next; //list_entry(tmpNode, Mag_EventCommon_t, entry);
         Mag_RemoveEventGroup(evtGrphandle, pEvent);
         tmpNode = tmpNode->next;
     }
@@ -711,11 +720,14 @@ restart:
         if (MAG_TIMEOUT_INFINITE == timeout){
             rc = pthread_cond_wait(&schedHandle->cond, &schedHandle->lock);
         }else{
-            AGILE_LOGD("before pthread_cond_timedwait, timeout = %d", timeout);
             MagPriv_ms2timespec(&target, timeout);
             rc = pthread_cond_timedwait(&schedHandle->cond, &schedHandle->lock, &target);
         }
-        
+
+        if (schedHandle->sTExited){
+            pthread_mutex_unlock(&schedHandle->lock);
+            break;
+        }   
         /*the blocking system call: futex might be interrupted by OS signal.*/
         if (EINTR == rc){
             AGILE_LOGD("pthread_cond_wait: interrupted by system signal");
@@ -770,6 +782,7 @@ MagErr_t Mag_CreateEventScheduler(MagEventSchedulerHandle *evtSched, MagEvtSched
     }
     
     (*evtSched)->option = option;
+    (*evtSched)->sTExited = MAG_FALSE;
     
     if (pthread_create(&(*evtSched)->schedThread, NULL, Mag_EventScheduleEntry, *evtSched)){
         AGILE_LOGE("failed to create the event scheduler. (error: %s)", strerror(errno));
@@ -792,4 +805,31 @@ err_thread:
     free(*evtSched);
     return MAG_ErrThreadCreate;
 
+}
+
+MagErr_t Mag_DestroyEventScheduler(MagEventSchedulerHandle evtSched){
+    int rc;
+    MagErr_t ret = MAG_ErrNone;
+    
+    rc = pthread_mutex_lock(&evtSched->lock);
+    MAG_ASSERT(0 == rc);
+
+    evtSched->sTExited = MAG_TRUE;
+    
+    rc = pthread_cond_signal(&evtSched->cond);
+    MAG_ASSERT(0 == rc);
+    
+    pthread_mutex_unlock(&evtSched->lock);
+    MAG_ASSERT(0 == rc);
+
+    pthread_join(evtSched->schedThread, NULL);
+
+    rc = pthread_mutex_lock(&evtSched->lock);
+    MAG_ASSERT(0 == rc);
+
+    pthread_mutex_destroy(&evtSched->lock);
+    pthread_cond_destroy(&evtSched->cond);
+
+    free(evtSched);
+    return ret;
 }

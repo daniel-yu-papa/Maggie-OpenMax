@@ -15,7 +15,7 @@ MagEventHandle highPrioEvt[3];
 MagEventSchedulerHandle hEvtSched;
 
 static int all_count = 0;
-static unsigned int loops = 10000;
+static unsigned int loops = 5;
 void *inc_count(void *arg){
     int count = 1;
     int index = *((int *)arg);
@@ -30,6 +30,7 @@ void *inc_count(void *arg){
         count++;
     }
     all_count += count;
+    Mag_SetEvent(evtGrpElem[index]);
 }
 
 void *watch_count(void *arg){
@@ -40,6 +41,7 @@ void *watch_count(void *arg){
         AGILE_LOGD("the event is triggered!! number: %d", count);
         count++;
     }
+    AGILE_LOGI("exit watch_count");
 }
 static void evtGrpElem1_callback(void *arg){
     AGILE_LOGD("do evtGrpElem[%d]_callback\n", *((int *)arg));
@@ -79,6 +81,8 @@ int main(){
     for (i = 0; i < 3; i++){
         if (MAG_ErrNone == Mag_CreateEvent(&evtGrpElem[i], 0)){}
             Mag_AddEventGroup(evtGrp, evtGrpElem[i]);
+
+        AGILE_LOGD("evtGrpElem[%d] = 0x%x", i, evtGrpElem[i]);
         
     }
 
@@ -107,13 +111,14 @@ int main(){
         pthread_join(threads[i], NULL);  
     }  
 
-    Mag_DestroyEventGroup(evtGrp);
-    AGILE_LOGD("test: 222");
-    for (i = 0; i < 3; i++){
-        //Mag_DestroyEvent(evtGrpElem[i]);
-        Mag_UnregisterEventCallback(evtGrpElem[i]);
-    }
+    AGILE_LOGD("test: quit ...");   
 
+    for (i = 0; i < 3; i++){
+        Mag_DestroyEvent(evtGrpElem[i]);
+    }
+    AGILE_LOGD("test: quit 111");
+    Mag_DestroyEventGroup(evtGrp); 
+    Mag_DestroyEventScheduler(hEvtSched);
     return 0; 
     
 }

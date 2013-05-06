@@ -18,6 +18,7 @@ typedef enum{
     MAG_EventStatusMeet,
     MAG_EventStatusErr,
     MAG_InvalidPointer,
+    MAG_InvalidOperation,
 }MagErr_t;
 
 #define MAG_TIMEOUT_INFINITE 0xF0000000

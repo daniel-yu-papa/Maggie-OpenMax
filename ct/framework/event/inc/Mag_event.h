@@ -48,6 +48,7 @@ typedef struct mag_event_scheduler_obj{
     MagEvtSchedPolicy_t option;
     
     pthread_t           schedThread;
+    MAG_BOOL_t          sTExited;
 }Mag_EventScheduler_t;
 
 typedef Mag_EventScheduler_t *MagEventSchedulerHandle;
@@ -109,6 +110,7 @@ MagErr_t Mag_RemoveEventGroup(MagEventGroupHandle evtGrphandle, MagEventHandle e
 MagErr_t Mag_WaitForEventGroup(MagEventGroupHandle evtGrphandle, MAG_EVENT_GROUP_OP_t op, int timeoutMsec);
 
 MagErr_t Mag_CreateEventScheduler(MagEventSchedulerHandle *evtSched, MagEvtSchedPolicy_t option);
+MagErr_t Mag_DestroyEventScheduler(MagEventSchedulerHandle evtSched);
 MagErr_t Mag_RegisterEventCallback(MagEventSchedulerHandle schedHandle, MagEventHandle evtHandle, void (*pCallback)(void *), void *pContext);
 MagErr_t Mag_UnregisterEventCallback(MagEventHandle evtHandle);
 
