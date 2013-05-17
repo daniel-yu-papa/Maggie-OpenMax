@@ -9,7 +9,8 @@ typedef void (*comp_dereg_func_t) (void);
 
 typedef struct{
     OMX_STRING name;
-
+    OMX_U32    refCount;
+    
     comp_reg_func_t   registFunc;
     comp_dereg_func_t deregistFunc;
 }Maggie_OMX_Component_so_t;
@@ -17,6 +18,8 @@ typedef struct{
 typedef struct{
     Maggie_OMX_Component_so_t *so;
     OMX_ComponentInit initFunc;
+
+    List_t instanceListHead;
 }Maggie_OMX_Component_Obj_t;
 
 typedef struct{
@@ -56,6 +59,12 @@ typedef struct {
     OMX_ComponentInit init;
 }Maggie_OMX_CompRegistration_t;
 
-OMX_API Maggie_OMX_CompRegistration_t ** OMX_APIENTRY OMX_ComponentRegistration(OMX_OUT OMX_U8 *number);
+typedef struct comp_instance_obj_t{
+    List_t node;
+    void *compHandle;
+}MagCompInstance_t;
+OMX_API Maggie_OMX_CompRegistration_t * OMX_APIENTRY OMX_ComponentRegistration(void);
+
+extern Maggie_OMX_t gMaggieOMX;
 
 #endif

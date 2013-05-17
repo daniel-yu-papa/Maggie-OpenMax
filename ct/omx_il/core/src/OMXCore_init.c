@@ -16,7 +16,7 @@ static Maggie_OMX_CompRegistration_t *ComponentsStaticRegTable[] = {
     NULL
 };
 
-static Maggie_OMX_t gMaggieOMX;
+Maggie_OMX_t gMaggieOMX;
 
 static OMX_U32 releaseComponents(List_t *head){
     List_t *tmpNode;
@@ -89,6 +89,7 @@ skip_dup_role:
 
         newComp->obj = (Maggie_OMX_Component_Obj_t *)malloc(sizeof(Maggie_OMX_Component_Obj_t));
         newComp->obj->initFunc = ComponentsStaticRegTable[index].init;
+        INIT_LIST(&newComp->obj->instanceListHead);
         newComp->obj->so       = NULL;
         index++;
     }
@@ -149,8 +150,10 @@ skip_dup_role:
 
         newComp->obj = (Maggie_OMX_Component_Obj_t *)malloc(sizeof(Maggie_OMX_Component_Obj_t));
         newComp->obj->initFunc = regInfo[i]->init;
+        INIT_LIST(&newComp->obj->instanceListHead);
         newComp->obj->so       = (Maggie_OMX_Component_so_t *)malloc(sizeof(Maggie_OMX_Component_so_t));
         newComp->obj->so->name = strdup(fileName);
+        newComp->obj->so->refCount   = 0;
         newComp->obj->so->registFunc = regFunc;
         newComp->obj->so->deregistFunc = deregFunc;
     }
@@ -279,8 +282,7 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_ComponentNameEnum(
     
     if(nIndex < gMaggieOMX.staticCompNumber){
         listHead = &gMaggieOMX.staticLoadCompListHead; 
-    }else{
-        
+    }else{        
         nIndex -= gMaggieOMX.staticCompNumber;
         listHead = &gMaggieOMX.dynamicLoadCompListHead;
     }

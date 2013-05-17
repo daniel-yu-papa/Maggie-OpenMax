@@ -63,6 +63,7 @@ err_nomem:
     if (*evtHandle)
         free(*evtHandle);
 
+    *evtHandle = NULL;
     return MAG_NoMemory;
 
 err_cb_mutex:
@@ -77,7 +78,8 @@ err_evt_mutex:
 
     if (*evtHandle)
         free(*evtHandle);
-    
+
+    *evtHandle = NULL;
     return MAG_ErrMutexCreate;
 }
 
@@ -321,10 +323,12 @@ MagErr_t Mag_CreateEventGroup(MagEventGroupHandle *evtGrphandle){
 err_cond:
     pthread_mutex_destroy(&(*evtGrphandle)->lock);
     free(*evtGrphandle);
+    *evtGrphandle = NULL;
     return MAG_ErrCondCreate;
     
 err_mutex:
     free(*evtGrphandle);
+    *evtGrphandle = NULL;
     return MAG_ErrMutexCreate;    
 
 }
