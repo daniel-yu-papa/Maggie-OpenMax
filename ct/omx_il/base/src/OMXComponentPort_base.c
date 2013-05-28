@@ -185,10 +185,16 @@ static OMX_ERRORTYPE OMXComponentPort_base_FreeBuffer(OMXComponentPort_base_t *p
 
 }
 
+/*void OMXComponentPort_base_BufferManager(void *msg, void *priv){
+    AGILE_LOGE("Should be overrided by sub port method. Wrong be there");
+}*/
+
 OMX_ERRORTYPE OMXComponentPort_base_Constructor(OMX_IN OMX_COMPONENTTYPE *pCompContainer,
                                                               OMX_IN OMX_U32 nPortIndex,
                                                               OMX_IN OMX_BOOL isInput,
                                                               OMX_OUT OMXComponentPort_base_t **ppCompPort){
+    OMXComponentPrivateBase_t *pPriv = NULL;
+    
     if (NULL == pCompContainer){
         return OMX_ErrorBadParameter;
     }
@@ -199,6 +205,11 @@ OMX_ERRORTYPE OMXComponentPort_base_Constructor(OMX_IN OMX_COMPONENTTYPE *pCompC
             AGILE_LOGE("failed to allocate memory for OMXComponentPort_base_t");
             return OMX_ErrorInsufficientResources;
         }
+    }
+
+    if (MAG_ErrNone != Mag_MsgChannelCreate(&(*ppCompPort)->bufferMgrHandle)){
+        AGILE_LOGE("failed to create MsgChannel!");
+        return OMX_ErrorInsufficientResources;
     }
     
     (*ppCompPort)->pCompContainer = pCompContainer;
@@ -217,6 +228,9 @@ OMX_ERRORTYPE OMXComponentPort_base_Constructor(OMX_IN OMX_COMPONENTTYPE *pCompC
     (*ppCompPort)->Port_AllocateBuffer = OMXComponentPort_base_AllocateBuffer;
     (*ppCompPort)->Port_UseBuffer = OMXComponentPort_base_UseBuffer;
     (*ppCompPort)->Port_FreeBuffer = OMXComponentPort_base_FreeBuffer;
+    
+    pPriv = (OMXComponentPrivateBase_t *)pCompContainer->pComponentPrivate;
+    list_add_tail(&(*ppCompPort)->node, &pPriv->portListHead);
     
     return OMX_ErrorNone;
 }

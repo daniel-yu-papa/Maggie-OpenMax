@@ -1,0 +1,4 @@
+#ifndef __OMX_COMPONENT_DEMUX_FFMPEG_H__
+#define __OMX_COMPONENT_DEMUX_FFMPEG_H__
+
+#endif

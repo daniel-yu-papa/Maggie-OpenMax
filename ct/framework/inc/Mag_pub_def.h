@@ -1,6 +1,12 @@
 #ifndef _MAG_PUB_DEF_H__
 #define _MAG_PUB_DEF_H__
 
+#ifdef __GNUC__
+#    define MAG_GCC_VERSION_AT_LEAST(x,y) (__GNUC__ > x || __GNUC__ == x && __GNUC_MINOR__ >= y)
+#else
+#    define MAG_GCC_VERSION_AT_LEAST(x,y) 0
+#endif
+
 typedef enum{
     MAG_ErrNone = 0,
     MAG_Failure,

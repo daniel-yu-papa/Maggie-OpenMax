@@ -24,7 +24,8 @@ CLASS(OMXComponentPort_base_t)
     OMX_PARAM_PORTDEFINITIONTYPE sPortParam;  /* the specific port parameters */ \
     \
     List_t portBufListHead; /* list the allocated buffers, the maximum number of the buffers should be sPortParam.nBufferCountActual*/\
-    OMX_U8 numPortBufAlloc; /* the number of the allocated buffers */
+    OMX_U8 numPortBufAlloc; /* the number of the allocated buffers */ \
+    MagMsgChannelHandle bufferMgrHandle; /*the message channel for sending port buffer management msg*/ \
     \
     OMX_ERRORTYPE (*PortDestructor)(OMXComponentPort_base_t *pPort); /**< The destructor of the port*/ \
     OMX_ERRORTYPE (*Port_AllocateBuffer)(OMXComponentPort_base_t *pPort, \
@@ -40,8 +41,7 @@ CLASS(OMXComponentPort_base_t)
                                     OMX_U8* pBuffer);/**< The standard use buffer function applied to the port class */ \
     OMX_ERRORTYPE (*Port_FreeBuffer)(OMXComponentPort_base_t *pPort, \
                                      OMX_U32 nPortIndex, \
-                                     OMX_BUFFERHEADERTYPE* pBuffer); /**< The standard free buffer function applied to the port class */ \
-    
+                                     OMX_BUFFERHEADERTYPE* pBuffer); /**< The standard free buffer function applied to the port class */   
 ENDCLASS(OMXComponentPort_base_t)
 
 

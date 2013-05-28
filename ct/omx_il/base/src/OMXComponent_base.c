@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "OMXComponent_base.h"
+#include "OMXComponent_msg.h"
 
 static OMXComponentPort_base_t *OMXComponent_Priv_GetPort(OMX_IN OMX_COMPONENTTYPE *comp, OMX_IN OMX_U32 nPortIndex){
     OMXComponentPrivateBase_t *priv = (OMXComponentPrivateBase_t *)comp->pComponentPrivate;
@@ -71,7 +72,20 @@ static OMX_ERRORTYPE OMXComponent_EmptyThisBuffer(
 static OMX_ERRORTYPE OMXComponent_FillThisBuffer(
                         OMX_IN OMX_HANDLETYPE hComponent,
                         OMX_IN OMX_BUFFERHEADERTYPE* pBuffer){
+    portBufferOperationMsg_t msg;
+    OMXComponentPort_base_t *port;
+    OMX_DIRTYPE direction;
+    
+    port = getPortFromBufferHeader(pBuffer, &direction);
 
+    if(OMX_DirOutput != direction){
+        AGILE_LOGE("The FillThisBuffer action could only be done with output port(dir: %d)!", direction);
+        return OMX_ErrorPortsNotCompatible;
+    }
+    msg.action = DO_FILL_BUFFER;
+    msg.hComponent = hComponent;
+    msg.pBuffer = pBuffer;
+    Mag_MsgChannelSend(port->bufferMgrHandle, &msg, sizeof(portBufferOperationMsg_t));
 }
 
 static OMX_ERRORTYPE OMXComponent_FreeBuffer(

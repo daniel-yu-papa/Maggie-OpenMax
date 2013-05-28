@@ -45,6 +45,7 @@ err_mutex:
     if((*handle))
         free((*handle));
     
+    *handle = NULL;
     return MAG_ErrMutexCreate;
 }
 

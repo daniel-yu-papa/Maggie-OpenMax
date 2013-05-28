@@ -58,7 +58,7 @@ typedef struct{
 
 OMX_ERRORTYPE OMXComponent_Base_SetCallbacks(OMX_HANDLETYPE hComp, OMXSubComponentCallbacks_t *cb);
 
-inline OMXComponentSetHeader(OMX_PTR header, OMX_U32 size){
+inline void OMXComponentSetHeader(OMX_PTR header, OMX_U32 size){
   OMX_VERSIONTYPE* ver = (OMX_VERSIONTYPE*)(header + sizeof(OMX_U32));
   *((OMX_U32*)header) = size;
 
@@ -68,5 +68,17 @@ inline OMXComponentSetHeader(OMX_PTR header, OMX_U32 size){
   ver->s.nStep         = OMXVERSIONSTEP;
 }
 
+inline OMXComponentPort_base_t *getPortFromBufferHeader(OMX_IN OMX_BUFFERHEADERTYPE* pBuffer, OMX_OUT OMX_DIRTYPE *portDir){
+    if(pBuffer->pInputPortPrivate){
+        *portDir = OMX_DirInput;
+        return (OMXComponentPort_base_t *)pBuffer->pInputPortPrivate;
+    }else if(pBuffer->pOutputPortPrivate){
+        *portDir = OMX_DirOutput;
+        return (OMXComponentPort_base_t *)pBuffer->pOutputPortPrivate;
+    }else{
+        *portDir = OMX_DirMax;
+        return NULL;
+    }
+}
 
 #endif
