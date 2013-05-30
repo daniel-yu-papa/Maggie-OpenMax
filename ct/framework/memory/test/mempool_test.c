@@ -8,6 +8,9 @@ struct msgMemPool{
 };
 
 static MagMsgChannelHandle hMsgChanl;
+static int gLoop = 0;
+
+#define TESTING_LOOPS 10000
 
 void *fillBufferEntry(void *arg){
 #define BASE_BYTES 128
@@ -19,7 +22,7 @@ void *fillBufferEntry(void *arg){
     int i;
     int direction = 0;
     
-    for (i = 0; i < 100; i++){
+    for (i = 0; i < TESTING_LOOPS; i++){
         count++;
         pBuf = magMemPoolGetBuffer(hmp, BASE_BYTES + loop);
         msg.buffer = pBuf;
@@ -47,7 +50,8 @@ void emptyBufferReceiver(void *msg, void *priv){
     
     AGILE_LOGD("count = %d, buffer = 0x%x", pMsg->count, pMsg->buffer);
     magMemPoolPutBuffer(hmp, pMsg->buffer);
-    usleep(100);
+    gLoop++;
+    //usleep(100);
 }
 
 
@@ -56,7 +60,7 @@ int main(){
     pthread_t fillBufThread;
     magMempoolHandle memPoolHandle;
     
-    memPoolHandle = magMemPoolCreate(1*1024);
+    memPoolHandle = magMemPoolCreate(8*1024);
 
     Mag_MsgChannelCreate(&hMsgChanl);
     
@@ -66,6 +70,10 @@ int main(){
 
     pthread_join(fillBufThread, NULL);  
 
+    while(gLoop < TESTING_LOOPS){}
+    sleep(1);
+    magMemPoolDump(memPoolHandle);
+    
     AGILE_LOGD("executing is complete");
     
     magMemPoolDestroy(memPoolHandle);
