@@ -106,7 +106,7 @@ $(OBJDIR)/agilelog_test.o: agilelog_test.cpp
 
 $(BINDIR)/agiletest: $(OBJDIR)/agilelog_test.o
 	@echo "[build agiletest..]"
-	$(CXX) -o $@ $(LDFLAGS) $^
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 $(OBJDIR)/hashtable_test.o: hashtable_test.cpp
 	@$(CXX) -c $(CPPFLAGS) $< -o $@ 
@@ -114,7 +114,7 @@ $(OBJDIR)/hashtable_test.o: hashtable_test.cpp
 
 $(BINDIR)/htTest: $(OBJDIR)/hashtable_test.o
 	@echo "[build htTest..]"
-	$(CXX) -o $@ $(LDFLAGS) $^
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 clean:
 	@echo "[clean.. $(MODULE)]"
