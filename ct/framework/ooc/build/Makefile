@@ -38,7 +38,7 @@ CFLAGS += $(addprefix -I,$(LIB_INC_PATH))
 
 LIB_OBJS=$(patsubst %.c, $(OBJDIR)/%.o, $(LIB_SRCS))
 
-LDFLAGS += -lpthread -L/home/yujun/code/csa_1077_sdk/hardware/marvell/ct/framework/agilelog/build/bin -lagilelog
+LDFLAGS += -lpthread -L../../agilelog/build/bin -lagilelog
 
 .PHONY: all clean
 
