@@ -235,3 +235,68 @@ OMX_ERRORTYPE OMXComponentPort_base_Constructor(OMX_IN OMX_COMPONENTTYPE *pCompC
     return OMX_ErrorNone;
 }
 
+
+/*******************************************/
+
+#include "OMXPort_base.h"
+
+AllocateClass(OmxPort, Base);
+
+
+OMX_ERRORTYPE virtual_OmxPort_enablePort(OmxPort hPort){
+
+}
+
+OMX_ERRORTYPE virtual_OmxPort_disablePort(OmxPort hPort){
+
+}
+
+OMX_ERRORTYPE virtual_OmxPort_flushPort(OmxPort hPort){
+
+}
+
+OMX_ERRORTYPE virtual_OmxPort_markBuffer(OmxPort hPort, OMX_MARKTYPE * mark){
+
+}
+
+OMX_ERRORTYPE virtual_OmxPort_AllocateBuffer(
+                  OmxPort hPort,
+                  OMX_BUFFERHEADERTYPE** ppBuffer,
+                  OMX_PTR pAppPrivate,
+                  OMX_U32 nSizeBytes){
+
+}
+
+OMX_ERRORTYPE virtual_OmxPort_FreeBuffer(
+                  OmxPort hPort,
+                  OMX_BUFFERHEADERTYPE* pBuffer){
+
+}
+
+OMX_PARAM_PORTDEFINITIONTYPE *OmxPort_getPortDefinition(OmxPort hPort){
+
+}
+
+OMX_ERRORTYPE OmxPort_setPortDefinition(OmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *setDef){
+
+}
+
+
+/*Class Constructor/Destructor*/
+static void OmxPort_initialize(Class this){
+    OmxPortVtableInstance.enablePort      = virtual_OmxPort_enablePort;
+    OmxPortVtableInstance.disablePort     = virtual_OmxPort_disablePort;
+    OmxPortVtableInstance.flushPort       = virtual_OmxPort_flushPort;
+    OmxPortVtableInstance.markBuffer      = virtual_OmxPort_markBuffer;
+    OmxPortVtableInstance.AllocateBuffer  = virtual_OmxPort_AllocateBuffer;
+    OmxPortVtableInstance.FreeBuffer      = virtual_OmxPort_FreeBuffer;
+}
+
+static void OmxPort_constructor(OmxComponent thiz, const void *params){
+    thiz->getPortDefinition = OmxPort_getPortDefinition;
+    thiz->setPortDefinition = OmxPort_setPortDefinition;
+
+    memset(&thiz->mPortDef, 0, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
+    thiz->mPortDef.
+}
+
