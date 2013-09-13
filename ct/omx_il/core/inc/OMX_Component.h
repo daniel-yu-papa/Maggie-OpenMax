@@ -21,10 +21,12 @@
  *
  */
 
-/** OMX_Component.h - OpenMax IL version 1.1.2
- *  The OMX_Component header file contains the definitions used to define
- *  the public interface of a component.  This header file is intended to
- *  be used by both the application and the component.
+/*
+ *  OMX_Component.h - OpenMax IL version 1.2.0
+ *  The OMX_Component header file contains the definitions used
+ *  to define the public interface of a component.  This header
+ *  file is intended to be used by both the application and the
+ *  component.
  */
 
 #ifndef OMX_Component_h
@@ -141,16 +143,6 @@ typedef struct OMX_PARAM_CONTENTURITYPE
     OMX_U8 contentURI[1];               /**< The URI name */
 } OMX_PARAM_CONTENTURITYPE;
 
-/* Parameter specifying the pipe to use. */
-/** @ingroup cp */
-typedef struct OMX_PARAM_CONTENTPIPETYPE
-{
-    OMX_U32 nSize;              /**< size of the structure in bytes */
-    OMX_VERSIONTYPE nVersion;   /**< OMX specification version information */
-    OMX_HANDLETYPE hPipe;       /**< The pipe handle*/
-} OMX_PARAM_CONTENTPIPETYPE;
-
-/** @ingroup rpm */
 typedef struct OMX_RESOURCECONCEALMENTTYPE {
     OMX_U32 nSize;             /**< size of the structure in bytes */
     OMX_VERSIONTYPE nVersion;  /**< OMX specification version information */
@@ -247,7 +239,7 @@ typedef struct OMX_CONFIG_METADATAITEMTYPE
     OMX_U8 nKeySizeUsed;
     OMX_U8 nKey[128];
     OMX_METADATACHARSETTYPE eValueCharset;
-    OMX_STRING sLanguageCountry;
+    OMX_U8 sLanguageCountry[128];
     OMX_U32 nValueMaxSize;
     OMX_U32 nValueSizeUsed;
     OMX_U8 nValue[1];
@@ -272,7 +264,7 @@ typedef struct OMX_CONFIG_CONTAINERNODEIDTYPE
     OMX_U32 nParentNodeID;
     OMX_U32 nNodeIndex; 
     OMX_U32 nNodeID; 
-    OMX_STRING cNodeName;
+    OMX_U8 cNodeName[128];
     OMX_BOOL bIsLeafType;
 } OMX_CONFIG_CONTAINERNODEIDTYPE;
 
@@ -570,6 +562,80 @@ typedef struct OMX_COMPONENTTYPE
 		OMX_IN OMX_U32 nIndex);
 
 } OMX_COMPONENTTYPE;
+
+typedef struct OMX_CONFIG_COMMITMODETYPE { 
+    OMX_U32 nSize; 
+    OMX_VERSIONTYPE nVersion; 
+    OMX_BOOL bDeferred; 
+} OMX_CONFIG_COMMITMODETYPE;
+
+typedef struct OMX_CONFIG_COMMITTYPE { 
+    OMX_U32 nSize; 
+    OMX_VERSIONTYPE nVersion; 
+} OMX_CONFIG_COMMITTYPE;
+
+typedef enum OMX_MEDIACONTAINER_FORMATTYPE { 
+    OMX_FORMAT_RAW = 0,
+    OMX_FORMAT_MP4,
+    OMX_FORMAT_3GP,
+    OMX_FORMAT_3G2,
+    OMX_FORMAT_AMC,
+    OMX_FORMAT_SKM,
+    OMX_FORMAT_K3G,
+    OMX_FORMAT_VOB,
+    OMX_FORMAT_AVI,
+    OMX_FORMAT_ASF,
+    OMX_FORMAT_RM,
+    OMX_FORMAT_MPEG_ES,
+    OMX_FORMAT_DIVX,
+    OMX_FORMAT_MPEG_TS,
+    OMX_FORMAT_QT,
+    OMX_FORMAT_M4A,
+    OMX_FORMAT_MP3,
+    OMX_FORMAT_WAVE,
+    OMX_FORMAT_XMF,
+    OMX_FORMAT_AMR,
+    OMX_FORMAT_AAC,
+    OMX_FORMAT_EVRC,
+    OMX_FORMAT_QCP,
+    OMX_FORMAT_SMF,
+    OMX_FORMAT_OGG,
+    OMX_FORMAT_BMP,
+    OMX_FORMAT_JPG,
+    OMX_FORMAT_JPG2000,
+    OMX_FORMAT_MKV,
+    OMX_FORMAT_FLV,
+    OMX_FORMAT_M4V,
+    OMX_FORMAT_F4V,
+    OMX_FORMAT_WEBM,
+    OMX_FORMAT_WEBP,
+    OMX_FORMATKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */ 
+    OMX_FORMATVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
+    OMX_FORMATMax= 0x7FFFFFFF
+} OMX_MEDIACONTAINER_FORMATTYPE;
+
+typedef struct OMX_MEDIACONTAINER_INFOTYPE {
+    OMX_U32  nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_MEDIACONTAINER_FORMATTYPE eFmtType;
+} OMX_MEDIACONTAINER_INFOTYPE;
+
+#define OMX_PORTSTATUS_ACCEPTUSEBUFFER      0x00000001
+#define OMX_PORTSTATUS_ACCEPTBUFFEREXCHANGE 0x00000002
+
+typedef struct OMX_CONFIG_TUNNELEDPORTSTATUSTYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_U32 nTunneledPortStatus;
+} OMX_CONFIG_TUNNELEDPORTSTATUSTYPE;
+
+typedef struct OMX_CONFIG_PORTBOOLEANTYPE{    
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_BOOL bEnabled;
+} OMX_CONFIG_PORTBOOLEANTYPE;
 
 #ifdef __cplusplus
 }

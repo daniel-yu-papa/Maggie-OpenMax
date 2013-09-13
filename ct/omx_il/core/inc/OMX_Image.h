@@ -17,14 +17,16 @@
  * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
  * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
  */
 
-/** 
- * @file OMX_Image.h - OpenMax IL version 1.1.2
+/* 
+ * OMX_Image.h - OpenMax IL version 1.2.0
  * The structures needed by Image components to exchange parameters and 
  * configuration data with the components.
  */
+
 #ifndef OMX_Image_h
 #define OMX_Image_h
 
@@ -61,6 +63,7 @@ typedef enum OMX_IMAGE_CODINGTYPE {
     OMX_IMAGE_CodingPNG,         /**< PNG image format */
     OMX_IMAGE_CodingLZW,         /**< LZW image format */
     OMX_IMAGE_CodingBMP,         /**< Windows Bitmap format */
+    OMX_IMAGE_CodingWEBP,
     OMX_IMAGE_CodingKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */ 
     OMX_IMAGE_CodingVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
     OMX_IMAGE_CodingMax = 0x7FFFFFFF
@@ -109,7 +112,6 @@ typedef enum OMX_IMAGE_CODINGTYPE {
  *                          display sink , otherwise this field is 0x0. 
  */
 typedef struct OMX_IMAGE_PORTDEFINITIONTYPE {
-    OMX_STRING cMIMEType;
     OMX_NATIVE_DEVICETYPE pNativeRender;
     OMX_U32 nFrameWidth; 
     OMX_U32 nFrameHeight;
@@ -319,7 +321,59 @@ typedef struct OMX_IMAGE_PARAM_HUFFMANTTABLETYPE {
     OMX_U8 nHuffmanTable[256];
 }OMX_IMAGE_PARAM_HUFFMANTTABLETYPE;
 
-/** @} */
+typedef enum OMX_FLICKERREJECTIONTYPE {
+    OMX_FlickerRejectionOff = 0,
+    OMX_FlickerRejectionAuto,
+    OMX_FlickerRejection50,
+    OMX_FlickerRejection60,
+    OMX_FlickerRejectionKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */ 
+    OMX_FlickerRejectionVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
+    OMX_FlickerRejectionMax = 0x7FFFFFFF
+}OMX_FLICKERREJECTIONTYPE;
+
+typedef struct OMX_CONFIG_FLICKERREJECTIONTYPE{
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_FLICKERREJECTIONTYPE eFlickerRejection;
+} OMX_CONFIG_FLICKERREJECTIONTYPE;
+
+typedef enum OMX_HISTOGRAMTYPE {
+    OMX_Histogram_Off = 0,
+    OMX_Histogram_RGB,
+    OMX_Histogram_Luma,
+    OMX_Histogram_Chroma,
+    OMX_HistogramKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */ 
+    OMX_HistogramVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
+    OMX_HistogramMax = 0x7FFFFFFF
+}OMX_HISTOGRAMTYPE;
+
+typedef struct OMX_IMAGE_HISTOGRAMTYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_U32 nBins;
+    OMX_HISTOGRAMTYPE eHistType;
+} OMX_IMAGE_HISTOGRAMTYPE;
+
+typedef struct OMX_IMAGE_HISTOGRAMDATATYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_HISTOGRAMTYPE eHistType;
+    OMX_U32 nBins;
+    OMX_U8 data[1];
+} OMX_IMAGE_HISTOGRAMDATATYPE;
+
+typedef struct OMX_IMAGE_HISTOGRAMINFOTYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_HISTOGRAMTYPE eHistType;
+    OMX_U32 nBins;
+    OMX_U16 nBitsPerBin;
+} OMX_IMAGE_HISTOGRAMINFOTYPE;
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

@@ -21,11 +21,12 @@
  *
  */
 
-/** 
- * @file OMX_IVCommon.h - OpenMax IL version 1.1.2
+/*
+ *  OMX_IVCommon.h - OpenMax IL version 1.2.0
  *  The structures needed by Video and Image components to exchange
  *  parameters and configuration data with the components.
  */
+
 #ifndef OMX_IVCommon_h
 #define OMX_IVCommon_h
 
@@ -130,6 +131,25 @@ typedef enum OMX_COLOR_FORMATTYPE {
     OMX_COLOR_Format18BitBGR666,
     OMX_COLOR_Format24BitARGB6666,
     OMX_COLOR_Format24BitABGR6666,
+    OMX_COLOR_Format32bitABGR8888,
+    OMX_COLOR_FormatYVU420Planar,
+    OMX_COLOR_FormatYVU420PackedPlanar,
+    OMX_COLOR_FormatYVU420SemiPlanar,
+    OMX_COLOR_FormatYVU420PackedSemiPlanar,
+    OMX_COLOR_FormatYVU422Planar,
+    OMX_COLOR_FormatYVU422PackedPlanar,
+    OMX_COLOR_FormatYVU422SemiPlanar,
+    OMX_COLOR_FormatYVU422PackedSemiPlanar,
+    OMX_COLOR_Format8bitBGR233,
+    OMX_COLOR_Format12bitBGR444,
+    OMX_COLOR_Format16bitBGRA4444,
+    OMX_COLOR_Format16bitBGRA5551,
+    OMX_COLOR_Format18bitBGRA5661,
+    OMX_COLOR_Format19bitBGRA6661,
+    OMX_COLOR_Format24bitBGRA7881,
+    OMX_COLOR_Format25bitBGRA8881,
+    OMX_COLOR_Format24BitBGRA6666,
+    OMX_COLOR_Format24BitRGBA6666,
     OMX_COLOR_FormatKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */ 
     OMX_COLOR_FormatVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
     OMX_COLOR_FormatMax = 0x7FFFFFFF
@@ -179,6 +199,17 @@ typedef enum OMX_IMAGEFILTERTYPE {
     OMX_ImageFilterAntialias, 
     OMX_ImageFilterDeRing,       
     OMX_ImageFilterSolarize,
+    OMX_ImageFilterPastel,
+    OMX_ImageFilterMosaic,
+    OMX_ImageFilterPosterize,
+    OMX_ImageFilterWhiteboard,
+    OMX_ImageFilterBlackboard,
+    OMX_ImageFilterSepia,
+    OMX_ImageFilterGrayscale,
+    OMX_ImageFilterNatural,
+    OMX_ImageFilterVivid,
+    OMX_ImageFilterWaterColor,
+    OMX_ImageFilterFilm,
     OMX_ImageFilterKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */ 
     OMX_ImageFilterVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
     OMX_ImageFilterMax = 0x7FFFFFFF
@@ -830,41 +861,6 @@ typedef struct OMX_CONFIG_EXPOSUREVALUETYPE {
     OMX_BOOL bAutoSensitivity;	/**< Whether sensitivity is defined automatically */
 } OMX_CONFIG_EXPOSUREVALUETYPE;
 
-/** 
- * Focus region configuration 
- *
- * STRUCT MEMBERS:
- *  nSize           : Size of the structure in bytes
- *  nVersion        : OMX specification version information
- *  nPortIndex      : Port that this structure applies to
- *  bCenter         : Use center region as focus region of interest
- *  bLeft           : Use left region as focus region of interest
- *  bRight          : Use right region as focus region of interest
- *  bTop            : Use top region as focus region of interest
- *  bBottom         : Use bottom region as focus region of interest
- *  bTopLeft        : Use top left region as focus region of interest
- *  bTopRight       : Use top right region as focus region of interest
- *  bBottomLeft     : Use bottom left region as focus region of interest
- *  bBottomRight    : Use bottom right region as focus region of interest
- */
-typedef struct OMX_CONFIG_FOCUSREGIONTYPE {
-    OMX_U32 nSize;
-    OMX_VERSIONTYPE nVersion;
-    OMX_U32 nPortIndex;
-    OMX_BOOL bCenter;
-    OMX_BOOL bLeft;
-    OMX_BOOL bRight;
-    OMX_BOOL bTop;
-    OMX_BOOL bBottom;
-    OMX_BOOL bTopLeft;
-    OMX_BOOL bTopRight;
-    OMX_BOOL bBottomLeft;
-    OMX_BOOL bBottomRight;
-} OMX_CONFIG_FOCUSREGIONTYPE;
-
-/** 
- * Focus Status type 
- */
 typedef enum OMX_FOCUSSTATUSTYPE {
     OMX_FocusStatusOff = 0,
     OMX_FocusStatusRequest,
@@ -876,41 +872,185 @@ typedef enum OMX_FOCUSSTATUSTYPE {
     OMX_FocusStatusMax = 0x7FFFFFFF
 } OMX_FOCUSSTATUSTYPE;
 
-/** 
- * Focus status configuration 
- *
- * STRUCT MEMBERS:
- *  nSize               : Size of the structure in bytes
- *  nVersion            : OMX specification version information
- *  nPortIndex          : Port that this structure applies to
- *  eFocusStatus        : Specifies the focus status
- *  bCenterStatus       : Use center region as focus region of interest
- *  bLeftStatus         : Use left region as focus region of interest
- *  bRightStatus        : Use right region as focus region of interest
- *  bTopStatus          : Use top region as focus region of interest
- *  bBottomStatus       : Use bottom region as focus region of interest
- *  bTopLeftStatus      : Use top left region as focus region of interest
- *  bTopRightStatus     : Use top right region as focus region of interest
- *  bBottomLeftStatus   : Use bottom left region as focus region of interest
- *  bBottomRightStatus  : Use bottom right region as focus region of interest
- */
-typedef struct OMX_PARAM_FOCUSSTATUSTYPE {
+typedef struct OMX_SHARPNESSTYPE{
     OMX_U32 nSize;
     OMX_VERSIONTYPE nVersion;
     OMX_U32 nPortIndex;
-    OMX_FOCUSSTATUSTYPE eFocusStatus;
-    OMX_BOOL bCenterStatus;
-    OMX_BOOL bLeftStatus;
-    OMX_BOOL bRightStatus;
-    OMX_BOOL bTopStatus;
-    OMX_BOOL bBottomStatus;
-    OMX_BOOL bTopLeftStatus;
-    OMX_BOOL bTopRightStatus;
-    OMX_BOOL bBottomLeftStatus;
-    OMX_BOOL bBottomRightStatus;
-} OMX_PARAM_FOCUSSTATUSTYPE;
+    OMX_S32 nSharpness;
+} OMX_SHARPNESSTYPE;
 
-/** @} */
+typedef struct OMX_CONFIG_ZOOMFACTORTYPE { 
+    OMX_U32 nSize; 
+    OMX_VERSIONTYPE nVersion; 
+    OMX_U32 nPortIndex; 
+    OMX_BU32 xZoomFactor; 
+}OMX_CONFIG_ZOOMFACTORTYPE;
+
+typedef enum OMX_IMAGE_LOCKTYPE {
+    OMX_IMAGE_LockOff = 0, 
+    OMX_IMAGE_LockImmediate,
+    OMX_IMAGE_LockAtCapture,
+    OMX_IMAGE_LockKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */ 
+    OMX_IMAGE_LockVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
+    OMX_IMAGE_LockMax = 0x7FFFFFFF
+} OMX_IMAGE_LOCKTYPE;
+
+typedef struct OMX_IMAGE_CONFIG_LOCKTYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_IMAGE_LOCKTYPE eImageLock;
+} OMX_IMAGE_CONFIG_LOCKTYPE;
+
+typedef enum OMX_FOCUSRANGETYPE {
+    OMX_FocusRangeAuto = 0, 
+    OMX_FocusRangeHyperfocal,
+    OMX_FocusRangeNormal,
+    OMX_FocusRangeSuperMacro,
+    OMX_FocusRangeMacro,
+    OMX_FocusRangeInfinity,
+    OMX_FocusRangeKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */ 
+    OMX_FocusRangeVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
+    OMX_FocusRangeMax = 0x7FFFFFFF
+} OMX_FOCUSRANGETYPE;
+
+typedef struct OMX_CONFIG_FOCUSRANGETYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_FOCUSRANGETYPE eFocusRange;
+} OMX_CONFIG_FOCUSRANGETYPE;
+
+typedef enum OMX_IMAGE_FLASHSTATUSTYPE
+{
+    OMX_IMAGE_FlashUnknown 	= 0,
+    OMX_IMAGE_FlashOff,
+    OMX_IMAGE_FlashCharging,
+    OMX_IMAGE_FlashReady,
+    OMX_IMAGE_FlashNotAvailable,
+    OMX_IMAGE_FlashInsufficientCharge,
+    OMX_IMAGE_FlashKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */ 
+    OMX_IMAGE_FlashVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
+    OMX_IMAGE_FlashMax = 0x7FFFFFFF
+} OMX_IMAGE_FLASHSTATUSTYPE;
+              
+typedef struct OMX_IMAGE_CONFIG_FLASHSTATUSTYPE { 
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_IMAGE_FLASHSTATUSTYPE eFlashStatus;
+} OMX_IMAGE_CONFIG_FLASHSTATUSTYPE;
+
+typedef struct OMX_CONFIG_EXTCAPTUREMODETYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_U32 nFrameBefore;
+    OMX_BOOL bPrepareCapture;
+} OMX_CONFIG_EXTCAPTUREMODETYPE;
+
+typedef enum OMX_NDFILTERCONTROLTYPE{
+    OMX_NDFilterOff,
+    OMX_NDFilterOn,
+    OMX_NDFilterAuto,
+    OMX_NDFilterKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */ 
+    OMX_NDFilterVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
+    OMX_NDFilterMax = 0x7FFFFFFF
+} OMX_NDFILTERCONTROLTYPE;
+
+typedef struct OMX_CONFIG_NDFILTERCONTROLTYPE{
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_NDFILTERCONTROLTYPE eNDFilterControl;
+} OMX_CONFIG_NDFILTERCONTROLTYPE;
+
+typedef enum OMX_AFASSISTANTLIGHTTYPE{
+    OMX_AFAssistantLightOff,
+    OMX_AFAssistantLightOn,
+    OMX_AFAssistantLightAuto,
+    OMX_AFAssistantLightKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */ 
+    OMX_AFAssistantLightVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
+    OMX_AFAssistantLightMax = 0x7FFFFFFF
+} OMX_AFASSISTANTLIGHTTYPE;
+
+typedef struct OMX_CONFIG_AFASSISTANTLIGHTTYPE{
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_AFASSISTANTLIGHTTYPE eAFAssistantLight;
+} OMX_CONFIG_AFASSISTANTLIGHTTYPE;
+
+#define OMX_InterlaceFrameProgressive                   0x00000001
+#define OMX_InterlaceInterleaveFrameTopFieldFirst       0x00000002
+#define OMX_InterlaceInterleaveFrameBottomFieldFirst    0x00000004
+#define OMX_InterlaceFrameTopFieldFirst                 0x00000008
+#define OMX_InterlaceFrameBottomFieldFirst              0x00000010
+#define OMX_InterlaceInterleaveFieldTop                 0x00000020
+#define OMX_InterlaceInterleaveFieldBottom              0x00000040
+
+typedef struct OMX_INTERLACEFORMATTYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex; 
+    OMX_U32 nFormat;
+    OMX_TICKS nTimeStamp;
+} OMX_INTERLACEFORMATTYPE;
+
+typedef struct  OMX_DEINTERLACETYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_BOOL bEnable;
+} OMX_DEINTERLACETYPE;
+
+typedef struct  OMX_STREAMINTERLACEFORMATTYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_BOOL bInterlaceFormat;
+    OMX_U32 nInterlaceFormats;
+} OMX_STREAMINTERLACEFORMAT;
+
+typedef struct OMX_FROITYPE {
+    OMX_S32 nRectX;
+    OMX_S32 nRectY;
+    OMX_S32 nRectWidth;
+    OMX_S32 nRectHeight;
+    OMX_S32 xFocusDistance;
+    OMX_FOCUSSTATUSTYPE eFocusStatus;
+} OMX_FROITYPE;
+
+typedef struct OMX_CONFIG_FOCUSREGIONSTATUSTYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_BOOL bFocused;
+    OMX_U32 nMaxFAreas;
+    OMX_U32 nFAreas;
+    OMX_FROITYPE sFROIs[1];
+} OMX_CONFIG_FOCUSREGIONSTATUSTYPE;
+
+typedef enum OMX_FOCUSREGIONCONTROLTYPE {
+    OMX_FocusRegionControlAuto = 0,
+    OMX_FocusRegionControlManual,
+    OMX_FocusRegionControlFacePriority,
+    OMX_FocusRegionControlObjectPriority,
+    OMX_FocusRegionControlKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */
+    OMX_FocusRegionControlVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
+    OMX_FocusRegionControlMax = 0x7FFFFFFF
+} OMX_FOCUSREGIONCONTROLTYPE;
+
+typedef struct OMX_MANUALFOCUSRECTTYPE {
+    OMX_S32 nRectX;
+    OMX_S32 nRectY;
+    OMX_S32 nRectWidth;
+    OMX_S32 nRectHeight;
+} OMX_MANUALFOCUSRECTTYPE;
+
+typedef struct OMX_CONFIG_FOCUSREGIONCONTROLTYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nFAreas;
+    OMX_FOCUSREGIONCONTROLTYPE eFocusRegionsControl;
+    OMX_MANUALFOCUSRECTTYPE sManualFRegions[1];
+} OMX_CONFIG_FOCUSREGIONCONTROLTYPE;
 
 #ifdef __cplusplus
 }

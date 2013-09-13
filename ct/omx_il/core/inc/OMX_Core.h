@@ -21,9 +21,11 @@
  *
  */
 
-/** OMX_Core.h - OpenMax IL version 1.1.2
- *  The OMX_Core header file contains the definitions used by both the
- *  application and the component to access common items.
+/*
+ *  OMX_Core.h - OpenMax IL version 1.2.0
+ *  The OMX_Core header file contains the definitions used by
+ *  both the application and the component to access common
+ *  items.
  */
 
 #ifndef OMX_Core_h
@@ -91,7 +93,7 @@ typedef enum OMX_COMMANDTYPE
 
 typedef enum OMX_STATETYPE
 {
-    OMX_StateInvalid,      /**< component has detected that it's internal data 
+    OMX_StateReserved_0x00000000, /**< component has detected that it's internal data 
                                 structures are corrupted to the point that
                                 it cannot determine it's state properly */
     OMX_StateLoaded,      /**< component has been loaded but has not completed
@@ -141,7 +143,7 @@ typedef enum OMX_ERRORTYPE
 
   /** The component specified did not have a "OMX_ComponentInit" or
       "OMX_ComponentDeInit entry point */
-  OMX_ErrorInvalidComponent = (OMX_S32) 0x80001004,
+  OMX_ErrorReserved_0x80001004 = (OMX_S32) 0x80001004,
 
   /** One or more parameters were not valid */
   OMX_ErrorBadParameter = (OMX_S32) 0x80001005,
@@ -159,7 +161,7 @@ typedef enum OMX_ERRORTYPE
   OMX_ErrorHardware = (OMX_S32) 0x80001009,
 
   /** The component is in the state OMX_StateInvalid */
-  OMX_ErrorInvalidState = (OMX_S32) 0x8000100A,
+  OMX_ErrorReserved_0x8000100A = (OMX_S32) 0x8000100A,
 
   /** Stream is found to be corrupt */
   OMX_ErrorStreamCorrupt = (OMX_S32) 0x8000100B,
@@ -194,19 +196,19 @@ typedef enum OMX_ERRORTYPE
       during the allocation of buffers (on a transition from the LOADED to the IDLE state or
       on a port restart) when it deems that it has waited an unusually long time for the supplier 
       to send it an allocated buffer via a UseBuffer call. */
-  OMX_ErrorPortUnresponsiveDuringAllocation = (OMX_S32) 0x80001014,
+  OMX_ErrorReserved_0x80001014 = (OMX_S32) 0x80001014,
 
   /** A non-supplier port sends this error to the IL client (via the EventHandler callback) 
       during the deallocation of buffers (on a transition from the IDLE to LOADED state or 
       on a port stop) when it deems that it has waited an unusually long time for the supplier 
       to request the deallocation of a buffer header via a FreeBuffer call. */
-  OMX_ErrorPortUnresponsiveDuringDeallocation = (OMX_S32) 0x80001015,
+  OMX_ErrorReserved_0x80001015 = (OMX_S32) 0x80001015,
 
   /** A supplier port sends this error to the IL client (via the EventHandler callback) 
       during the stopping of a port (either on a transition from the IDLE to LOADED 
       state or a port stop) when it deems that it has waited an unusually long time for 
       the non-supplier to return a buffer via an EmptyThisBuffer or FillThisBuffer call. */
-  OMX_ErrorPortUnresponsiveDuringStop = (OMX_S32) 0x80001016,
+  OMX_ErrorReserved_0x80001016 = (OMX_S32) 0x80001016,
 
   /** Attempting a state transtion that is not allowed */
   OMX_ErrorIncorrectStateTransition = (OMX_S32) 0x80001017,
@@ -240,16 +242,30 @@ typedef enum OMX_ERRORTYPE
   OMX_ErrorFormatNotDetected = (OMX_S32) 0x80001020, 
 
   /** The content open operation failed. */
-  OMX_ErrorContentPipeOpenFailed = (OMX_S32) 0x80001021,
+  OMX_ErrorReserved_0x80001021 = (OMX_S32) 0x80001021,
 
   /** The content creation operation failed. */
-  OMX_ErrorContentPipeCreationFailed = (OMX_S32) 0x80001022,
+  OMX_ErrorReserved_0x80001022 = (OMX_S32) 0x80001022,
 
   /** Separate table information is being used */
   OMX_ErrorSeperateTablesUsed = (OMX_S32) 0x80001023,
 
   /** Tunneling is unsupported by the component*/
   OMX_ErrorTunnelingUnsupported = (OMX_S32) 0x80001024,
+
+  OMX_ErrorInvalidMode = (OMX_S32) 0x80001025,
+
+  OMX_ErrorStreamCorruptStalled = (OMX_S32) 0x80001026,
+
+  OMX_ErrorStreamCorruptFatal = (OMX_S32) 0x80001027,
+
+  OMX_ErrorPortsNotConnected = (OMX_S32) 0x80001028,
+
+  OMX_ErrorContentURINotSpecified = (OMX_S32) 0x80001029,
+
+  OMX_ErrorContentURIError = (OMX_S32) 0x8000102A,
+
+  OMX_ErrorCommandCanceled = (OMX_S32) 0x8000102B,
 
   OMX_ErrorKhronosExtensions = (OMX_S32)0x8F000000, /**< Reserved region for introducing Khronos Standard Extensions */ 
   OMX_ErrorVendorStartUnused = (OMX_S32)0x90000000, /**< Reserved region for introducing Vendor Extensions */
@@ -391,6 +407,10 @@ typedef struct OMX_PARAM_COMPONENTROLETYPE {
  * @ingroup buf
  */
 #define OMX_BUFFERFLAG_CODECCONFIG 0x00000080
+#define OMX_BUFFERFLAG_TIMESTAMPINVALID 0x00000100
+#define OMX_BUFFERFLAG_READONLY         0x00000200
+#define OMX_BUFFERFLAG_ENDOFSUBFRAME    0x00000400
+#define OMX_BUFFERFLAG_SKIPFRAME        0x00000800
 
 
 
@@ -452,6 +472,7 @@ typedef enum OMX_EXTRADATATYPE
 {
    OMX_ExtraDataNone = 0,                       /**< Indicates that no more extra data sections follow */        
    OMX_ExtraDataQuantization,                   /**< The data payload contains quantization data */
+   OMX_ExtraDataInterlaceFormat,
    OMX_ExtraDataKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */ 
    OMX_ExtraDataVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
    OMX_ExtraDataMax = 0x7FFFFFFF
@@ -489,6 +510,9 @@ typedef enum OMX_EVENTTYPE
    OMX_EventComponentResumed,     /**< Component resumed due to reacquisition of resources */
    OMX_EventDynamicResourcesAvailable, /**< Component has acquired previously unavailable dynamic resources */
    OMX_EventPortFormatDetected,      /**< Component has detected a supported format. */
+   OMX_EventIndexSettingChanged,
+   OMX_EventPortNeedsDisable,
+   OMX_EventPortNeedsFlush,
    OMX_EventKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */ 
    OMX_EventVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
    OMX_EventMax = 0x7FFFFFFF
@@ -587,9 +611,9 @@ typedef struct OMX_CALLBACKTYPE
         @ingroup buf
      */
     OMX_ERRORTYPE (*FillBufferDone)(
-        OMX_OUT OMX_HANDLETYPE hComponent,
-        OMX_OUT OMX_PTR pAppData,
-        OMX_OUT OMX_BUFFERHEADERTYPE* pBuffer);
+        OMX_IN OMX_HANDLETYPE hComponent,
+        OMX_IN OMX_PTR pAppData,
+        OMX_IN OMX_BUFFERHEADERTYPE* pBuffer);
 
 } OMX_CALLBACKTYPE;
 
@@ -1175,6 +1199,14 @@ typedef struct OMX_TUNNELSETUPTYPE
            pAppPrivate,                                     \
            eglImage)
 
+#define OMX_SetCallbacks(                                   \
+        hComponent,                                         \
+        pCallbacks,                                         \
+        pAppData)                                           \
+    ((OMX_COMPONENTTYPE*)hComponent)->SetCallbacks(         \
+        hComponent,                                         \
+        pCallbacks,                                         \
+        pAppData)
 /** The OMX_Init method is used to initialize the OMX core.  It shall be the
     first call made into OMX and it should only be executed one time without
     an interviening OMX_Deinit call.  
@@ -1354,43 +1386,17 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_SetupTunnel(
     OMX_IN  OMX_U32 nPortOutput,
     OMX_IN  OMX_HANDLETYPE hInput,
     OMX_IN  OMX_U32 nPortInput);
-    
-/** @ingroup cp */
-OMX_API OMX_ERRORTYPE   OMX_GetContentPipe(
-    OMX_OUT OMX_HANDLETYPE *hPipe,
-    OMX_IN OMX_STRING szURI);
 
-/** The OMX_GetComponentsOfRole method will return the number of components that support the given
-    role and (if the compNames field is non-NULL) the names of those components. The call will fail if 
-    an insufficiently sized array of names is supplied. To ensure the array is sufficiently sized the
-    client should:
-        * first call this function with the compNames field NULL to determine the number of component names
-        * second call this function with the compNames field pointing to an array of names allocated 
-          according to the number returned by the first call.
-
-    The core should return from this call within 5 msec.
+OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_TeardownTunnel(
+    OMX_IN  OMX_HANDLETYPE hOutput,
+    OMX_IN  OMX_U32 nPortOutput,
+    OMX_IN  OMX_HANDLETYPE hInput,
+    OMX_IN  OMX_U32 nPortInput);
     
-    @param [in] role
-        This is generic standard component name consisting only of component class 
-        name and the type within that class (e.g. 'audio_decoder.aac').
-    @param [inout] pNumComps
-        This is used both as input and output. 
- 
-        If compNames is NULL, the input is ignored and the output specifies how many components support
-        the given role.
-     
-        If compNames is not NULL, on input it bounds the size of the input structure and 
-        on output, it specifies the number of components string names listed within the compNames parameter.
-    @param [inout] compNames
-        If NULL this field is ignored. If non-NULL this points to an array of 128-byte strings which accepts 
-        a list of the names of all physical components that implement the specified standard component name. 
-        Each name is NULL terminated. numComps indicates the number of names.
-    @ingroup core
- */
-OMX_API OMX_ERRORTYPE OMX_GetComponentsOfRole ( 
-	OMX_IN      OMX_STRING role,
-    OMX_INOUT   OMX_U32 *pNumComps,
-    OMX_INOUT   OMX_U8  **compNames);
+OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_ComponentOfRoleEnum(
+    OMX_OUT OMX_STRING compName,
+    OMX_IN  OMX_STRING role,
+    OMX_IN  OMX_U32 nIndex);
 
 /** The OMX_GetRolesOfComponent method will return the number of roles supported by the given
     component and (if the roles field is non-NULL) the names of those roles. The call will fail if 
@@ -1417,10 +1423,26 @@ OMX_API OMX_ERRORTYPE OMX_GetComponentsOfRole (
         specified component name. numComps indicates the number of names.
     @ingroup core
  */
-OMX_API OMX_ERRORTYPE OMX_GetRolesOfComponent ( 
-	OMX_IN      OMX_STRING compName, 
-    OMX_INOUT   OMX_U32 *pNumRoles,
-    OMX_OUT     OMX_U8 **roles);
+OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_RoleOfComponentEnum(
+    OMX_OUT OMX_STRING role,
+    OMX_IN  OMX_STRING compName,
+    OMX_IN  OMX_U32 nIndex);
+
+typedef struct OMX_CONFIG_CALLBACKREQUESTTYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_INDEXTYPE nIndex;
+    OMX_BOOL bEnable;
+} OMX_CONFIG_CALLBACKREQUESTTYPE;
+
+
+OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_GetCoreInterface(
+    OMX_OUT void ** ppItf,
+    OMX_IN OMX_STRING cExtensionName);
+
+OMX_API void OMX_APIENTRY OMX_FreeCoreInterface(
+    OMX_IN void * pItf);
 
 #ifdef __cplusplus
 }

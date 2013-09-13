@@ -7,11 +7,11 @@
 /*Parent class: Polygon*/
 AllocateClass(Polygon, Base);
 
-int virtual_polygon_get_edges(Polygon thiz){
+/*int virtual_polygon_get_edges(Polygon thiz){
     AGILE_LOGD("[%s]: edges number is %d", __FUNCTION__, thiz->mEdgeNum);
 
     return 0;
-}
+}*/
 
 int Polygon_setColor(Polygon thiz, int colour){
     thiz->mColor = colour;
@@ -35,7 +35,7 @@ char *Polygon_getOwner(Polygon thiz){
 }
 
 static void Polygon_initialize(Class this){
-    PolygonVtableInstance.getEdges = virtual_polygon_get_edges;
+    PolygonVtableInstance.getEdges = NULL; //virtual_polygon_get_edges;
 }
 
 static void Polygon_constructor(Polygon thiz, const void *params){

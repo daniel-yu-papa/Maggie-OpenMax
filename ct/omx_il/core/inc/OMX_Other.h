@@ -21,7 +21,8 @@
  *
  */
 
-/** @file OMX_Other.h - OpenMax IL version 1.1.2
+/*
+ *  OMX_Other.h - OpenMax IL version 1.2.0
  *  The structures needed by Other components to exchange
  *  parameters and configuration data with the components.
  */
@@ -282,17 +283,6 @@ typedef struct OMX_TIME_CONFIG_CLOCKSTATETYPE {
     OMX_U32 nWaitMask;          /**< Mask of OMX_CLOCKPORT values. */
 } OMX_TIME_CONFIG_CLOCKSTATETYPE;
 
-/** Structure representing the reference clock currently being used to
- *  compute media time. IL client uses this config to change or query the 
- *  clock component's active reference clock */
-typedef struct OMX_TIME_CONFIG_ACTIVEREFCLOCKTYPE {
-    OMX_U32 nSize;                  /**< size of the structure in bytes */
-    OMX_VERSIONTYPE nVersion;       /**< OMX specification version information */
-    OMX_TIME_REFCLOCKTYPE eClock;   /**< Reference clock used to compute media time */                        
-} OMX_TIME_CONFIG_ACTIVEREFCLOCKTYPE;
-
-/** Descriptor for setting specifics of power type.
- *  Note: this structure is listed for backwards compatibility. */
 typedef struct OMX_OTHER_CONFIG_POWERTYPE {
     OMX_U32 nSize;            /**< size of the structure in bytes */
     OMX_VERSIONTYPE nVersion; /**< OMX specification version information */
@@ -328,6 +318,20 @@ typedef struct OMX_OTHER_PARAM_PORTFORMATTYPE {
     OMX_U32 nIndex; /**< Indicates the enumeration index for the format from 0x0 to N-1 */
     OMX_OTHER_FORMATTYPE eFormat; /**< Type of data expected for this channel */
 } OMX_OTHER_PARAM_PORTFORMATTYPE; 
+
+typedef struct OMX_TIME_CONFIG_ACTIVEREFCLOCKUPDATETYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_BOOL bEnableRefClockUpdates;
+    OMX_TICKS nRefTimeUpdateInterval;
+} OMX_TIME_CONFIG_ACTIVEREFCLOCKUPDATETYPE;
+
+typedef struct OMX_TIME_CONFIG_RENDERINGDELAYTYPE {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+    OMX_TICKS nRenderingDelay;
+} OMX_TIME_CONFIG_RENDERINGDELAYTYPE;
 
 #ifdef __cplusplus
 }
