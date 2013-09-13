@@ -45,4 +45,43 @@ CLASS(OMXComponentPort_base_t)
 ENDCLASS(OMXComponentPort_base_t)
 
 
+
+
+
+#include "ooc.h"
+#include "OMX_Core.h"
+#include "OMX_Types.h"
+
+DeclareClass(OmxPort, Base);
+
+Virtuals(OmxPort, Base) 
+    OMX_ERRORTYPE (*enablePort)(OmxPort hPort);
+    
+    OMX_ERRORTYPE (*disablePort)(OmxPort hPort);
+
+    OMX_ERRORTYPE (*flushPort)(OmxPort hPort);
+
+    OMX_ERRORTYPE (*markBuffer)(OmxPort hPort, OMX_MARKTYPE * mark);
+
+    OMX_ERRORTYPE (*AllocateBuffer)(
+                  OmxPort hPort,
+                  OMX_BUFFERHEADERTYPE** ppBuffer,
+                  OMX_PTR pAppPrivate,
+                  OMX_U32 nSizeBytes);
+
+    OMX_ERRORTYPE (*FreeBuffer)(
+                  OmxPort hPort,
+                  OMX_BUFFERHEADERTYPE* pBuffer);
+ 
+EndOfVirtuals;
+
+
+ClassMembers(OmxPort, Base, \
+    OMX_PARAM_PORTDEFINITIONTYPE *(*getPortDefinition)(OmxPort hPort); \
+    OMX_ERRORTYPE (*setPortDefinition)(OmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *setDef); \
+)
+    OMX_PARAM_PORTDEFINITIONTYPE mPortDef;
+EndOfClassMembers;
+
+
 #endif
