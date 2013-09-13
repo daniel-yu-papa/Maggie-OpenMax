@@ -297,6 +297,7 @@ static void OmxPort_constructor(OmxComponent thiz, const void *params){
     thiz->setPortDefinition = OmxPort_setPortDefinition;
 
     memset(&thiz->mPortDef, 0, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
-    thiz->mPortDef.
+    thiz->mPortDef.nSize = sizeof(OMX_PARAM_PORTDEFINITIONTYPE);
+    thiz->mPortDef.nVersion.nVersion
 }
 
