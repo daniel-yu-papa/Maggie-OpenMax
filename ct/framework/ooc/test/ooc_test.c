@@ -135,16 +135,23 @@ static void TriangleInGold_destructor(TriangleInGold thiz, TriangleInGoldVtable 
     AGILE_LOGD("[%s]", __FUNCTION__);
 }
 
+TriangleInGold TriangleInGold_Create(int edge, int color){
+    int param[2];
+
+    param[0] = edge;
+    param[1] = color;
+
+    return (TriangleInGold) ooc_new( TriangleInGold, (void *)param);
+}
+
 int main( int argc, char argv[] ){
     TriangleInGold goldTri;
     Triangle tri;
     Polygon parent;
     
-    int param[2] = {3, 1};
-    
     ooc_init_class(TriangleInGold);
 
-    goldTri = (TriangleInGold) ooc_new( TriangleInGold, (void *)param);
+    goldTri = TriangleInGold_Create(3, 1);
 
     goldTri->bidBasePrice(goldTri, 1888);
     TriangleInGoldVirtual(goldTri)->Triangle.sellToCustomer(ooc_cast(goldTri, Triangle), 1000);

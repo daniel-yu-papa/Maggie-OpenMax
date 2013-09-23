@@ -1,303 +1,208 @@
-#include "OMXComponent_port.h"
-
-static OMX_ERRORTYPE OMXComponentPort_base_Destructor(OMXComponentPort_base_t *pPort){
-
-}
-
-static OMX_BOOL allPortsBufferPopulated(OMX_COMPONENTTYPE *comp){
-    OMXComponentPrivateBase_t *priv = (OMXComponentPrivateBase_t *)comp->pComponentPrivate;
-    OMXComponentPort_base_t *portEntry = NULL;
-    List_t *tmpNode = priv->portListHead.next;
-    
-    while (tmpNode != &priv->portListHead){
-        portEntry = (OMXComponentPort_base_t *)list_entry(tmpNode, OMXComponentPort_base_t, node);
-        if (!portEntry->sPortParam.bPopulated)
-            return OMX_FALSE;
-
-        tmpNode = tmpNode->next;
-    }
-    return OMX_TRUE;
-}
-static OMX_ERRORTYPE OMXComponentPort_base_AllocateBuffer(OMXComponentPort_base_t *pPort,
-                                         OMX_BUFFERHEADERTYPE** ppBuffer, 
-                                         OMX_PTR pAppPrivate,
-                                         OMX_U32 nSizeBytes){
-    OMX_U32 bufSize = 0;
-    OMXComponentPort_Buffer_t *portBufNode = NULL;
-    OMXComponentPrivateBase_t *pPrivData_base = NULL;
-    int i;
-
-    if (NULL == pPort){
-        return OMX_ErrorBadParameter;
-    }
-
-    *ppBuffer = (OMX_BUFFERHEADERTYPE *)calloc(1, sizeof(OMX_BUFFERHEADERTYPE));
-    if (NULL == *ppBuffer){
-        AGILE_LOGE("failed to allocate memory");
-        return OMX_ErrorInsufficientResources;
-    }
-
-    if (nSizeBytes < pPort->sPortParam.nBufferSize)
-        bufSize = pPort->sPortParam.nBufferSize;
-    else
-        bufSize = nSizeBytes;
-
-    for(i=0; i < pPort->sPortParam.nBufferCountActual; i++){
-        (*ppBuffer)->pBuffer = (OMX_U8 *)calloc(1, bufSize);
-        if (NULL == (*ppBuffer)->pBuffer){
-            AGILE_LOGE("failed to allocate memory with the size %d", bufSize);
-            goto OutOfMem;
-        }
-
-        OMXComponentSetHeader(*ppBuffer, sizeof(OMX_BUFFERHEADERTYPE));
-
-        (*ppBuffer)->nAllocLen = bufSize;
-        (*ppBuffer)->pAppPrivate = pAppPrivate;
-        if (OMX_DirInput == pPort->sPortParam.eDir){
-            (*ppBuffer)->pInputPortPrivate = pPort;
-            (*ppBuffer)->nInputPortIndex = pPort->sPortParam.nPortIndex;
-        }else{
-            (*ppBuffer)->pOutputPortPrivate = pPort;
-            (*ppBuffer)->nOutputPortIndex = pPort->sPortParam.nPortIndex;
-        }
-
-        portBufNode = (OMXComponentPort_Buffer_t *)calloc(1, sizeof(OMXComponentPort_Buffer_t));
-        if (NULL == portBufNode){
-            AGILE_LOGE("failed to allocate memory for OMXComponentPort_Buffer_t");
-            goto OutOfMem;
-        }
-
-        INIT_LIST(&portBufNode->node);
-        portBufNode->nBufSize = bufSize;
-        portBufNode->pHeader = *ppBuffer;
-
-        list_add(&portBufNode->node, &pPort->portBufListHead);
-
-        pPort->sPortParam.numPortBufAlloc++;
-
-        if (pPort->sPortParam.numPortBufAlloc >= pPort->sPortParam.nBufferCountActual){
-            pPort->sPortParam.bPopulated = OMX_TRUE;
-        }
-    }
-
-    if (pPort->pCompContainer){
-        if (allPortsBufferPopulated(pPort->pCompContainer)){
-            pPrivData_base = (OMXComponentPrivateBase_t *)pPort->pCompContainer->pComponentPrivate;
-            if(pPrivData_base){
-                Mag_SetEvent(pPrivData_base->Event_OMX_AllocateBufferDone);
-            }else{
-                AGILE_LOGE("the comp private data is NULL for port index %d", pPort->sPortParam.nPortIndex);
-                return OMX_ErrorInvalidComponent;
-            }
-        }
-    }else{
-        AGILE_LOGE("the comp container is NULL for port index %d", pPort->sPortParam.nPortIndex);
-        return OMX_ErrorInvalidComponent;
-    }
-    return OMX_ErrorNone;
-    
-OutOfMem:
-    if (*ppBuffer)
-        free(*ppBuffer);
-
-    *ppBuffer = NULL;
-    return OMX_ErrorInsufficientResources;
-}
-
-static OMX_ERRORTYPE OMXComponentPort_base_UseBuffer(OMXComponentPort_base_t *pPort,
-                                    OMX_BUFFERHEADERTYPE** ppBufferHdr,
-                                    OMX_PTR pAppPrivate,
-                                    OMX_U32 nSizeBytes,
-                                    OMX_U8* pBuffer){
-    OMXComponentPort_Buffer_t *portBufNode = NULL;
-    OMXComponentPrivateBase_t *pPrivData_base = NULL;
-    int i;
-
-    if ((NULL == pPort) || (NULL == pBuffer)){
-        return OMX_ErrorBadParameter;
-    }
-
-    *ppBufferHdr = (OMX_BUFFERHEADERTYPE *)calloc(1, sizeof(OMX_BUFFERHEADERTYPE));
-    if (NULL == *ppBufferHdr){
-        AGILE_LOGE("failed to allocate memory");
-        return OMX_ErrorInsufficientResources;
-    }
-
-    (*ppBufferHdr)->pBuffer = pBuffer;
-    OMXComponentSetHeader(*ppBufferHdr, sizeof(OMX_BUFFERHEADERTYPE));
-
-    (*ppBufferHdr)->nAllocLen = nSizeBytes;
-    (*ppBufferHdr)->pAppPrivate = pAppPrivate;
-    if (OMX_DirInput == pPort->sPortParam.eDir){
-        (*ppBufferHdr)->pInputPortPrivate = pPort;
-        (*ppBufferHdr)->nInputPortIndex = pPort->sPortParam.nPortIndex;
-    }else{
-        (*ppBufferHdr)->pOutputPortPrivate = pPort;
-        (*ppBufferHdr)->nOutputPortIndex = pPort->sPortParam.nPortIndex;
-    }
-
-    portBufNode = (OMXComponentPort_Buffer_t *)calloc(1, sizeof(OMXComponentPort_Buffer_t));
-    if (NULL == portBufNode){
-        AGILE_LOGE("failed to allocate memory for OMXComponentPort_Buffer_t");
-        goto OutOfMem;
-    }
-
-    INIT_LIST(&portBufNode->node);
-    portBufNode->nBufSize = nSizeBytes;
-    portBufNode->pHeader = *ppBufferHdr;
-
-    list_add(&portBufNode->node, &pPort->portBufListHead);
-
-    pPort->sPortParam.numPortBufAlloc++;
-
-    if (pPort->sPortParam.numPortBufAlloc >= pPort->sPortParam.nBufferCountActual){
-        pPort->sPortParam.bPopulated = OMX_TRUE;
-    }
-
-    if (pPort->pCompContainer){
-        if (allPortsBufferPopulated(pPort->pCompContainer)){
-            pPrivData_base = (OMXComponentPrivateBase_t *)pPort->pCompContainer->pComponentPrivate;
-            if(pPrivData_base){
-                Mag_SetEvent(pPrivData_base->Event_OMX_UseBufferDone);
-            }else{
-                AGILE_LOGE("the comp private data is NULL for port index %d", pPort->sPortParam.nPortIndex);
-                return OMX_ErrorInvalidComponent;
-            }
-        }
-    }else{
-        AGILE_LOGE("the comp container is NULL for port index %d", pPort->sPortParam.nPortIndex);
-        return OMX_ErrorInvalidComponent;
-    }
-    
-    return OMX_ErrorNone;
-    
-OutOfMem:
-    if (*ppBufferHdr)
-        free(*ppBufferHdr);
-
-    *ppBufferHdr = NULL;
-    return OMX_ErrorInsufficientResources;
-}
-
-static OMX_ERRORTYPE OMXComponentPort_base_FreeBuffer(OMXComponentPort_base_t *pPort,
-                                     OMX_U32 nPortIndex,
-                                     OMX_BUFFERHEADERTYPE* pBuffer){
-
-}
-
-/*void OMXComponentPort_base_BufferManager(void *msg, void *priv){
-    AGILE_LOGE("Should be overrided by sub port method. Wrong be there");
-}*/
-
-OMX_ERRORTYPE OMXComponentPort_base_Constructor(OMX_IN OMX_COMPONENTTYPE *pCompContainer,
-                                                              OMX_IN OMX_U32 nPortIndex,
-                                                              OMX_IN OMX_BOOL isInput,
-                                                              OMX_OUT OMXComponentPort_base_t **ppCompPort){
-    OMXComponentPrivateBase_t *pPriv = NULL;
-    
-    if (NULL == pCompContainer){
-        return OMX_ErrorBadParameter;
-    }
-
-    if(NULL == *ppCompPort){
-        *ppCompPort = (OMXComponentPort_base_t *)calloc(1, sizeof(OMXComponentPort_base_t));
-        if (NULL == *ppCompPort){
-            AGILE_LOGE("failed to allocate memory for OMXComponentPort_base_t");
-            return OMX_ErrorInsufficientResources;
-        }
-    }
-
-    if (MAG_ErrNone != Mag_MsgChannelCreate(&(*ppCompPort)->bufferMgrHandle)){
-        AGILE_LOGE("failed to create MsgChannel!");
-        return OMX_ErrorInsufficientResources;
-    }
-    
-    (*ppCompPort)->pCompContainer = pCompContainer;
-    INIT_LIST(&(*ppCompPort)->portBufListHead);
-    
-    OMXComponentSetHeader(&(*ppCompPort)->sPortParam, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
-    (*ppCompPort)->sPortParam.nPortIndex = nPortIndex;
-    (*ppCompPort)->sPortParam.eDir = (isInput == OMX_TRUE) ? OMX_DirInput : OMX_DirOutput;
-    (*ppCompPort)->sPortParam.nBufferCountActual = DEFAULT_BUFFER_NUM_PER_PORT;
-    (*ppCompPort)->sPortParam.nBufferCountMin = DEFAULT_MIN_BUFFER_NUM_PER_PORT;
-    (*ppCompPort)->sPortParam.nBufferSize = DEFAULT_BASE_PORT_BUF_SIZE;
-    (*ppCompPort)->sPortParam.bEnabled = OMX_TRUE;
-    (*ppCompPort)->sPortParam.bPopulated = OMX_FALSE;
-
-    (*ppCompPort)->PortDestructor = OMXComponentPort_base_Destructor;
-    (*ppCompPort)->Port_AllocateBuffer = OMXComponentPort_base_AllocateBuffer;
-    (*ppCompPort)->Port_UseBuffer = OMXComponentPort_base_UseBuffer;
-    (*ppCompPort)->Port_FreeBuffer = OMXComponentPort_base_FreeBuffer;
-    
-    pPriv = (OMXComponentPrivateBase_t *)pCompContainer->pComponentPrivate;
-    list_add_tail(&(*ppCompPort)->node, &pPriv->portListHead);
-    
-    return OMX_ErrorNone;
-}
-
-
-/*******************************************/
-
 #include "OMXPort_base.h"
 
-AllocateClass(OmxPort, Base);
+AllocateClass(MagOmxPort, Base);
 
 
-OMX_ERRORTYPE virtual_OmxPort_enablePort(OmxPort hPort){
-
-}
-
-OMX_ERRORTYPE virtual_OmxPort_disablePort(OmxPort hPort){
+OMX_ERRORTYPE virtual_MagOmxPort_enablePort(MagOmxPort hPort){
 
 }
 
-OMX_ERRORTYPE virtual_OmxPort_flushPort(OmxPort hPort){
+OMX_ERRORTYPE virtual_MagOmxPort_disablePort(MagOmxPort hPort){
 
 }
 
-OMX_ERRORTYPE virtual_OmxPort_markBuffer(OmxPort hPort, OMX_MARKTYPE * mark){
+OMX_ERRORTYPE virtual_MagOmxPort_flushPort(MagOmxPort hPort){
 
 }
 
-OMX_ERRORTYPE virtual_OmxPort_AllocateBuffer(
-                  OmxPort hPort,
-                  OMX_BUFFERHEADERTYPE** ppBuffer,
+OMX_ERRORTYPE virtual_MagOmxPort_markBuffer(MagOmxPort hPort, OMX_MARKTYPE * mark){
+
+}
+
+OMX_ERRORTYPE virtual_MagOmxPort_AllocateBuffer(
+                  MagOmxPort hPort,
+                  OMX_BUFFERHEADERTYPE** ppBufferHdr,
                   OMX_PTR pAppPrivate,
                   OMX_U32 nSizeBytes){
+    OMX_BUFFERHEADERTYPE *pBuf          = (OMX_BUFFERHEADERTYPE *)mag_mallocz(sizeof(OMX_BUFFERHEADERTYPE));
+    OMXComponentPort_Buffer_t *pBufNode = (OMXComponentPort_Buffer_t *)mag_mallocz(sizeof(OMXComponentPort_Buffer_t));
+    OMX_U8 *pMem = NULL;
+    
+    if((pBuf == NULL) ||
+       (pBufNode == NULL)){
+       AGILE_LOGE("Failed to allocate buffers: pBuf[0x%x], pBufNode[0x%x]", pBuf, pBufNode);
+       if (pBuf)
+           mag_freep(pBuf);
+       if (pBufNode)
+           mag_freep(pBufNode);
+       return OMX_ErrorInsufficientResources;
+    }
+    
+    Mag_AcquireMutex(hPort->mhMutex);
+    
+    if (NULL == hPort->mBufferPool)
+        hPort->mBufferPool = magMemPoolCreate(hPort->mPortDef.nBufferSize * hPort->mPortDef.nBufferCountActual);
 
+    pMem = (OMX_U8 *)magMemPoolGetBuffer(hPort->mBufferPool, nSizeBytes);
+
+    if (pMem == NULL){
+        AGILE_LOGE("Failed to allocate memory(%d bytes)", nSizeBytes);
+        Mag_ReleaseMutex(hPort->mhMutex);
+        return OMX_ErrorInsufficientResources;
+    }
+    
+    MagOmx_Common_InitHeader((OMX_U8 *)pBuf, sizeof(OMX_BUFFERHEADERTYPE));
+    pBuf->pBuffer            = pMem;
+    pBuf->nAllocLen          = nSizeBytes;
+    pBuf->nFilledLen         = 0;
+    pBuf->nOffset            = 0;
+    pBuf->pAppPrivate        = pAppPrivate;
+    pBuf->pPlatformPrivate   = NULL;
+    pBuf->pInputPortPrivate  = hPort->mPortDef.eDir == OMX_DirInput  ? hPort : NULL;
+    pBuf->pOutputPortPrivate = hPort->mPortDef.eDir == OMX_DirOutput ? hPort : NULL;
+    pBuf->nInputPortIndex    = hPort->mPortDef.eDir == OMX_DirInput  ? hPort->mPortDef.nPortIndex : 0;
+    pBuf->nOutputPortIndex   = hPort->mPortDef.eDir == OMX_DirOutput ? hPort->mPortDef.nPortIndex : 0;
+    
+    pBufNode->isAllocator  = OMX_TRUE;
+    pBufNode->pHeader      = pBuf;
+    INIT_LIST(&pBufNode->node);
+    
+    list_add_tail(&pBufNode->node, &hPort->mBufListHeader);
+    hPort->mNumAssignedBuffers++
+
+    if (hPort->mNumAssignedBuffers == hPort->mPortDef.nBufferCountActual)
+        hPort->mPortDef.bPopulated = OMX_TRUE;
+    
+    *ppBufferHdr = pBuf;
+    
+    Mag_ReleaseMutex(hPort->mhMutex);
+    return OMX_ErrorNone;
 }
 
-OMX_ERRORTYPE virtual_OmxPort_FreeBuffer(
-                  OmxPort hPort,
+OMX_ERRORTYPE virtual_MagOmxPort_UseBuffer(
+                   MagOmxPort hPort,
+                   OMX_BUFFERHEADERTYPE **ppBufferHdr,
+                   OMX_PTR pAppPrivate,
+                   OMX_U32 nSizeBytes,
+                   OMX_U8 *pBuffer){
+    OMX_BUFFERHEADERTYPE *pBuf          = (OMX_BUFFERHEADERTYPE *)mag_mallocz(sizeof(OMX_BUFFERHEADERTYPE));
+    OMXComponentPort_Buffer_t *pBufNode = (OMXComponentPort_Buffer_t *)mag_mallocz(sizeof(OMXComponentPort_Buffer_t));
+    
+    if((pBuf == NULL) ||
+       (pBufNode == NULL)){
+        return OMX_ErrorInsufficientResources;
+    }
+    Mag_AcquireMutex(hPort->mhMutex);
+    
+    MagOmx_Common_InitHeader((OMX_U8 *)pBuf, sizeof(OMX_BUFFERHEADERTYPE));
+    pBuf->pBuffer            = pBuffer;
+    pBuf->nAllocLen          = nSizeBytes;
+    pBuf->nFilledLen         = 0;
+    pBuf->nOffset            = 0;
+    pBuf->pAppPrivate        = pAppPrivate;
+    pBuf->pPlatformPrivate   = NULL;
+    pBuf->pInputPortPrivate  = hPort->mPortDef.eDir == OMX_DirInput  ? hPort : NULL;
+    pBuf->pOutputPortPrivate = hPort->mPortDef.eDir == OMX_DirOutput ? hPort : NULL;
+    pBuf->nInputPortIndex    = hPort->mPortDef.eDir == OMX_DirInput  ? hPort->mPortDef.nPortIndex : 0;
+    pBuf->nOutputPortIndex   = hPort->mPortDef.eDir == OMX_DirOutput ? hPort->mPortDef.nPortIndex : 0;
+    
+    pBufNode->isAllocator  = OMX_FALSE;
+    pBufNode->pHeader      = pBuf;
+    INIT_LIST(&pBufNode->node);
+    
+    list_add_tail(&pBufNode->node, &hPort->mBufListHeader);
+    hPort->mNumAssignedBuffers++
+
+    if (hPort->mNumAssignedBuffers == hPort->mPortDef.nBufferCountActual)
+        hPort->mPortDef.bPopulated = OMX_TRUE;
+    
+    *ppBufferHdr = pBuf;
+    
+    Mag_ReleaseMutex(hPort->mhMutex);
+    return OMX_ErrorNone;
+}
+
+OMX_ERRORTYPE virtual_MagOmxPort_FreeBuffer(
+                  MagOmxPort hPort,
                   OMX_BUFFERHEADERTYPE* pBuffer){
+    List_t *tmpNode = hPort->mBufListHeader.next;
+    OMXComponentPort_Buffer_t  *pBufNode;
+    
+    while (tmpNode != &hPort->mBufListHeader){
+        pBufNode = (OMXComponentPort_Buffer_t *)list_entry(tmpNode, OMXComponentPort_Buffer_t, node);
+        if (pBufNode->pHeader == pBuffer){
+            if (pBufNode->isAllocator)
+                magMemPoolPutBuffer(hPort->mBufferPool, pBuffer->pBuffer);
 
+            mag_freep(pBuffer);
+            list_del(&pBufNode->node);
+            mag_freep(pBufNode);
+
+            return OMX_ErrorNone;
+        }
+
+        tmpNode = tmpNode->next;
+    }    
+    
+    return OMX_ErrorBadParameter;
 }
 
-OMX_PARAM_PORTDEFINITIONTYPE *OmxPort_getPortDefinition(OmxPort hPort){
-
+void MagOmxPort_getPortDefinition(MagOmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *getDef){
+    Mag_AcquireMutex(hPort->mhMutex);
+    memcpy(getDef, &hPort->mPortDef, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
+    Mag_ReleaseMutex(hPort->mhMutex);
 }
 
-OMX_ERRORTYPE OmxPort_setPortDefinition(OmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *setDef){
-
+void MagOmxPort_setPortDefinition(MagOmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *setDef){
+    Mag_AcquireMutex(hPort->mhMutex);
+    memcpy(&hPort->mPortDef, setDef, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
+    Mag_ReleaseMutex(hPort->mhMutex);
 }
 
 
 /*Class Constructor/Destructor*/
-static void OmxPort_initialize(Class this){
-    OmxPortVtableInstance.enablePort      = virtual_OmxPort_enablePort;
-    OmxPortVtableInstance.disablePort     = virtual_OmxPort_disablePort;
-    OmxPortVtableInstance.flushPort       = virtual_OmxPort_flushPort;
-    OmxPortVtableInstance.markBuffer      = virtual_OmxPort_markBuffer;
-    OmxPortVtableInstance.AllocateBuffer  = virtual_OmxPort_AllocateBuffer;
-    OmxPortVtableInstance.FreeBuffer      = virtual_OmxPort_FreeBuffer;
+static void MagOmxPort_initialize(Class this){
+    MagOmxPortVtableInstance.enablePort      = virtual_MagOmxPort_enablePort;
+    MagOmxPortVtableInstance.disablePort     = virtual_MagOmxPort_disablePort;
+    MagOmxPortVtableInstance.flushPort       = virtual_MagOmxPort_flushPort;
+    MagOmxPortVtableInstance.markBuffer      = virtual_MagOmxPort_markBuffer;
+    MagOmxPortVtableInstance.AllocateBuffer  = virtual_MagOmxPort_AllocateBuffer;
+    MagOmxPortVtableInstance.UseBuffer       = virtual_MagOmxPort_UseBuffer;
+    MagOmxPortVtableInstance.FreeBuffer      = virtual_MagOmxPort_FreeBuffer;
 }
 
-static void OmxPort_constructor(OmxComponent thiz, const void *params){
-    thiz->getPortDefinition = OmxPort_getPortDefinition;
-    thiz->setPortDefinition = OmxPort_setPortDefinition;
+static void MagOmxPort_constructor(MagOmxPort thiz, const void *params){
+    thiz->getPortDefinition = MagOmxPort_getPortDefinition;
+    thiz->setPortDefinition = MagOmxPort_setPortDefinition;
 
     memset(&thiz->mPortDef, 0, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
-    thiz->mPortDef.nSize = sizeof(OMX_PARAM_PORTDEFINITIONTYPE);
-    thiz->mPortDef.nVersion.nVersion
+    MagOmx_Common_InitHeader((OMX_U8 *)&thiz->mPortDef, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
+    Mag_CreateMutex(&thiz->mhMutex);
+    thiz->mNumAssignedBuffers = 0;
+    
+    thiz->mPortDef.nBufferCountActual = OMX_PORT_MIN_BUFFER_NUM;
+    thiz->mPortDef.nBufferCountMin    = OMX_PORT_MIN_BUFFER_NUM;
+    thiz->mPortDef.nBufferSize        = OMX_PORT_BUFFER_SIZE;
+    thiz->mPortDef.bEnabled           = OMX_TRUE;
+    thiz->mPortDef.bPopulated         = OMX_FALSE;
+    thiz->mPortDef.bBuffersContiguous = OMX_FALSE;
+    thiz->mPortDef.nBufferAlignment   = 4;
+
+    thiz->mPortDef.nPortIndex         = *((OMX_U32 *)params + 0);
+    thiz->mPortDef.eDir               = *((OMX_U32 *)params + 1) == OMX_FALSE ? OMX_DirOutput : OMX_DirInput;
+    
+    INIT_LIST(&thiz->mBufListHeader);
+
+    thiz->mBufferPool = magMemPoolCreate(thiz->mPortDef.nBufferSize * thiz->mPortDef.nBufferCountActual);
 }
+
+MagOmxPort MagOmxPort_Create(OMX_U32 nPortIndex, OMX_BOOL isInput){
+    OMX_U32 param[2];
+
+    param[0] = nPortIndex;
+    param[1] = isInput;
+
+    return (MagOmxPort) ooc_new( MagOmxPort, (void *)param);
+}
+
 
