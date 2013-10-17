@@ -5,16 +5,21 @@
 #include "OMX_Core.h"
 #include "OMX_Types.h"
 
+/*specifies the minimum number of buffers that the port requires*/
+#define OMX_PORT_MIN_BUFFER_NUM  2
+
+#define OMX_PORT_BUFFER_SIZE     (8 * 1024)
+
 typedef struct {
     List_t node;
     OMX_BUFFERHEADERTYPE *pHeader;
     OMX_BOOL isAllocator;
 }OMXComponentPort_Buffer_t;
 
-/*specifies the minimum number of buffers that the port requires*/
-#define OMX_PORT_MIN_BUFFER_NUM  2
-
-#define OMX_PORT_BUFFER_SIZE     (8 * 1024)
+typedef struct{
+    OMX_U32 msg_idx;
+    OMX_BUFFERHEADERTYPE *pBufHeader;
+}BufferMsg_t;
 
 DeclareClass(MagOmxPort, Base);
 
@@ -43,20 +48,29 @@ Virtuals(MagOmxPort, Base)
                    OMX_PTR pAppPrivate,
                    OMX_U32 nSizeBytes,
                    OMX_U8 *pBuffer);
+
+    /*the pure virtual function: must be overrided by subclass*/
+    OMX_ERRORTYPE (*ProcessBuffer)(
+                   MagOmxPort hPort,
+                   OMX_BUFFERHEADERTYPE *pBufferHdr);
 EndOfVirtuals;
 
 
 ClassMembers(MagOmxPort, Base, \
     void (*getPortDefinition)(MagOmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *getDef); \
     void (*setPortDefinition)(MagOmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *setDef); \
+    OMX_ERRORTYPE (*sendBuffer)(MagOmxPort hPort, OMX_BUFFERHEADERTYPE* pBuffer); \
 )
     OMX_PARAM_PORTDEFINITIONTYPE mPortDef;
-    MagMutexHandle mhMutex;
+    MagMutexHandle               mhMutex;
 
-    List_t         mBufListHeader;
-    OMX_U32        mNumAssignedBuffers;
+    List_t                       mBufListHeader;
+    OMX_U32                      mNumAssignedBuffers;
 
-    magMempoolHandle mBufferPool;
+    magMempoolHandle             mBufferPool;
+    MagMsgChannelHandle          mhBufMsgChannel;
+    OMX_U32                      mNumBufReceived;
+    
 EndOfClassMembers;
 
 

@@ -147,6 +147,15 @@ OMX_ERRORTYPE virtual_MagOmxPort_FreeBuffer(
     return OMX_ErrorBadParameter;
 }
 
+OMX_ERRORTYPE virtual_MagOmxPort_ProcessBuffer(
+                   MagOmxPort hPort,
+                   OMX_BUFFERHEADERTYPE *pBufferHdr){
+    MAG_ASSERT("the pure virtual function: must be overrided");
+    return OMX_ErrorNone;
+}
+
+
+
 void MagOmxPort_getPortDefinition(MagOmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *getDef){
     Mag_AcquireMutex(hPort->mhMutex);
     memcpy(getDef, &hPort->mPortDef, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
@@ -159,6 +168,22 @@ void MagOmxPort_setPortDefinition(MagOmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE
     Mag_ReleaseMutex(hPort->mhMutex);
 }
 
+OMX_ERRORTYPE MagOmxPort_sendBuffer(MagOmxPort hPort, OMX_BUFFERHEADERTYPE* pBuffer){
+    BufferMsg_t msg;
+
+    msg.msg_idx    = ++hPort->mNumBufReceived;
+    msg.pBufHeader = pBuffer;
+    Mag_MsgChannelSend(hPort->mhBufMsgChannel, &msg, sizeof(BufferMsg_t));
+    return OMX_ErrorNone;
+}
+
+static void MagOmxPort_bufferProcessingEntry(void *msg, void *priv){
+    BufferMsg_t *pBufMsg = (BufferMsg_t *)msg;
+    MagOmxPort  port    = (MagOmxPort)priv;
+
+    port->ProcessBuffer(port, pBufMsg->pBufHeader);
+}
+
 
 /*Class Constructor/Destructor*/
 static void MagOmxPort_initialize(Class this){
@@ -169,16 +194,21 @@ static void MagOmxPort_initialize(Class this){
     MagOmxPortVtableInstance.AllocateBuffer  = virtual_MagOmxPort_AllocateBuffer;
     MagOmxPortVtableInstance.UseBuffer       = virtual_MagOmxPort_UseBuffer;
     MagOmxPortVtableInstance.FreeBuffer      = virtual_MagOmxPort_FreeBuffer;
+    MagOmxPortVtableInstance.ProcessBuffer   = virtual_MagOmxPort_ProcessBuffer;
 }
 
 static void MagOmxPort_constructor(MagOmxPort thiz, const void *params){
+    MAG_ASSERT(ooc_isInitialized(MagOmxPort));
+    
     thiz->getPortDefinition = MagOmxPort_getPortDefinition;
     thiz->setPortDefinition = MagOmxPort_setPortDefinition;
-
+    thiz->sendBuffer        = MagOmxPort_sendBuffer;
+    
     memset(&thiz->mPortDef, 0, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
     MagOmx_Common_InitHeader((OMX_U8 *)&thiz->mPortDef, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
     Mag_CreateMutex(&thiz->mhMutex);
     thiz->mNumAssignedBuffers = 0;
+    thiz->mNumBufReceived = 0;
     
     thiz->mPortDef.nBufferCountActual = OMX_PORT_MIN_BUFFER_NUM;
     thiz->mPortDef.nBufferCountMin    = OMX_PORT_MIN_BUFFER_NUM;
@@ -194,6 +224,9 @@ static void MagOmxPort_constructor(MagOmxPort thiz, const void *params){
     INIT_LIST(&thiz->mBufListHeader);
 
     thiz->mBufferPool = magMemPoolCreate(thiz->mPortDef.nBufferSize * thiz->mPortDef.nBufferCountActual);
+    Mag_MsgChannelCreate(&thiz->mhBufMsgChannel);
+
+    Mag_MsgChannelReceiverAttach(thiz->mhBufMsgChannel, MagOmxPort_bufferProcessingEntry, thiz);
 }
 
 MagOmxPort MagOmxPort_Create(OMX_U32 nPortIndex, OMX_BOOL isInput){

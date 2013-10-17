@@ -1,496 +1,16 @@
-#include <errno.h>
-#include <stdlib.h>
 
-#include "OMXComponent_base.h"
-#include "OMXComponent_msg.h"
+AllocateClass(MagOmxComponent, Base);
 
-static OMXComponentPort_base_t *OMXComponent_Priv_GetPort(OMX_IN OMX_COMPONENTTYPE *comp, OMX_IN OMX_U32 nPortIndex){
-    OMXComponentPrivateBase_t *priv = (OMXComponentPrivateBase_t *)comp->pComponentPrivate;
-    OMXComponentPort_base_t *portEntry = NULL;
-    List_t *tmpNode = priv->portListHead.next;
-    
-    while (tmpNode != &priv->portListHead){
-        portEntry = (OMXComponentPort_base_t *)list_entry(tmpNode, OMXComponentPort_base_t, node);
-        if (nPortIndex == portEntry->sPortParam.nPortIndex)
-            return portEntry;
-
-        tmpNode = tmpNode->next;
-    }
-    return NULL;
-}
-
-static OMX_ERRORTYPE OMXComponent_AllocateBuffer(
-                        OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_INOUT OMX_BUFFERHEADERTYPE** pBuffer,
-                        OMX_IN OMX_U32 nPortIndex,
-                        OMX_IN OMX_PTR pAppPrivate,
-                        OMX_IN OMX_U32 nSizeBytes){
-    OMX_ERRORTYPE ret;
-    
-    if (NULL == hComponent)
-        return OMX_ErrorBadParameter;
-    
-    OMXComponentPort_base_t *port = OMXComponent_Priv_GetPort((OMX_COMPONENTTYPE *)hComponent, nPortIndex);
-
-    if (NULL == port){
-        AGILE_LOGE("failed to get the port in the index %d", nPortIndex);
-        return OMX_ErrorBadPortIndex;
-    }
-
-    ret = OMXComponentPort_base_AllocateBuffer(port, pBuffer, pAppPrivate, nSizeBytes);
-
-    return ret;
-}
-
-static OMX_ERRORTYPE OMXComponent_DeInit(
-                        OMX_IN OMX_HANDLETYPE hComponent){
-
-}
-
-static OMX_ERRORTYPE OMXComponent_RoleEnum(
-                        OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_OUT OMX_STRING cRole,
-                        OMX_IN OMX_U32 nIndex){
-
-}
-
-static OMX_ERRORTYPE OMXComponent_TunnelRequest(
-                        OMX_IN OMX_HANDLETYPE hComp,
-                        OMX_IN OMX_U32 nPort,
-                        OMX_IN OMX_HANDLETYPE hTunneledComp,
-                        OMX_IN OMX_U32 nTunneledPort,
-                        OMX_INOUT OMX_TUNNELSETUPTYPE* pTunnelSetup){
-
-}
-
-static OMX_ERRORTYPE OMXComponent_EmptyThisBuffer(
-                        OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_IN OMX_BUFFERHEADERTYPE* pBuffer){
-
-}
-
-static OMX_ERRORTYPE OMXComponent_FillThisBuffer(
-                        OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_IN OMX_BUFFERHEADERTYPE* pBuffer){
-    portBufferOperationMsg_t msg;
-    OMXComponentPort_base_t *port;
-    OMX_DIRTYPE direction;
-    
-    port = getPortFromBufferHeader(pBuffer, &direction);
-
-    if(OMX_DirOutput != direction){
-        AGILE_LOGE("The FillThisBuffer action could only be done with output port(dir: %d)!", direction);
-        return OMX_ErrorPortsNotCompatible;
-    }
-    msg.action = DO_FILL_BUFFER;
-    msg.hComponent = hComponent;
-    msg.pBuffer = pBuffer;
-    Mag_MsgChannelSend(port->bufferMgrHandle, &msg, sizeof(portBufferOperationMsg_t));
-}
-
-static OMX_ERRORTYPE OMXComponent_FreeBuffer(
-                        OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_IN OMX_U32 nPortIndex,
-                        OMX_IN OMX_BUFFERHEADERTYPE* pBuffer){
-
-}
-
-static OMX_ERRORTYPE OMXComponent_GetVersion(
-                        OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_OUT OMX_STRING pComponentName,
-                        OMX_OUT OMX_VERSIONTYPE* pComponentVersion,
-                        OMX_OUT OMX_VERSIONTYPE* pSpecVersion){
-
-}
-
-static OMX_ERRORTYPE OMXComponent_GetConfig(
-                        OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_IN OMX_INDEXTYPE nIndex,
-                        OMX_INOUT OMX_PTR pComponentConfigStructure){
-    OMXComponentPrivateBase_t *pPrivData_base = NULL;
-    OMX_COMPONENTTYPE *pCompObj = NULL;
-    
-    if ((NULL == hComponent) || (NULL == pComponentConfigStructure)){
-        return OMX_ErrorBadParameter;
-    }
-
-    pCompObj = (OMX_COMPONENTTYPE *)hComponent;
-    pPrivData_base = (OMXComponentPrivateBase_t *)pCompObj->pComponentPrivate;
-
-    if (NULL == pPrivData_base)
-        return OMX_ErrorInsufficientResources;
-
-    if (NULL == pPrivData_base->subComp_callbacks)
-        return OMX_ErrorInsufficientResources;
-
-    if (NULL == pPrivData_base->subComp_callbacks->getConfig)
-        return OMX_ErrorNotImplemented;
-
-    return pPrivData_base->subComp_callbacks->getConfig(nIndex, pComponentConfigStructure);
-}
-
-static OMX_ERRORTYPE OMXComponent_GetExtensionIndex(
-                        OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_IN OMX_STRING cParameterName,
-                        OMX_OUT OMX_INDEXTYPE* pIndexType){
-
-}
-
-static OMX_ERRORTYPE OMXComponent_GetParameter(
-                        OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_IN OMX_INDEXTYPE nParamIndex,
-                        OMX_INOUT OMX_PTR pComponentParameterStructure){
-    OMXComponentPrivateBase_t *pPrivData_base = NULL;
-    OMX_COMPONENTTYPE *pCompObj = NULL;
-    
-    if ((NULL == hComponent) || (NULL == pComponentParameterStructure)){
-        return OMX_ErrorBadParameter;
-    }
-
-    pCompObj = (OMX_COMPONENTTYPE *)hComponent;
-    pPrivData_base = (OMXComponentPrivateBase_t *)pCompObj->pComponentPrivate;
-
-    if (NULL == pPrivData_base)
-        return OMX_ErrorInsufficientResources;
-
-    if (NULL == pPrivData_base->subComp_callbacks)
-        return OMX_ErrorInsufficientResources;
-
-    if (NULL == pPrivData_base->subComp_callbacks->getParameter)
-        return OMX_ErrorNotImplemented;
-
-    return pPrivData_base->subComp_callbacks->getParameter(nParamIndex, pComponentParameterStructure);
-
-}
-
-static OMX_ERRORTYPE OMXComponent_GetState(
-                        OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_OUT OMX_STATETYPE* pState){
-
-}
-
-/*Running in the thread space*/
-void cmdProcessEntry(void *msg, void *priv){
-    OMXCommandMsg_t *pCmdMsg = (OMXCommandMsg_t *)msg;
-    OMX_ERRORTYPE ret;
-    OMXComponentPrivateBase_t *pPrivData_base = NULL;
-    OMX_COMPONENTTYPE *comp = (OMX_COMPONENTTYPE *)pCmdMsg->hComp;
-    pPrivData_base = (OMXComponentPrivateBase_t *)comp->pComponentPrivate;
-    
-    switch (pCmdMsg->Cmd)
-    {
-        case OMX_CommandStateSet :
-            ret = OMX_StateTransition_Process((OMX_COMPONENTTYPE *)pCmdMsg->hComp, pCmdMsg->Cmd);
-
-            if (pPrivData_base->callbacks.EventHandler){
-                if (OMX_ErrorNone == ret){
-                    pPrivData_base->callbacks.EventHandler(pCmdMsg->hComp, 
-                                                           comp->pApplicationPrivate, 
-                                                           OMX_EventCmdComplete, 
-                                                           OMX_CommandStateSet,
-                                                           pCmdMsg->nParam,
-                                                           pCmdMsg->pCmdData);
-                }else{
-                    pPrivData_base->callbacks.EventHandler(pCmdMsg->hComp, 
-                                                           comp->pApplicationPrivate, 
-                                                           OMX_EventError, 
-                                                           ret,
-                                                           0,
-                                                           NULL);
-                }
-            }else{
-                AGILE_LOGE("the callback event handler is NULL.");
-            }
-            break;
-
-        case OMX_CommandPortDisable :
-            //port_disable(cmd);
-            //goto bail;
-
-        case OMX_CommandPortEnable :
-            //port_enable(cmd);
-            //goto bail;
-
-        case OMX_CommandFlush :
-            //port_flush(cmd);
-            //goto bail;
-
-        case OMX_CommandMarkBuffer :
-
-        default :
-            AGILE_LOGE("unhandled command : %d\n", pCmdMsg->Cmd);
-            break;
-    }
-
-}
-
-static OMX_ERRORTYPE OMXComponent_SendCommand(
-                        OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_IN OMX_COMMANDTYPE Cmd,
-                        OMX_IN OMX_U32 nParam,
-                        OMX_IN OMX_PTR pCmdData){
-                        
-    OMXCommandMsg_t *msg;
-    OMXComponentPrivateBase_t *pPrivData_base = NULL;
-    OMX_COMPONENTTYPE *pCompObj = NULL;
-    
-    if (NULL == hComponent){
-        return OMX_ErrorBadParameter;
-    }
-
-    pCompObj = (OMX_COMPONENTTYPE *)hComponent;
-    pPrivData_base = (OMXComponentPrivateBase_t *)pCompObj->pComponentPrivate;
-    
-    msg = (OMXCommandMsg_t *)malloc(sizeof(OMXCommandMsg_t));
-
-    msg->hComp    = hComponent;
-    msg->Cmd      = Cmd;
-    msg->nParam   = nParam;
-    msg->pCmdData = pCmdData;
-
-    Mag_MsgChannelSend(pPrivData_base->cmdChannel, msg, sizeof(OMXCommandMsg_t));
-}
-
-static OMX_ERRORTYPE OMXComponent_SetCallbacks(
-                        OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_IN OMX_CALLBACKTYPE* pCallbacks,
-                        OMX_IN OMX_PTR pAppData){
-    OMX_COMPONENTTYPE *pComp = (OMX_COMPONENTTYPE *)hComponent;
-    OMXComponentPrivateBase_t *priv = (OMXComponentPrivateBase_t *)pComp->pComponentPrivate;
-    
-    if (NULL == pComp){
-        return OMX_ErrorBadParameter;
-    }
-
-    if(OMX_StateLoaded != priv->state){
-        return OMX_ErrorInvalidState;
-    }
-    
-    priv->callbacks = *pCallbacks;
-    pComp->pApplicationPrivate = pAppData;
-
-    return OMX_ErrorNone;
-}
-
-static OMX_ERRORTYPE OMXComponent_SetConfig(
-                        OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_IN OMX_INDEXTYPE nIndex,
-                        OMX_INOUT OMX_PTR pComponentConfigStructure){
-    OMXComponentPrivateBase_t *pPrivData_base = NULL;
-    OMX_COMPONENTTYPE *pCompObj = NULL;
-    
-    if ((NULL == hComponent) || (NULL == pComponentConfigStructure)){
-        return OMX_ErrorBadParameter;
-    }
-
-    pCompObj = (OMX_COMPONENTTYPE *)hComponent;
-    pPrivData_base = (OMXComponentPrivateBase_t *)pCompObj->pComponentPrivate;
-
-    if (NULL == pPrivData_base)
-        return OMX_ErrorInsufficientResources;
-
-    if (NULL == pPrivData_base->subComp_callbacks)
-        return OMX_ErrorInsufficientResources;
-
-    if (NULL == pPrivData_base->subComp_callbacks->setConfig)
-        return OMX_ErrorNotImplemented;
-
-    return pPrivData_base->subComp_callbacks->setConfig(nIndex, pComponentConfigStructure);
-}
-
-static OMX_ERRORTYPE OMXComponent_SetParameter(
-                        OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_IN OMX_INDEXTYPE nIndex,
-                        OMX_IN OMX_PTR pComponentParameterStructure){
-
-    OMXComponentPrivateBase_t *pPrivData_base = NULL;
-    OMX_COMPONENTTYPE *pCompObj = NULL;
-    
-    if ((NULL == hComponent) || (NULL == pComponentParameterStructure)){
-        return OMX_ErrorBadParameter;
-    }
-
-    pCompObj = (OMX_COMPONENTTYPE *)hComponent;
-    pPrivData_base = (OMXComponentPrivateBase_t *)pCompObj->pComponentPrivate;
-
-    if (NULL == pPrivData_base)
-        return OMX_ErrorInsufficientResources;
-
-    if (NULL == pPrivData_base->subComp_callbacks)
-        return OMX_ErrorInsufficientResources;
-
-    if (NULL == pPrivData_base->subComp_callbacks->setParameter)
-        return OMX_ErrorNotImplemented;
-
-    return pPrivData_base->subComp_callbacks->setParameter(nIndex, pComponentParameterStructure);
-}
-
-static OMX_ERRORTYPE OMXComponent_UseBuffer(
-                        OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_INOUT OMX_BUFFERHEADERTYPE** ppBufferHdr,
-                        OMX_IN OMX_U32 nPortIndex,
-                        OMX_IN OMX_PTR pAppPrivate,
-                        OMX_IN OMX_U32 nSizeBytes,
-                        OMX_IN OMX_U8* pBuffer){
-    OMX_ERRORTYPE ret;
-    
-    if (NULL == hComponent)
-        return OMX_ErrorBadParameter;
-    
-    OMXComponentPort_base_t *port = OMXComponent_Priv_GetPort((OMX_COMPONENTTYPE *)hComponent, nPortIndex);
-
-    if (NULL == port){
-        AGILE_LOGE("failed to get the port in the index %d", nPortIndex);
-        return OMX_ErrorBadPortIndex;
-    }
-
-    ret = OMXComponentPort_base_UseBuffer(port, pBuffer, pAppPrivate, nSizeBytes, pBuffer);
-
-    return ret;
-}
-
-static OMX_ERRORTYPE OMXComponent_UseEGLImage(
-                        OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_INOUT OMX_BUFFERHEADERTYPE** ppBufferHdr,
-                        OMX_IN OMX_U32 nPortIndex,
-                        OMX_IN OMX_PTR pAppPrivate,
-                        OMX_IN void* pBuffer){
-
-}
-
-static OMX_ERRORTYPE OMXComponent_Base_Constructor(
-                     OMX_HANDLETYPE *hComp,
-                     OMX_BOOL       isSyncMode){
-
-    OMX_COMPONENTTYPE *pCompObj = NULL;
-    OMXComponentPrivateBase_t *pPrivData_base = NULL;
-    OMX_S32 rc;
-    MagErr_t mc_ret;
-    
-    if (NULL == *hComp){
-        *hComp = (OMX_COMPONENTTYPE *)calloc(1, sizeof(OMX_COMPONENTTYPE));
-        if (NULL == *hComp){
-            AGILE_LOG_FATAL("failed to allocate memory for OMX Component");
-            goto failure;
-        }
-    }
-    pCompObj = (OMX_COMPONENTTYPE *)(*hComp);
-
-    if (NULL == pCompObj->pComponentPrivate){
-        pPrivData_base = (OMXComponentPrivateBase_t *)calloc(1, sizeof(OMXComponentPrivateBase_t));
-        if(NULL == pPrivData_base){
-            AGILE_LOG_FATAL("failed to allocate memory for OMX Base Component Private Data");
-            goto failure;
-        }
-        pCompObj->pComponentPrivate = pPrivData_base;
-    }else{
-        pPrivData_base = (OMXComponentPrivateBase_t *)pCompObj->pComponentPrivate;
-    }
-    
-    pCompObj->AllocateBuffer         = OMXComponent_AllocateBuffer;
-    pCompObj->ComponentDeInit        = OMXComponent_DeInit;
-    pCompObj->ComponentRoleEnum      = OMXComponent_RoleEnum;
-    pCompObj->ComponentTunnelRequest = OMXComponent_TunnelRequest;
-    pCompObj->EmptyThisBuffer        = OMXComponent_EmptyThisBuffer;
-    pCompObj->FillThisBuffer         = OMXComponent_FillThisBuffer;
-    pCompObj->FreeBuffer             = OMXComponent_FreeBuffer;
-    pCompObj->GetComponentVersion    = OMXComponent_GetVersion;
-    pCompObj->GetConfig              = OMXComponent_GetConfig;
-    pCompObj->GetExtensionIndex      = OMXComponent_GetExtensionIndex;
-    pCompObj->GetParameter           = OMXComponent_GetParameter;
-    pCompObj->GetState               = OMXComponent_GetState;
-    pCompObj->SendCommand            = OMXComponent_SendCommand;
-    pCompObj->SetCallbacks           = OMXComponent_SetCallbacks;
-    pCompObj->SetConfig              = OMXComponent_SetConfig;
-    pCompObj->SetParameter           = OMXComponent_SetParameter;
-    pCompObj->UseBuffer              = OMXComponent_UseBuffer;
-    pCompObj->UseEGLImage            = OMXComponent_UseEGLImage;
-
-    /*initialize the base component private data structure*/
-    rc = pthread_mutex_init(&pPrivData_base->stateTransMutex, NULL);
-    if (rc){
-        AGILE_LOGE("failed to initialize the stateTransMutex. (error: %s)", strerror(errno));
-        goto failure;
-    }
-    
-    mc_ret = Mag_MsgChannelCreate(&pPrivData_base->cmdChannel);
-    if (MAG_ErrNone != mc_ret)
-        goto failure;
-
-    Mag_MsgChannelReceiverAttach(pPrivData_base->cmdChannel, cmdProcessEntry, pCompObj);
-
-    if (MAG_ErrNone != Mag_CreateEvent(&pPrivData_base->Event_OMX_AllocateBufferDone)){
-        AGILE_LOGE("failed to create the event: Event_OMX_AllocateBufferDone");
-        goto event_failure;
-    }
-    
-    if (MAG_ErrNone != Mag_CreateEvent(&pPrivData_base->Event_OMX_UseBufferDone)){
-        AGILE_LOGE("failed to create the event: Event_OMX_UseBufferDone");
-        goto event_failure;
-    }
-    
-    if (MAG_ErrNone != Mag_CreateEventGroup(&pPrivData_base->EventGroup_PortBufferAllocated)){
-        AGILE_LOGE("failed to create the event group: EventGroup_PortBufferAllocated");
-        goto event_failure;
-    }
-    
-    Mag_AddEventGroup(pPrivData_base->Event_OMX_AllocateBufferDone, pPrivData_base->EventGroup_PortBufferAllocated);
-    Mag_AddEventGroup(pPrivData_base->Event_OMX_UseBufferDone, pPrivData_base->EventGroup_PortBufferAllocated);
-    
-    pPrivData_base->state = OMX_Priv_StateLoaded;
-    
-    return OMX_ErrorNone;
-
-event_failure:
-    if (pPrivData_base->Event_OMX_AllocateBufferDone)
-        Mag_DestroyEvent(pPrivData_base->Event_OMX_AllocateBufferDone);
-
-    if (pPrivData_base->Event_OMX_UseBufferDone)
-        Mag_DestroyEvent(pPrivData_base->Event_OMX_UseBufferDone);
-failure:  
-    if (pPrivData_base)
-        free(pPrivData_base);
-    
-    if (pCompObj)
-        free(pCompObj);
-    
-    return OMX_ErrorInsufficientResources;
-}
-
-static OMX_ERRORTYPE OMXComponent_Base_Destructor(
-                     OMX_HANDLETYPE *hComp,
-                     OMX_BOOL       dynamic){
-}
-
-OMX_ERRORTYPE OMXComponent_Base_SetCallbacks(OMX_HANDLETYPE hComp, OMXSubComponentCallbacks_t *cb){
-    OMX_COMPONENTTYPE *pComp;
-    OMXComponentPrivateBase_t *priv;
-    
-    if(NULL == hComp)
-        return OMX_ErrorBadParameter;
-    
-    pComp = (OMX_COMPONENTTYPE *)hComp;
-
-    priv = (OMXComponentPrivateBase_t *)pComp->pComponentPrivate;
-    priv->baseComp_callbacks = cb;
-    
-    return OMX_ErrorNone;
-}
-
-/************************************************/
-
-AllocateClass(OmxComponent, Base);
-
-static OmxComponent *getBase(OMX_HANDLETYPE hComponent) {
-  return (OmxComponent *)
+static MagOmxComponent *getBase(OMX_HANDLETYPE hComponent) {
+  return (MagOmxComponent *)
       ((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate;
 }
 
 /*Running in the thread space*/
-void OmxComponent_CmdProcessEntry(void *msg, void *priv){
+void MagOmxComponent_CmdProcessEntry(void *msg, void *priv){
     OMX_ERRORTYPE ret;
     MagOmxCmdMsg_t *pCmdMsg = (MagOmxCmdMsg_t *)msg;
-    OmxComponent compClass = (OmxComponent)priv;
+    MagOmxComponent compClass = (MagOmxComponent)priv;
     OMX_COMPONENTTYPE *compHandle = compClass->mComponentHandle;
         
     switch (pCmdMsg->Cmd)
@@ -702,8 +222,8 @@ static OMX_ERRORTYPE ComponentRoleEnumWrapper(
 }
 
 /*Virtual member function implementation*/
-OMX_ERRORTYPE virtual_OmxComponent_GetComponentVersion(
-                OMX_IN  OmxComponent hComponent,
+OMX_ERRORTYPE virtual_MagOmxComponent_GetComponentVersion(
+                OMX_IN  MagOmxComponent hComponent,
                 OMX_OUT OMX_STRING pComponentName,
                 OMX_OUT OMX_VERSIONTYPE* pComponentVersion,
                 OMX_OUT OMX_VERSIONTYPE* pSpecVersion,
@@ -717,8 +237,8 @@ OMX_ERRORTYPE virtual_OmxComponent_GetComponentVersion(
     
 }
 
-OMX_ERRORTYPE virtual_OmxComponent_SendCommand(
-                OMX_IN  OmxComponent hComponent,
+OMX_ERRORTYPE virtual_MagOmxComponent_SendCommand(
+                OMX_IN  MagOmxComponent hComponent,
                 OMX_IN  OMX_COMMANDTYPE Cmd,
                 OMX_IN  OMX_U32 nParam1,
                 OMX_IN  OMX_PTR pCmdData){
@@ -737,50 +257,50 @@ OMX_ERRORTYPE virtual_OmxComponent_SendCommand(
     Mag_MsgChannelSend(hComponent->mCmdEvtChannel, msg, sizeof(MagOmxCmdMsg_t));
 }
 
-OMX_ERRORTYPE virtual_OmxComponent_GetParameter(
-                OMX_IN  OmxComponent hComponent, 
+OMX_ERRORTYPE virtual_MagOmxComponent_GetParameter(
+                OMX_IN  MagOmxComponent hComponent, 
                 OMX_IN  OMX_INDEXTYPE nParamIndex,  
                 OMX_INOUT OMX_PTR pComponentParameterStructure){
 
 }
 
-OMX_ERRORTYPE virtual_OmxComponent_SetParameter(
-                OMX_IN  OmxComponent hComponent, 
+OMX_ERRORTYPE virtual_MagOmxComponent_SetParameter(
+                OMX_IN  MagOmxComponent hComponent, 
                 OMX_IN  OMX_INDEXTYPE nIndex,
                 OMX_IN  OMX_PTR pComponentParameterStructure){
 
 }
 
-OMX_ERRORTYPE virtual_OmxComponent_GetConfig(
-                OMX_IN  OmxComponent hComponent,
+OMX_ERRORTYPE virtual_MagOmxComponent_GetConfig(
+                OMX_IN  MagOmxComponent hComponent,
                 OMX_IN  OMX_INDEXTYPE nIndex, 
                 OMX_INOUT OMX_PTR pComponentConfigStructure){
 
 }
 
-OMX_ERRORTYPE virtual_OmxComponent_SetConfig(
-                OMX_IN  OmxComponent hComponent,
+OMX_ERRORTYPE virtual_MagOmxComponent_SetConfig(
+                OMX_IN  MagOmxComponent hComponent,
                 OMX_IN  OMX_INDEXTYPE nIndex, 
                 OMX_IN  OMX_PTR pComponentConfigStructure){
 
 }
 
-OMX_ERRORTYPE virtual_OmxComponent_GetExtensionIndex(
-                OMX_IN  OmxComponent hComponent,
+OMX_ERRORTYPE virtual_MagOmxComponent_GetExtensionIndex(
+                OMX_IN  MagOmxComponent hComponent,
                 OMX_IN  OMX_STRING cParameterName,
                 OMX_OUT OMX_INDEXTYPE* pIndexType){
 
 }
 
 
-OMX_ERRORTYPE virtual_OmxComponent_GetState(
-                OMX_IN  OmxComponent hComponent,
+OMX_ERRORTYPE virtual_MagOmxComponent_GetState(
+                OMX_IN  MagOmxComponent hComponent,
                 OMX_OUT OMX_STATETYPE* pState){
     
 }
 
-OMX_ERRORTYPE virtual_OmxComponent_ComponentTunnelRequest(
-                OMX_IN  OmxComponent hComponent,
+OMX_ERRORTYPE virtual_MagOmxComponent_ComponentTunnelRequest(
+                OMX_IN  MagOmxComponent hComponent,
                 OMX_IN  OMX_U32 nPort,
                 OMX_IN  OMX_HANDLETYPE hTunneledComp,
                 OMX_IN  OMX_U32 nTunneledPort,
@@ -788,46 +308,73 @@ OMX_ERRORTYPE virtual_OmxComponent_ComponentTunnelRequest(
 
 }
 
-OMX_ERRORTYPE virtual_OmxComponent_UseBuffer(
-                OMX_IN  OmxComponent hComponent,
+OMX_ERRORTYPE virtual_MagOmxComponent_UseBuffer(
+                OMX_IN  MagOmxComponent hComponent,
                 OMX_INOUT OMX_BUFFERHEADERTYPE** ppBufferHdr,
                 OMX_IN OMX_U32 nPortIndex,
                 OMX_IN OMX_PTR pAppPrivate,
                 OMX_IN OMX_U32 nSizeBytes,
                 OMX_IN OMX_U8* pBuffer){
-
+    MagOmxPort port = hComponent->getPort(hComponent, nPortIndex);
+    if (NULL != port){
+        return port->UseBuffer(port, ppBufferHdr, pAppPrivate, nSizeBytes, pBuffer);
+    }else{
+        return OMX_ErrorBadPortIndex;
+    }
 }
 
-OMX_ERRORTYPE virtual_OmxComponent_AllocateBuffer(
-                OMX_IN  OmxComponent hComponent,
+OMX_ERRORTYPE virtual_MagOmxComponent_AllocateBuffer(
+                OMX_IN  MagOmxComponent hComponent,
                 OMX_INOUT OMX_BUFFERHEADERTYPE** ppBuffer,
                 OMX_IN OMX_U32 nPortIndex,
                 OMX_IN OMX_PTR pAppPrivate,
                 OMX_IN OMX_U32 nSizeBytes){
-
+    MagOmxPort port = hComponent->getPort(hComponent, nPortIndex);
+    if (NULL != port){
+        return port->AllocateBuffer(port, ppBuffer, pAppPrivate, nSizeBytes);
+    }else{
+        return OMX_ErrorBadPortIndex;
+    }
 }
 
-OMX_ERRORTYPE virtual_OmxComponent_FreeBuffer(
-                OMX_IN  OmxComponent hComponent,
+OMX_ERRORTYPE virtual_MagOmxComponent_FreeBuffer(
+                OMX_IN  MagOmxComponent hComponent,
                 OMX_IN  OMX_U32 nPortIndex,
                 OMX_IN  OMX_BUFFERHEADERTYPE* pBuffer){
-
+    MagOmxPort port = hComponent->getPort(hComponent, nPortIndex);
+    if (NULL != port){
+        return port->FreeBuffer(port, pBuffer);
+    }else{
+        return OMX_ErrorBadPortIndex;
+    }
 }
 
-OMX_ERRORTYPE virtual_OmxComponent_EmptyThisBuffer(
-                OMX_IN  OmxComponent hComponent,
+OMX_ERRORTYPE virtual_MagOmxComponent_EmptyThisBuffer(
+                OMX_IN  MagOmxComponent hComponent,
                 OMX_IN  OMX_BUFFERHEADERTYPE* pBuffer){
-
+    /*TODO: add the port enable and component state judgement*/
+    MagOmxPort port = hComponent->getPort(hComponent, pBuffer->nInputPortIndex);
+    if ((NULL != port) && (port->mPortDef.eDir == OMX_DirInput)){
+        return port->sendBuffer(port, pBuffer);
+    }else{
+        return OMX_ErrorBadPortIndex;
+    }
 }
 
-OMX_ERRORTYPE virtual_OmxComponent_FillThisBuffer(
-                OMX_IN  OmxComponent hComponent,
+OMX_ERRORTYPE virtual_MagOmxComponent_FillThisBuffer(
+                OMX_IN  MagOmxComponent hComponent,
                 OMX_IN  OMX_BUFFERHEADERTYPE* pBuffer){
-
+    /*TODO: add the port enable and component state judgement*/
+    MagOmxPort port = hComponent->getPort(hComponent, pBuffer->nOutputPortIndex);
+    if ((NULL != port) && (port->mPortDef.eDir == OMX_DirOutput)){
+        return port->sendBuffer(port, pBuffer);
+    }else{
+        return OMX_ErrorBadPortIndex;
+    }
 }
 
-OMX_ERRORTYPE virtual_OmxComponent_SetCallbacks(
-                OMX_IN  OmxComponent hComponent,
+OMX_ERRORTYPE virtual_MagOmxComponent_SetCallbacks(
+                OMX_IN  MagOmxComponent hComponent,
                 OMX_IN  OMX_CALLBACKTYPE* pCallbacks, 
                 OMX_IN  OMX_PTR pAppData){
     hComponent->mCallbacks = pCallbacks;
@@ -836,13 +383,13 @@ OMX_ERRORTYPE virtual_OmxComponent_SetCallbacks(
     return OMX_ErrorNone;
 }
 
-OMX_ERRORTYPE virtual_OmxComponent_ComponentDeInit(
-                OMX_IN  OmxComponent hComponent){
+OMX_ERRORTYPE virtual_MagOmxComponent_ComponentDeInit(
+                OMX_IN  MagOmxComponent hComponent){
 
 }
 
-OMX_ERRORTYPE virtual_OmxComponent_UseEGLImage(
-                OMX_IN  OmxComponent hComponent,
+OMX_ERRORTYPE virtual_MagOmxComponent_UseEGLImage(
+                OMX_IN  MagOmxComponent hComponent,
                 OMX_INOUT OMX_BUFFERHEADERTYPE** ppBufferHdr,
                 OMX_IN OMX_U32 nPortIndex,
                 OMX_IN OMX_PTR pAppPrivate,
@@ -850,15 +397,15 @@ OMX_ERRORTYPE virtual_OmxComponent_UseEGLImage(
 
 }
 
-OMX_ERRORTYPE virtual_OmxComponent_ComponentRoleEnum(
-                OMX_IN  OmxComponent hComponent,
+OMX_ERRORTYPE virtual_MagOmxComponent_ComponentRoleEnum(
+                OMX_IN  MagOmxComponent hComponent,
          		OMX_OUT OMX_U8 *cRole,
          		OMX_IN OMX_U32 nIndex){
 
 }
 
 /*Member function implementation*/
-OMX_COMPONENTTYPE *OmxComponent_Create(OmxComponent pBase){
+OMX_COMPONENTTYPE *MagOmxComponent_Create(MagOmxComponent pBase){
     OMX_COMPONENTTYPE* comp = (OMX_COMPONENTTYPE *)calloc(1, sizeof(OMX_COMPONENTTYPE));
 
     if (NULL != comp){
@@ -895,32 +442,32 @@ OMX_COMPONENTTYPE *OmxComponent_Create(OmxComponent pBase){
     return comp;
 }
 
-void OmxComponent_setHandle(OmxComponent pBase, OMX_COMPONENTTYPE *handle){
+void MagOmxComponent_setHandle(MagOmxComponent pBase, OMX_COMPONENTTYPE *handle){
     pBase->mComponentHandle = handle;
 }
 
-OMX_ERRORTYPE OmxComponent_postEvent(OmxComponent pBase, OMX_EVENTTYPE event, OMX_U32 param1, OMX_U32 param2, OMX_PTR pEventData){
+OMX_ERRORTYPE MagOmxComponent_postEvent(MagOmxComponent pBase, OMX_EVENTTYPE event, OMX_U32 param1, OMX_U32 param2, OMX_PTR pEventData){
     if (NULL != pBase->mCallbacks){
         return pBase->mCallbacks->EventHandler(pBase->mComponentHandle, pBase->mAppData, event, param1, param2, pEventData);
     }
     return OMX_ErrorNotImplemented;
 }
 
-OMX_ERRORTYPE OmxComponent_postFillBufferDone(OmxComponent pBase, OMX_BUFFERHEADERTYPE* pBuffer){
+OMX_ERRORTYPE MagOmxComponent_postFillBufferDone(MagOmxComponent pBase, OMX_BUFFERHEADERTYPE* pBuffer){
     if (NULL != pBase->mCallbacks){
         return pBase->mCallbacks->FillBufferDone(pBase->mComponentHandle, pBase->mAppData, pBuffer);
     }
     return OMX_ErrorNotImplemented;
 }
 
-OMX_ERRORTYPE OmxComponent_postEmptyBufferDone(OmxComponent pBase, OMX_BUFFERHEADERTYPE* pBuffer){
+OMX_ERRORTYPE MagOmxComponent_postEmptyBufferDone(MagOmxComponent pBase, OMX_BUFFERHEADERTYPE* pBuffer){
     if (NULL != pBase->mCallbacks){
         return pBase->mCallbacks->EmptyBufferDone(pBase->mComponentHandle, pBase->mAppData, pBuffer);
     }
     return OMX_ErrorNotImplemented;
 }
 
-OMX_ERRORTYPE OmxComponent_setState(OmxComponent pBase, OMX_STATETYPE targetState){
+OMX_ERRORTYPE MagOmxComponent_setState(MagOmxComponent pBase, OMX_STATETYPE targetState){
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     
     if (targetState == OMX_StateLoaded){
@@ -1016,65 +563,77 @@ OMX_ERRORTYPE OmxComponent_setState(OmxComponent pBase, OMX_STATETYPE targetStat
     return ret;
 }
 
-
-/*Class Constructor/Destructor*/
-static void OmxComponent_initialize(Class this){
-    OmxComponentVtableInstance.GetComponentVersion    = virtual_OmxComponent_GetComponentVersion;
-    OmxComponentVtableInstance.SendCommand            = virtual_OmxComponent_SendCommand;
-    OmxComponentVtableInstance.GetParameter           = virtual_OmxComponent_GetParameter;
-    OmxComponentVtableInstance.SetParameter           = virtual_OmxComponent_SetParameter;
-    OmxComponentVtableInstance.GetConfig              = virtual_OmxComponent_GetConfig;
-    OmxComponentVtableInstance.SetConfig              = virtual_OmxComponent_SetConfig;
-    OmxComponentVtableInstance.GetExtensionIndex      = virtual_OmxComponent_GetExtensionIndex;
-    OmxComponentVtableInstance.GetState               = virtual_OmxComponent_GetState;
-    OmxComponentVtableInstance.ComponentTunnelRequest = virtual_OmxComponent_ComponentTunnelRequest;
-    OmxComponentVtableInstance.UseBuffer              = virtual_OmxComponent_UseBuffer;
-    OmxComponentVtableInstance.AllocateBuffer         = virtual_OmxComponent_AllocateBuffer;
-    OmxComponentVtableInstance.FreeBuffer             = virtual_OmxComponent_FreeBuffer;
-    OmxComponentVtableInstance.EmptyThisBuffer        = virtual_OmxComponent_EmptyThisBuffer;
-    OmxComponentVtableInstance.FillThisBuffer         = virtual_OmxComponent_FillThisBuffer;
-    OmxComponentVtableInstance.SetCallbacks           = virtual_OmxComponent_SetCallbacks;
-    OmxComponentVtableInstance.ComponentDeInit        = virtual_OmxComponent_ComponentDeInit;
-    OmxComponentVtableInstance.UseEGLImage            = virtual_OmxComponent_UseEGLImage;
-    OmxComponentVtableInstance.ComponentRoleEnum      = virtual_OmxComponent_ComponentRoleEnum;
-
-    /*pure virtual functions and must be overrided*/
-    OmxComponentVtableInstance.Start                  = NULL;
-    OmxComponentVtableInstance.Stop                   = NULL;
-    OmxComponentVtableInstance.Resume                 = NULL;
-    OmxComponentVtableInstance.Pause                  = NULL;
-    OmxComponentVtableInstance.Prepare                = NULL;
-    OmxComponentVtableInstance.Preroll                = NULL;
-    OmxComponentVtableInstance.AllResourcesReady      = NULL;
-    OmxComponentVtableInstance.FreeResources          = NULL;
+OMX_ERRORTYPE MagOmxComponent_addPort(MagOmxComponent pBase, OMX_U32 nPortIndex, MagOmxPort pPort){
+    pBase->mPortTreeRoot = rbtree_insert(pBase->mPortTreeRoot, nPortIndex, (void *)pPort);
+    return OMX_ErrorNone;
 }
 
-static void OmxComponent_constructor(OmxComponent thiz, const void *params){
+MagOmxPort MagOmxComponent_getPort(MagOmxComponent pBase, OMX_U32 nPortIndex){
+    return (MagOmxPort)rbtree_get(pBase->mPortTreeRoot, nPortIndex);
+}
+
+
+/*Class Constructor/Destructor*/
+static void MagOmxComponent_initialize(Class this){
+    MagOmxComponentVtableInstance.GetComponentVersion    = virtual_MagOmxComponent_GetComponentVersion;
+    MagOmxComponentVtableInstance.SendCommand            = virtual_MagOmxComponent_SendCommand;
+    MagOmxComponentVtableInstance.GetParameter           = virtual_MagOmxComponent_GetParameter;
+    MagOmxComponentVtableInstance.SetParameter           = virtual_MagOmxComponent_SetParameter;
+    MagOmxComponentVtableInstance.GetConfig              = virtual_MagOmxComponent_GetConfig;
+    MagOmxComponentVtableInstance.SetConfig              = virtual_MagOmxComponent_SetConfig;
+    MagOmxComponentVtableInstance.GetExtensionIndex      = virtual_MagOmxComponent_GetExtensionIndex;
+    MagOmxComponentVtableInstance.GetState               = virtual_MagOmxComponent_GetState;
+    MagOmxComponentVtableInstance.ComponentTunnelRequest = virtual_MagOmxComponent_ComponentTunnelRequest;
+    MagOmxComponentVtableInstance.UseBuffer              = virtual_MagOmxComponent_UseBuffer;
+    MagOmxComponentVtableInstance.AllocateBuffer         = virtual_MagOmxComponent_AllocateBuffer;
+    MagOmxComponentVtableInstance.FreeBuffer             = virtual_MagOmxComponent_FreeBuffer;
+    MagOmxComponentVtableInstance.EmptyThisBuffer        = virtual_MagOmxComponent_EmptyThisBuffer;
+    MagOmxComponentVtableInstance.FillThisBuffer         = virtual_MagOmxComponent_FillThisBuffer;
+    MagOmxComponentVtableInstance.SetCallbacks           = virtual_MagOmxComponent_SetCallbacks;
+    MagOmxComponentVtableInstance.ComponentDeInit        = virtual_MagOmxComponent_ComponentDeInit;
+    MagOmxComponentVtableInstance.UseEGLImage            = virtual_MagOmxComponent_UseEGLImage;
+    MagOmxComponentVtableInstance.ComponentRoleEnum      = virtual_MagOmxComponent_ComponentRoleEnum;
+
+    /*pure virtual functions and must be overrided*/
+    MagOmxComponentVtableInstance.Start                  = NULL;
+    MagOmxComponentVtableInstance.Stop                   = NULL;
+    MagOmxComponentVtableInstance.Resume                 = NULL;
+    MagOmxComponentVtableInstance.Pause                  = NULL;
+    MagOmxComponentVtableInstance.Prepare                = NULL;
+    MagOmxComponentVtableInstance.Preroll                = NULL;
+    MagOmxComponentVtableInstance.AllResourcesReady      = NULL;
+    MagOmxComponentVtableInstance.FreeResources          = NULL;
+}
+
+static void MagOmxComponent_constructor(MagOmxComponent thiz, const void *params){
     MagErr_t mc_ret;
     
     AGILE_LOGV("Enter!");
     
-    MAG_ASSERT(ooc_isInitialized(OmxComponent));
-    chain_constructor(OmxComponent, thiz, params);
+    MAG_ASSERT(ooc_isInitialized(MagOmxComponent));
+    chain_constructor(MagOmxComponent, thiz, params);
 
     thiz->mCallbacks = NULL;
     thiz->mAppData   = NULL;
     thiz->mState     = OMX_StateMax;
+    thiz->mPortTreeRoot = NULL;
     
-    thiz->Create              = OmxComponent_Create;
-    thiz->setHandle           = OmxComponent_setHandle;
-    thiz->postEvent           = OmxComponent_postEvent;
-    thiz->postFillBufferDone  = OmxComponent_postFillBufferDone;
-    thiz->postEmptyBufferDone = OmxComponent_postEmptyBufferDone;
-    thiz->setState            = OmxComponent_setState;
+    thiz->Create              = MagOmxComponent_Create;
+    thiz->setHandle           = MagOmxComponent_setHandle;
+    thiz->postEvent           = MagOmxComponent_postEvent;
+    thiz->postFillBufferDone  = MagOmxComponent_postFillBufferDone;
+    thiz->postEmptyBufferDone = MagOmxComponent_postEmptyBufferDone;
+    thiz->setState            = MagOmxComponent_setState;
+    thiz->addPort             = MagOmxComponent_addPort;
+    thiz->getPort             = MagOmxComponent_getPort;
     
     mc_ret = Mag_MsgChannelCreate(&(thiz->mCmdEvtChannel));
     if (MAG_ErrNone == mc_ret){
-        Mag_MsgChannelReceiverAttach(thiz->mCmdEvtChannel, OmxComponent_CmdProcessEntry, thiz);
+        Mag_MsgChannelReceiverAttach(thiz->mCmdEvtChannel, MagOmxComponent_CmdProcessEntry, thiz);
     }  
 }
 
-static void OmxComponent_destructor(OmxComponent thiz, TriangleVtable vtab){
+static void MagOmxComponent_destructor(MagOmxComponent thiz, TriangleVtable vtab){
     AGILE_LOGV("Enter!");
 }
 
