@@ -1,104 +1,139 @@
-#include "OMXComponent_base_VideoDecoder.h"
+#include "MagOMX_Component_VideoDecoder.h"
 
-
-static OMX_ERRORTYPE VideoDecoder_getParameter(OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_IN OMX_INDEXTYPE nParamIndex,
-                        OMX_INOUT OMX_PTR pComponentParameterStructure){
-
-}
-
-static OMX_ERRORTYPE VideoDecoder_setParameter(OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_IN OMX_INDEXTYPE nIndex,
-                        OMX_IN OMX_PTR pComponentParameterStructure){
+OMX_ERRORTYPE virtual_MagOmxComponent_VideoDecoder_GetParameter(
+                    OMX_IN  MagOmxComponent hComponent, 
+                    OMX_IN  OMX_INDEXTYPE nParamIndex,  
+                    OMX_INOUT OMX_PTR pComponentParameterStructure){
 
 }
 
-static OMX_ERRORTYPE VideoDecoder_setConfig(OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_IN OMX_INDEXTYPE nIndex,
-                        OMX_INOUT OMX_PTR pComponentConfigStructure){
+OMX_ERRORTYPE virtual_MagOmxComponent_VideoDecoder_SetParameter(
+                    OMX_IN  MagOmxComponent hComponent, 
+                    OMX_IN  OMX_INDEXTYPE nIndex,
+                    OMX_IN  OMX_PTR pComponentParameterStructure){
 
 }
 
-static OMX_ERRORTYPE VideoDecoder_getConfig(OMX_IN OMX_HANDLETYPE hComponent,
-                        OMX_IN OMX_INDEXTYPE nIndex,
-                        OMX_INOUT OMX_PTR pComponentConfigStructure){
+OMX_ERRORTYPE virtual_MagOmxComponent_VideoDecoder_GetConfig(
+                    OMX_IN  MagOmxComponent hComponent,
+                    OMX_IN  OMX_INDEXTYPE nIndex, 
+                    OMX_INOUT OMX_PTR pComponentConfigStructure){
 
 }
 
-static OMX_ERRORTYPE OMXComponent_Base_VideoDecoder_Constructor(
-                     OMX_HANDLETYPE *hComp,
-                     OMX_BOOL       isSyncMode){
-    OMXComponent_VideoDecoder_PrivateBase_t *priv = NULL;
-    OMXSubComponentCallbacks_t *cb;
-    OMX_ERRORTYPE ret = OMX_ErrorNone;
-    
-    if(NULL == *hComp){
-        *hComp = (OMX_COMPONENTTYPE *)calloc(1, sizeof(OMX_COMPONENTTYPE));
-        if (NULL == *hComp){
-            ret = OMX_ErrorInsufficientResources;
-            AGILE_LOG_FATAL("failed to allocate memory for OMX Component");
-            goto failure;
-        }
-    }
+OMX_ERRORTYPE virtual_MagOmxComponent_VideoDecoder_SetConfig(
+                    OMX_IN  MagOmxComponent hComponent,
+                    OMX_IN  OMX_INDEXTYPE nIndex, 
+                    OMX_IN  OMX_PTR pComponentConfigStructure){
 
-    if (NULL == (*hComp)->pComponentPrivate){
-        priv = (OMXComponent_VideoDecoder_PrivateBase_t *)calloc(1, sizeof(OMXComponent_VideoDecoder_PrivateBase_t));
-        if(NULL == priv){
-            ret = OMX_ErrorInsufficientResources;
-            AGILE_LOG_FATAL("failed to allocate memory for OMX VideoDecoder Component Private Data");
-            goto failure;
-        }
-        (*hComp)->pComponentPrivate = priv;
-    }else{
-        priv = (OMXComponent_VideoDecoder_PrivateBase_t *)(*hComp)->pComponentPrivate;
-    }
-    
-    ret = OMXComponent_Base_Constructor(hComp, isSyncMode);
-    if (OMX_ErrorNone != ret){
-        goto failure;
-    }
-    
-    cb = (OMXSubComponentCallbacks_t *)malloc(sizeof(OMXSubComponentCallbacks_t));
-    if (NULL == cb){
-        AGILE_LOGE("failed to allocate memory for OMXSubComponentCallbacks_t");
-    }
+}
 
-    cb->getParameter = VideoDecoder_getParameter;
-    cb->setParameter = VideoDecoder_setParameter;
-    cb->getConfig    = VideoDecoder_getConfig;
-    cb->setConfig    = VideoDecoder_setConfig;
-    
-    OMXComponent_Base_SetCallbacks(*hComp, cb);
+OMX_ERRORTYPE virtual_MagOmxComponent_VideoDecoder_Start(OMX_IN  MagOmxComponent hComponent){
+    OMX_ERRORTYPE ret;
+    MagOmxComponent_VideoDecoder self = ooc_cast(hComponent, MagOmxComponent_VideoDecoder);
+
+    if (self->mVdecObj)
+        ret = self->mVdecObj->Start(self->mVdecObj);
+    else
+        ret = OMX_ErrorNotImplemented;
 
     return ret;
-    
-failure:
-    if (priv)
-        free(priv);
-
-    if (*hComp)
-        free(*hComp);
-    
-    return ;
 }
 
-static OMX_ERRORTYPE OMXComponent_Base_VideoEncoder_Destructor(
-                     OMX_HANDLETYPE *hComp,
-                     OMX_BOOL       dynamic){
+OMX_ERRORTYPE virtual_MagOmxComponent_VideoDecoder_Stop(OMX_IN  MagOmxComponent hComponent){
+    OMX_ERRORTYPE ret;
+    MagOmxComponent_VideoDecoder self = ooc_cast(hComponent, MagOmxComponent_VideoDecoder);
+
+    if (self->mVdecObj)
+        ret = self->mVdecObj->Stop(self->mVdecObj);
+    else
+        ret = OMX_ErrorNotImplemented;
+
+    return ret;
 }
 
-OMX_ERRORTYPE OMXComponent_VideoDecoder_SetCallbacks(OMX_HANDLETYPE hComp, OMXSubComponentCallbacks_t *cb){
-    OMX_COMPONENTTYPE *pComp;
-    OMXComponent_VideoDecoder_PrivateBase_t *priv;
-    
-    if(NULL == hComp)
-        return OMX_ErrorBadParameter;
-    
-    pComp = (OMX_COMPONENTTYPE *)hComp;
+OMX_ERRORTYPE virtual_MagOmxComponent_VideoDecoder_Resume(OMX_IN  MagOmxComponent hComponent){
+    OMX_ERRORTYPE ret;
+    MagOmxComponent_VideoDecoder self = ooc_cast(hComponent, MagOmxComponent_VideoDecoder);
 
-    priv = (OMXComponent_VideoDecoder_PrivateBase_t *)pComp->pComponentPrivate;
-    priv->videoDecoderComp_callbacks = *cb;
-    
-    return OMX_ErrorNone;
+    if (self->mVdecObj)
+        ret = self->mVdecObj->Resume(self->mVdecObj);
+    else
+        ret = OMX_ErrorNotImplemented;
+
+    return ret;
 }
+
+OMX_ERRORTYPE virtual_MagOmxComponent_VideoDecoder_Pause(OMX_IN  MagOmxComponent hComponent){
+    OMX_ERRORTYPE ret;
+    MagOmxComponent_VideoDecoder self = ooc_cast(hComponent, MagOmxComponent_VideoDecoder);
+
+    if (self->mVdecObj)
+        ret = self->mVdecObj->Pause(self->mVdecObj);
+    else
+        ret = OMX_ErrorNotImplemented;
+
+    return ret;
+}
+
+OMX_ERRORTYPE virtual_MagOmxComponent_VideoDecoder_Prepare(OMX_IN  MagOmxComponent hComponent){
+    OMX_ERRORTYPE ret;
+    MagOmxComponent_VideoDecoder self = ooc_cast(hComponent, MagOmxComponent_VideoDecoder);
+
+    if (self->mVdecObj)
+        ret = self->mVdecObj->Prepare(self->mVdecObj);
+    else
+        ret = OMX_ErrorNotImplemented;
+
+    return ret;
+}
+
+OMX_ERRORTYPE virtual_MagOmxComponent_VideoDecoder_Preroll(OMX_IN  MagOmxComponent hComponent){
+    OMX_ERRORTYPE ret;
+    MagOmxComponent_VideoDecoder self = ooc_cast(hComponent, MagOmxComponent_VideoDecoder);
+
+    if (self->mVdecObj)
+        ret = self->mVdecObj->Preroll(self->mVdecObj);
+    else
+        ret = OMX_ErrorNotImplemented;
+
+    return ret;
+}
+
+/*Class Constructor/Destructor*/
+static void MagOmxComponent_VideoDecoder_initialize(Class this){
+    MagOmxComponent_VideoDecoderVtableInstance.MagOmxComponent.GetParameter    = virtual_MagOmxComponent_VideoDecoder_GetParameter;
+    MagOmxComponent_VideoDecoderVtableInstance.MagOmxComponent.SetParameter    = virtual_MagOmxComponent_VideoDecoder_SetParameter;
+    MagOmxComponent_VideoDecoderVtableInstance.MagOmxComponent.GetConfig       = virtual_MagOmxComponent_VideoDecoder_GetConfig;
+    MagOmxComponent_VideoDecoderVtableInstance.MagOmxComponent.SetConfig       = virtual_MagOmxComponent_VideoDecoder_SetConfig;
+
+    MagOmxComponent_VideoDecoderVtableInstance.MagOmxComponent.Start           = virtual_MagOmxComponent_VideoDecoder_Start;
+    MagOmxComponent_VideoDecoderVtableInstance.MagOmxComponent.Stop            = virtual_MagOmxComponent_VideoDecoder_Stop;
+    MagOmxComponent_VideoDecoderVtableInstance.MagOmxComponent.Resume          = virtual_MagOmxComponent_VideoDecoder_Resume;
+    MagOmxComponent_VideoDecoderVtableInstance.MagOmxComponent.Pause           = virtual_MagOmxComponent_VideoDecoder_Pause;
+    MagOmxComponent_VideoDecoderVtableInstance.MagOmxComponent.Prepare         = virtual_MagOmxComponent_VideoDecoder_Prepare;
+    MagOmxComponent_VideoDecoderVtableInstance.MagOmxComponent.Preroll         = virtual_MagOmxComponent_VideoDecoder_Preroll;
+    
+    /*pure virtual functions and must be overrided*/
+    MagOmxComponent_VideoDecoderVtableInstance.GetCodecParameter = NULL;
+    MagOmxComponent_VideoDecoderVtableInstance.SetCodecParameter = NULL;
+    MagOmxComponent_VideoDecoderVtableInstance.GetCodecConfig    = NULL;
+    MagOmxComponent_VideoDecoderVtableInstance.SetCodecConfig    = NULL;
+}
+
+static void MagOmxComponent_VideoDecoder_constructor(MagOmxComponent_VideoDecoder thiz, const void *params){
+    MagErr_t mc_ret;
+    
+    AGILE_LOGV("Enter!");
+    
+    MAG_ASSERT(ooc_isInitialized(MagOmxComponent_VideoDecoder));
+    chain_constructor(MagOmxComponent_VideoDecoder, thiz, params);
+
+    thiz->mVdecObj = MagOMX_VDec_Create((char *)params);
+}
+
+static void MagOmxComponent_destructor(MagOmxComponent_VideoDecoder thiz, MagOmxComponent_VideoDecoderVtable vtab){
+    AGILE_LOGV("Enter!");
+}
+
 

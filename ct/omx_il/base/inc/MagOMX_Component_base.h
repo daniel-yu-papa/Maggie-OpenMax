@@ -27,7 +27,8 @@ Virtuals(MagOmxComponent, Base)
                     OMX_IN  OMX_COMMANDTYPE Cmd,
                     OMX_IN  OMX_U32 nParam1,
                     OMX_IN  OMX_PTR pCmdData);
-
+    
+    /*GetParameter(), SetParameter(), GetConfig(), SetConfig() are pure virtual functions and must be overrided by sub-class*/
     OMX_ERRORTYPE (*GetParameter)(
                     OMX_IN  MagOmxComponent hComponent, 
                     OMX_IN  OMX_INDEXTYPE nParamIndex,  

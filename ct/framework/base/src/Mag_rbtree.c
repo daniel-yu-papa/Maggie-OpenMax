@@ -6,7 +6,7 @@
 static int gLoopNum = 0;
 static int gRepeatKeyNum = 0;
 
-static RBTreeNodeHandle rbtree_get_priv(RBTreeNodeHandle root, int key){
+static RBTreeNodeHandle rbtree_get_priv(RBTreeNodeHandle root, i64 key){
     RBTreeNodeHandle x = root;
 
     while(NULL != x){
@@ -20,7 +20,7 @@ static RBTreeNodeHandle rbtree_get_priv(RBTreeNodeHandle root, int key){
     return NULL;
 }
 
-void *rbtree_get(RBTreeNodeHandle root, int key){
+void *rbtree_get(RBTreeNodeHandle root, i64 key){
     RBTreeNodeHandle x = root;
 
     while(NULL != x){
@@ -34,7 +34,7 @@ void *rbtree_get(RBTreeNodeHandle root, int key){
     return NULL;
 }
 
-RBTreeNodeHandle rbtree_insert(RBTreeNodeHandle root, int key, void *value){
+RBTreeNodeHandle rbtree_insert(RBTreeNodeHandle root, i64 key, void *value){
     /*insert the node at the bottom*/
     if (NULL == root){
         RBTreeNodeHandle node = (RBTreeNodeHandle)mag_malloc(sizeof(RBTREE_NODE_t));
@@ -73,7 +73,7 @@ RBTreeNodeHandle rbtree_insert(RBTreeNodeHandle root, int key, void *value){
     return root;
 }
 
-static RBTreeNodeHandle rbtree_delete_priv(RBTreeNodeHandle root, int key, RBTreeNodeHandle *deleteNode){
+static RBTreeNodeHandle rbtree_delete_priv(RBTreeNodeHandle root, i64 key, RBTreeNodeHandle *deleteNode){
     if (NULL == root)
         return NULL;
     
@@ -93,7 +93,7 @@ static RBTreeNodeHandle rbtree_delete_priv(RBTreeNodeHandle root, int key, RBTre
         /*delete leaf node*/
         if (root->right == NULL){
             if (root->key == key){
-                AGILE_LOGD("find the key: %d", key);
+                AGILE_LOGD("find the key: %lld", key);
                 *deleteNode = root;
                 return NULL;
             }
@@ -105,7 +105,7 @@ static RBTreeNodeHandle rbtree_delete_priv(RBTreeNodeHandle root, int key, RBTre
         if (root->key == key){
             RBTreeNodeHandle min_node;
             min_node = min(root->right);
-            AGILE_LOGD("the min key: %d", min_node->key);
+            AGILE_LOGD("the min key: %lld", min_node->key);
             root->key = min_node->key;
             root->value = min_node->value;
             root->right = deleteMin(root->right);
@@ -118,7 +118,7 @@ static RBTreeNodeHandle rbtree_delete_priv(RBTreeNodeHandle root, int key, RBTre
     return fixup(root);
 }
 
-int rbtree_delete(RBTreeNodeHandle *root, int key){
+int rbtree_delete(RBTreeNodeHandle *root, i64 key){
     RBTreeNodeHandle deleteNode;
     if (rbtree_get_priv(*root, key) != NULL){
         *root = rbtree_delete_priv(*root, key, &deleteNode);
@@ -132,7 +132,7 @@ int rbtree_delete(RBTreeNodeHandle *root, int key){
 }
 
 /*in-order traverse the binary tree*/
-static void rbtree_dump_priv(RBTreeNodeHandle root, int print_flag){
+static void rbtree_dump_priv(RBTreeNodeHandle root, i32 print_flag){
     if (NULL == root)
         return;
 
@@ -144,7 +144,7 @@ static void rbtree_dump_priv(RBTreeNodeHandle root, int print_flag){
     rbtree_dump_priv(root->right, print_flag);
 }
 
-int rbtree_dump(RBTreeNodeHandle root, int print_flag){
+int rbtree_dump(RBTreeNodeHandle root, i32 print_flag){
     gLoopNum = 0;
     rbtree_dump_priv(root, print_flag);
     return gLoopNum;
@@ -152,6 +152,13 @@ int rbtree_dump(RBTreeNodeHandle root, int print_flag){
 
 int rbtree_debug_getRepeatNum(void){
     return gRepeatKeyNum;
+}
+
+void rbtree_getMinValue(RBTreeNodeHandle root, i64 *key, void **value){
+    RBTreeNodeHandle minNode;
+    minNode = min(root);
+    *key = minNode->key;
+    *value = minNode->value;
 }
 
 

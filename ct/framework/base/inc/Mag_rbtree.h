@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include "agilelog.h"
+#include "Mag_pub_type.h"
 
 typedef enum{
     RBTREE_FALSE = 0,
@@ -15,7 +16,7 @@ typedef enum{
 }NODE_COLOR_t;
 
 typedef struct rbtree_node_t{
-    int          key;
+    i64          key;
     void*        value;
     NODE_COLOR_t color;
     
@@ -132,10 +133,11 @@ static inline RBTreeNodeHandle deleteMin(RBTreeNodeHandle h)
     return fixup(h);
 }
 
-void *rbtree_get(RBTreeNodeHandle root, int key);
-RBTreeNodeHandle rbtree_insert(RBTreeNodeHandle root, int key, void *value);
-int rbtree_delete(RBTreeNodeHandle *root, int key);
-int rbtree_dump(RBTreeNodeHandle root, int print_flag);
+void *rbtree_get(RBTreeNodeHandle root, i64 key);
+void rbtree_getMinValue(RBTreeNodeHandle root, i64 *key, void **value);
+RBTreeNodeHandle rbtree_insert(RBTreeNodeHandle root, i64 key, void *value);
+int rbtree_delete(RBTreeNodeHandle *root, i64 key);
+int rbtree_dump(RBTreeNodeHandle root, i32 print_flag);
 
 int rbtree_debug_getRepeatNum(void);
 

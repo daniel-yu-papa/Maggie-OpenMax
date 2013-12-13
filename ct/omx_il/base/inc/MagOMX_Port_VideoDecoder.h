@@ -1,17 +1,20 @@
-#ifndef __OMX_COMPONENT_PORT_VIDEO_DECODER_H__
-#define __OMX_COMPONENT_PORT_VIDEO_DECODER_H__
+#ifndef __MAG_OMX_PORT_VIDEO_DECODER_H__
+#define __MAG_OMX_PORT_VIDEO_DECODER_H__
 
-#include "OMX_ClassMagic.h"
-#include "OMXComponentPort_base.h"
+#include "MagOMX_Port_base.h"
 
-#define DEFAULT_VIDEO_DECODER_BUF_SIZE   0
+DeclareClass(MagOmxPort_VideoDecoder, MagOmxPort);
 
-#define DEFAULT_VIDEO_MIME_STRING_LENGTH 128
+Virtuals(MagOmxPort_VideoDecoder, MagOmxPort)
 
-DERIVEDCLASS(OMXComponentPort_VideoDecoder_t, OMXComponentPort_base_t)
-#define OMXComponentPort_VideoDecoder_t_FIELDS \
-    OMXComponentPort_base_t_FIELDS
-    
-ENDCLASS(OMXComponentPort_VideoDecoder_t)
+EndOfVirtuals;
+
+ClassMembers(MagOmxPort_VideoDecoder, MagOmxPort, \
+    void (*getPortDefinition)(MagOmxPort_VideoDecoder hPort, OMX_PARAM_PORTDEFINITIONTYPE *getDef); \
+    void (*setPortDefinition)(MagOmxPort_VideoDecoder hPort, OMX_PARAM_PORTDEFINITIONTYPE *setDef); \
+    OMX_ERRORTYPE (*sendBuffer)(MagOmxPort_VideoDecoder hPort, OMX_BUFFERHEADERTYPE* pBuffer); \
+)
+
+EndOfClassMembers;
 
 #endif

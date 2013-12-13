@@ -6,8 +6,11 @@
 
 void Mag_AssertFailed(const char *expr, const char *file, unsigned int line){
     AGILE_LOGE("!!! Assert '%s' Failed at %s:%d (err code: %s)\n", expr, file, line, strerror(errno));
+#ifdef MAG_DEBUG
     /* Derefering 0 will cause a SIGSEGV will usually produce a core dump. */
     *(volatile unsigned char *)0;
+#else
+#endif
 }
 
 
@@ -70,9 +73,32 @@ MagErr_t Mag_ReleaseMutex(MagMutexHandle handler){
     if (0 == rc){
         return MAG_ErrNone;
     }else{
-        AGILE_LOGE("faile to unlock the mutex(0x%lx)", (unsigned long)handler);
+        AGILE_LOGE("failed to unlock the mutex(0x%lx)", (unsigned long)handler);
         return MAG_Failure;
     }
+}
+
+ui64 Mag_GetSystemTime(i32 clock)
+{
+#if defined(HAVE_POSIX_CLOCKS)
+    static const clockid_t clocks[] = {
+            CLOCK_REALTIME,
+            CLOCK_MONOTONIC,
+            CLOCK_PROCESS_CPUTIME_ID,
+            CLOCK_THREAD_CPUTIME_ID,
+            CLOCK_BOOTTIME
+    };
+    struct timespec t;
+    t.tv_sec = t.tv_nsec = 0;
+    clock_gettime(clocks[clock], &t);
+    return (ui64)(t.tv_sec)*1000000000LL + t.tv_nsec;
+#else
+    // we don't support the clocks here.
+    struct timeval t;
+    t.tv_sec = t.tv_usec = 0;
+    gettimeofday(&t, NULL);
+    return (ui64)(t.tv_sec)*1000000000LL + (ui64)(t.tv_usec)*1000LL;
+#endif
 }
 
 

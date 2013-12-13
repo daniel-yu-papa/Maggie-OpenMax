@@ -459,7 +459,7 @@ static MagErr_t Mag_EventStatusCheck(MagEventGroupHandle evtGrphandle, MAG_EVENT
         if (signalEvtNum > 0){
 #ifdef MAG_DEBUG
             evtNumTotal += signalEvtNum;
-            AGILE_LOGD("[OR]triggered event number: %d. Total[%d]", signalEvtNum, evtNumTotal);
+            AGILE_LOGD("[OR]triggered event number: %d. Total triggered events: %d", signalEvtNum, evtNumTotal);
 #endif
             ret = MAG_EventStatusMeet;
         }
@@ -467,7 +467,7 @@ static MagErr_t Mag_EventStatusCheck(MagEventGroupHandle evtGrphandle, MAG_EVENT
         if (signalEvtNum == evtGrphandle->eventNum){
 #ifdef MAG_DEBUG
             evtNumTotal += signalEvtNum;
-            AGILE_LOGD("[AND]triggered event number: %d. Total[%d]", signalEvtNum, evtNumTotal);
+            AGILE_LOGD("[AND]triggered event number: %d. Total triggered events: %d", signalEvtNum, evtNumTotal);
 #endif
             ret = MAG_EventStatusMeet;
         }

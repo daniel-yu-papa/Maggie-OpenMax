@@ -261,28 +261,40 @@ OMX_ERRORTYPE virtual_MagOmxComponent_GetParameter(
                 OMX_IN  MagOmxComponent hComponent, 
                 OMX_IN  OMX_INDEXTYPE nParamIndex,  
                 OMX_INOUT OMX_PTR pComponentParameterStructure){
-
+    OMX_ERRORTYPE ret = OMX_ErrorNotImplemented;
+    
+    MAG_ASSERT("It is pure virtual function and must be overrided");
+    return ret;
 }
 
 OMX_ERRORTYPE virtual_MagOmxComponent_SetParameter(
                 OMX_IN  MagOmxComponent hComponent, 
                 OMX_IN  OMX_INDEXTYPE nIndex,
                 OMX_IN  OMX_PTR pComponentParameterStructure){
-
+    OMX_ERRORTYPE ret = OMX_ErrorNotImplemented;
+    
+    MAG_ASSERT("It is pure virtual function and must be overrided");
+    return ret;
 }
 
 OMX_ERRORTYPE virtual_MagOmxComponent_GetConfig(
                 OMX_IN  MagOmxComponent hComponent,
                 OMX_IN  OMX_INDEXTYPE nIndex, 
                 OMX_INOUT OMX_PTR pComponentConfigStructure){
-
+    OMX_ERRORTYPE ret = OMX_ErrorNotImplemented;
+    
+    MAG_ASSERT("It is pure virtual function and must be overrided");
+    return ret;
 }
 
 OMX_ERRORTYPE virtual_MagOmxComponent_SetConfig(
                 OMX_IN  MagOmxComponent hComponent,
                 OMX_IN  OMX_INDEXTYPE nIndex, 
                 OMX_IN  OMX_PTR pComponentConfigStructure){
-
+    OMX_ERRORTYPE ret = OMX_ErrorNotImplemented;
+    
+    MAG_ASSERT("It is pure virtual function and must be overrided");
+    return ret;
 }
 
 OMX_ERRORTYPE virtual_MagOmxComponent_GetExtensionIndex(
