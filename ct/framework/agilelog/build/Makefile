@@ -53,7 +53,7 @@ MODULE := agilelog
 # Only support shared library.
 LIB_NAME := lib$(MODULE).so
 
-LIB_INC_PATH := $(SOURCE_DIR)/inc $(SOURCE_DIR)/inc/pub $(SOURCE_DIR)/external/tinyxml2
+LIB_INC_PATH := $(SOURCE_DIR)/inc $(SOURCE_DIR)/inc/pub $(SOURCE_DIR)/external/tinyxml2 $(SOURCE_DIR)/../hashtable
 
 LIB_SRCS := agilelog.cpp \
 agilelog_inf.cpp \
@@ -90,7 +90,7 @@ LDFLAGS += -lc -L$(BINDIR) -lagilelog
 
 all: $(BINDIR)/$(LIB_NAME) $(BINDIR)/agiletest $(BINDIR)/htTest
 
-VPATH = $(SOURCE_DIR)/src $(SOURCE_DIR)/inc $(SOURCE_DIR)/inc/pub $(SOURCE_DIR)/external/tinyxml2 $(SOURCE_DIR)/test/agilelog $(SOURCE_DIR)/test/hashtable
+VPATH = $(SOURCE_DIR)/src $(SOURCE_DIR)/inc $(SOURCE_DIR)/inc/pub $(SOURCE_DIR)/external/tinyxml2 $(SOURCE_DIR)/test/agilelog $(SOURCE_DIR)/test/hashtable $(SOURCE_DIR)/../hashtable
 
 $(OBJDIR)/%.o: %.cpp agilelog_def.h agilelog_priv.h
 	@echo "[compiling.. $(notdir $<)]"

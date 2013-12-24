@@ -1,9 +1,8 @@
-#include "hashTable.h"
-
 #include <stdio.h>
 #include <string.h>
 
-namespace AGILELOG {
+#include "hashTable.h"
+#include "hashTableC.h"
 
 HashTable::HashTable(int num){
     mpTable = (HashTable_t *)malloc(sizeof(HashTable_t) * num);
@@ -107,5 +106,27 @@ unsigned int HashTable::calcDJBHashValue(const char* str, unsigned int len){
    return hash;
 }
 
+/*the interfaces for the calling from c*/
+void* StrHashTable_Create(int maxNum){
+    HashTable *p = new HashTable(maxNum);
+    return (void *)p;
+}
+
+void StrHashTable_Destroy(void *h){
+    HashTable *pc = static_cast<HashTable *>(h);
+    delete pc;
+}
+
+
+void StrHashTable_AddItem(void *obj, const char *str, void *item){
+    HashTable *pc = static_cast<HashTable *>(obj);
+
+    pc->buildHashTable(item, str);
+}
+
+void *StrHashTable_GetItem(void *obj, const char *str){
+    HashTable *pc = static_cast<HashTable *>(obj);
+
+    return (pc->getHashItem(str));
 }
 

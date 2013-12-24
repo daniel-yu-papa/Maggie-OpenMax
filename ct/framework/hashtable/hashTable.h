@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-namespace AGILELOG {
-
 /*BEGIN: The Macros for hlist operations*/
 /*uintptr_t is an unsigned int that is guaranteed to be the same size as a pointer. in <stdint.h>*/
 #define ht_offsetof(TYPE, MEMBER) ( reinterpret_cast<uintptr_t> (&((TYPE *)0)->MEMBER) ) 
@@ -99,5 +97,4 @@ private:
     int mTableSize;
 };
 
-}
 #endif

@@ -4,6 +4,9 @@
 #include <pthread.h>
 #include "Mag_event.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 /*
 * 1) The message format should be all same for the specific message channel
 * 2) it is point-to-point message channel
@@ -58,5 +61,9 @@ MagErr_t Mag_MsgChannelReceiverDettach(MagMsgChannelHandle handle, Mag_MsgDetach
 
 
 MagErr_t Mag_MsgChannelSend(MagMsgChannelHandle handle, const void *msg, const unsigned int msg_len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

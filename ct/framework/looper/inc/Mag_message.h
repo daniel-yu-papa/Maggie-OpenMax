@@ -4,6 +4,10 @@
 #include "Mag_pub_type.h"
 #include "Mag_pub_def.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAX_MSG_PAYLOAD_NUM 32
 
 enum MsgPayloadType {
@@ -37,21 +41,29 @@ typedef struct mag_message{
 
     ui32 mNumItems;
 
-    void (*setInt32)(const char *name, i32 value);
-    void (*setInt64)(const char *name, i64 value);
-    void (*setSize)(const char *name, _size_t value);
-    void (*setFloat)(const char *name, fp32 value);
-    void (*setDouble)(const char *name, fp64 value);
-    void (*setPointer)(const char *name, void *value);
-    void (*setString)(const char *name, const char *s);
+    ui32 (*what)(struct mag_message *msg);
+    
+    void (*setInt32)(struct mag_message *msg, const char *name, i32 value);
+    void (*setInt64)(struct mag_message *msg, const char *name, i64 value);
+    void (*setSize)(struct mag_message *msg, const char *name, _size_t value);
+    void (*setFloat)(struct mag_message *msg, const char *name, fp32 value);
+    void (*setDouble)(struct mag_message *msg, const char *name, fp64 value);
+    void (*setPointer)(struct mag_message *msg, const char *name, void *value);
+    void (*setString)(struct mag_message *msg, const char *name, const char *s);
 
-    boolean (*findInt32)(const char *name, i32 *value);
-    boolean (*findInt64)(const char *name, i64 *value);
-    boolean (*findSize)(const char *name, _size_t *value);
-    boolean (*findFloat)(const char *name, fp32 *value);
-    boolean (*findDouble)(const char *name, fp64 *value);
-    boolean (*findPointer)(const char *name, void **value);
-    boolean (*findString)(const char *name, char **s);
+    boolean (*findInt32)(struct mag_message *msg, const char *name, i32 *value);
+    boolean (*findInt64)(struct mag_message *msg, const char *name, i64 *value);
+    boolean (*findSize)(struct mag_message *msg, const char *name, _size_t *value);
+    boolean (*findFloat)(struct mag_message *msg, const char *name, fp32 *value);
+    boolean (*findDouble)(struct mag_message *msg, const char *name, fp64 *value);
+    boolean (*findPointer)(struct mag_message *msg, const char *name, void **value);
+    boolean (*findString)(struct mag_message *msg, const char *name, char **s);
 }MagMessage_t;
+
+typedef MagMessage_t* MagMessageHandle;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

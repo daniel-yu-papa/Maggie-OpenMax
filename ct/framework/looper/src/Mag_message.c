@@ -176,6 +176,10 @@ static boolean MagMessage_findString(MagMessage_t *msg, const char *name, char *
     return MAG_FALSE;
 }
 
+ui32 MagMessage_what(struct mag_message *msg){
+    return msg->mWhat;
+}
+
 MagMessage_t *createMessage(ui32 what, ui32 target){
     MagMessage_t *msg;
 
@@ -186,6 +190,7 @@ MagMessage_t *createMessage(ui32 what, ui32 target){
         msg->mTarget = target;
         msg->mNumItems = 0;
 
+        msg->what       = MagMessage_what;
         msg->setInt32   = MagMessage_setInt32;
         msg->setInt64   = MagMessage_setInt64;
         msg->setFloat   = MagMessage_setFloat;

@@ -41,7 +41,7 @@ private:
         virtual status_t        setParameter(int key, const Parcel &request);
         virtual status_t        getParameter(int key, Parcel *reply);
 
-        sp<MagOMXPlayer>        createPlayer();
+        sp<MagPlayer>        createPlayer();
 
         virtual status_t        setDataSource(
                                 const char *url,
@@ -71,14 +71,14 @@ private:
 
         void                    deletePlayer();
 
-        sp<MagOMXPlayer>        getPlayer() const { Mutex::Autolock lock(mLock); return mPlayer; }
+        sp<MagPlayer>        getPlayer() const { Mutex::Autolock lock(mLock); return mPlayer; }
 
 
         // Disconnect from the currently connected ANativeWindow.
         //void disconnectNativeWindow();
 
         mutable     Mutex                       mLock;
-                    sp<MagOMXPlayer>            mPlayer; /*initialized as NULL*/
+                    sp<MagPlayer>            mPlayer; /*initialized as NULL*/
                     sp<MagPlayerService>        mService;
                     sp<IMagPlayerClient>        mClient;
                     pid_t                       mPid;

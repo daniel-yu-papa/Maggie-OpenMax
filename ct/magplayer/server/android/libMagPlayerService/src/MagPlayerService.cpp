@@ -96,18 +96,18 @@ void MagPlayerService::Client::disconnect()
     IPCThreadState::self()->flushCommands();
 }
 
-sp<MagOMXPlayer> MagPlayerService::Client::createPlayer()
+sp<MagPlayer> MagPlayerService::Client::createPlayer()
 {
     // determine if we have the right player type
-    sp<MagOMXPlayer> p = mPlayer;
+    sp<MagPlayer> p = mPlayer;
     
     if (p == NULL) {
-        p = new MagOMXPlayer(this, notify);
+        p = new MagPlayer(this, notify);
 
         if (p != NULL) {
             p->setUID(mUID);
         }else{
-            AGILE_LOGE("Failed to create MagOMXPlayer!!!");
+            AGILE_LOGE("Failed to create MagPlayer!!!");
         }
     }
     return p;
@@ -136,7 +136,7 @@ status_t MagPlayerService::Client::setDataSource(
         status = setDataSource(fd, 0, 0x7fffffffffLL); // this sets mStatus
         close(fd);
     } else {
-        sp<MagOMXPlayer> p = createPlayer();
+        sp<MagPlayer> p = createPlayer();
         if (p == NULL){
             status = NO_INIT;
         }else{
@@ -178,7 +178,7 @@ status_t MagPlayerService::Client::setDataSource(int fd, int64_t offset, int64_t
     }
 
     status_t status;
-    sp<MagOMXPlayer> p = createPlayer();
+    sp<MagPlayer> p = createPlayer();
     if (p == NULL){
         status = NO_INIT;
     }else{
@@ -195,7 +195,7 @@ status_t MagPlayerService::Client::setDataSource(int fd, int64_t offset, int64_t
 status_t MagPlayerService::Client::setDataSource(
         const sp<IStreamSource> &source) {
     status_t status;
-    sp<MagOMXPlayer> p = createPlayer();
+    sp<MagPlayer> p = createPlayer();
     if (p == NULL){
         status = NO_INIT;
     }else{
@@ -218,7 +218,7 @@ status_t MagPlayerService::Client::setVideoSurfaceTexture(
 status_t MagPlayerService::Client::invoke(const Parcel& request,
                                             Parcel *reply)
 {
-    sp<MagOMXPlayer> p = getPlayer();
+    sp<MagPlayer> p = getPlayer();
     if (p == NULL) return UNKNOWN_ERROR;
     return p->invoke(request, reply);
 }
@@ -226,7 +226,7 @@ status_t MagPlayerService::Client::invoke(const Parcel& request,
 status_t MagPlayerService::Client::prepareAsync()
 {
     AGILE_LOGV("[%d] prepareAsync", mConnId);
-    sp<MagOMXPlayer> p = getPlayer();
+    sp<MagPlayer> p = getPlayer();
     if (p == 0) return UNKNOWN_ERROR;
     status_t ret = p->prepareAsync();
     return ret;
@@ -235,7 +235,7 @@ status_t MagPlayerService::Client::prepareAsync()
 status_t MagPlayerService::Client::start()
 {
     AGILE_LOGV("[%d] start", mConnId);
-    sp<MagOMXPlayer> p = getPlayer();
+    sp<MagPlayer> p = getPlayer();
     if (p == 0) return UNKNOWN_ERROR;
     p->setLooping(mLoop);
     return p->start();
@@ -244,7 +244,7 @@ status_t MagPlayerService::Client::start()
 status_t MagPlayerService::Client::stop()
 {
     AGILE_LOGV("[%d] stop", mConnId);
-    sp<MagOMXPlayer> p = getPlayer();
+    sp<MagPlayer> p = getPlayer();
     if (p == 0) return UNKNOWN_ERROR;
     return p->stop();
 }
@@ -252,7 +252,7 @@ status_t MagPlayerService::Client::stop()
 status_t MagPlayerService::Client::pause()
 {
     AGILE_LOGV("[%d] pause", mConnId);
-    sp<MagOMXPlayer> p = getPlayer();
+    sp<MagPlayer> p = getPlayer();
     if (p == 0) return UNKNOWN_ERROR;
     return p->pause();
 }
@@ -260,7 +260,7 @@ status_t MagPlayerService::Client::pause()
 status_t MagPlayerService::Client::isPlaying(bool* state)
 {
     *state = false;
-    sp<MagOMXPlayer> p = getPlayer();
+    sp<MagPlayer> p = getPlayer();
     if (p == 0) return UNKNOWN_ERROR;
     *state = p->isPlaying();
     AGILE_LOGV("[%d] isPlaying: %d", mConnId, *state);
@@ -270,7 +270,7 @@ status_t MagPlayerService::Client::isPlaying(bool* state)
 status_t MagPlayerService::Client::getCurrentPosition(int *msec)
 {
     AGILE_LOGV("getCurrentPosition");
-    sp<MagOMXPlayer> p = getPlayer();
+    sp<MagPlayer> p = getPlayer();
     if (p == 0) return UNKNOWN_ERROR;
     status_t ret = p->getCurrentPosition(msec);
     if (ret == NO_ERROR) {
@@ -284,7 +284,7 @@ status_t MagPlayerService::Client::getCurrentPosition(int *msec)
 status_t MagPlayerService::Client::getDuration(int *msec)
 {
     AGILE_LOGV("getDuration");
-    sp<MagOMXPlayer> p = getPlayer();
+    sp<MagPlayer> p = getPlayer();
     if (p == 0) return UNKNOWN_ERROR;
     status_t ret = p->getDuration(msec);
     if (ret == NO_ERROR) {
@@ -298,7 +298,7 @@ status_t MagPlayerService::Client::getDuration(int *msec)
 status_t MagPlayerService::Client::seekTo(int msec)
 {
     AGILE_LOGV("[%d] seekTo(%d)", mConnId, msec);
-    sp<MagOMXPlayer> p = getPlayer();
+    sp<MagPlayer> p = getPlayer();
     if (p == 0) return UNKNOWN_ERROR;
     return p->seekTo(msec);
 }
@@ -306,7 +306,7 @@ status_t MagPlayerService::Client::seekTo(int msec)
 status_t MagPlayerService::Client::reset()
 {
     AGILE_LOGV("[%d] reset", mConnId);
-    sp<MagOMXPlayer> p = getPlayer();
+    sp<MagPlayer> p = getPlayer();
     if (p == 0) return UNKNOWN_ERROR;
     return p->reset();
 }
@@ -315,7 +315,7 @@ status_t MagPlayerService::Client::setLooping(int loop)
 {
     AGILE_LOGV("[%d] setLooping(%d)", mConnId, loop);
     mLoop = loop;
-    sp<MagOMXPlayer> p = getPlayer();
+    sp<MagPlayer> p = getPlayer();
     if (p != 0) return p->setLooping(loop);
     return NO_ERROR;
 }
@@ -323,21 +323,21 @@ status_t MagPlayerService::Client::setLooping(int loop)
 status_t MagPlayerService::Client::setVolume(float leftVolume, float rightVolume)
 {
     AGILE_LOGV("[%d] setVolume(L:%f - R:%f)", mConnId, leftVolume, rightVolume);
-    sp<MagOMXPlayer> p = getPlayer();
+    sp<MagPlayer> p = getPlayer();
     if (p != 0) return p->setVolume(leftVolume, rightVolume);
     return NO_ERROR;
 }
 
 status_t MagPlayerService::Client::setParameter(int key, const Parcel &request) {
     AGILE_LOGV("[%d] setParameter(%d)", mConnId, key);
-    sp<MagOMXPlayer> p = getPlayer();
+    sp<MagPlayer> p = getPlayer();
     if (p == 0) return UNKNOWN_ERROR;
     return p->setParameter(key, request);
 }
 
 status_t MagPlayerService::Client::getParameter(int key, Parcel *reply) {
     AGILE_LOGV("[%d] getParameter(%d)", mConnId, key);
-    sp<MagOMXPlayer> p = getPlayer();
+    sp<MagPlayer> p = getPlayer();
     if (p == 0) return UNKNOWN_ERROR;
     return p->getParameter(key, reply);
 }

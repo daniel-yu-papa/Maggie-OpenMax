@@ -1,15 +1,15 @@
 #ifndef _MAG_BASE_H__
 #define _MAG_BASE_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 #include "Mag_pub_def.h"
 #include "Mag_pub_type.h"
 #include <pthread.h>
 #include <time.h>
 
 #define HAVE_POSIX_CLOCKS
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 enum {
     SYSTEM_TIME_REALTIME = 0,  // system-wide realtime clock
@@ -35,6 +35,18 @@ MagErr_t Mag_TryAcquireMutex(MagMutexHandle handler);
 MagErr_t Mag_AcquireMutex(MagMutexHandle handler);
 MagErr_t Mag_ReleaseMutex(MagMutexHandle handler);
 
+/*for C++ static mutexes using*/
+typedef pthread_mutex_t MagStaticMutex;
+    
+#define MAG_STATIC_MUTEX_INITIALIZER(lock) \
+        lock = PTHREAD_MUTEX_INITIALIZER
+
+#define MAG_STATIC_MUTEX_Acquire(lock) \
+        pthread_mutex_lock(&lock)
+
+#define MAG_STATIC_MUTEX_Release(lock) \
+        pthread_mutex_unlock(&lock)
+        
 ui64 Mag_GetSystemTime(i32 clock);
 #ifdef __cplusplus
 }

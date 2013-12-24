@@ -5,6 +5,9 @@
 #include "Mag_list.h"
 #include "Mag_pub_def.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define BUF_ALIGN(size, align) (((unsigned int)((size)/(align)) + 1)*align)
 
 typedef struct{
@@ -40,5 +43,9 @@ MagErr_t magMemPoolPutBuffer(magMempoolHandle hMemPool, void *pBuf);
 MagErr_t magMemPoolReset(magMempoolHandle hMemPool);
 void magMemPoolDestroy(magMempoolHandle hMemPool);
 void magMemPoolDump(magMempoolHandle hMemPool);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -5,6 +5,10 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef __GNUC__
 #    define MAG_GCC_VERSION_AT_LEAST(x,y) (__GNUC__ > x || __GNUC__ == x && __GNUC_MINOR__ >= y)
 #else
@@ -37,6 +41,10 @@ void mag_freep(void *arg);
 char *mag_strdup(const char *s) mag_malloc_attrib;
 
 void *mag_memdup(const void *p, size_t size);
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif
