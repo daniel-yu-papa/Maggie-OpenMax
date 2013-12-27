@@ -24,11 +24,7 @@
 #include <utils/Log.h>
 
 // from LOCAL_C_INCLUDES
-#include "AudioFlinger.h"
-#include "CameraService.h"
-#include "MediaPlayerService.h"
-#include "AudioPolicyService.h"
-#include "MediaPlayerLoader.h"
+#include "MagPlayerService.h"
 
 using namespace android;
 
@@ -41,7 +37,7 @@ int main(int argc, char** argv)
     MagPlayerService::instantiate();
     //CameraService::instantiate();
     //AudioPolicyService::instantiate();
-    MediaPlayerLoader::initialize();
+    //MediaPlayerLoader::initialize(); //enable multiple players instances
     ProcessState::self()->startThreadPool();
     IPCThreadState::self()->joinThreadPool();
 }
