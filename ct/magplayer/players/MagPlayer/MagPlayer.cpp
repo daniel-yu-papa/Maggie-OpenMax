@@ -41,6 +41,10 @@ _status_t MagPlayer::setDataSource(MagBufferHandle buffer){
     }
 }
 
+_status_t MagPlayer::setDataSource(MAG_EXTERNAL_SOURCE source){
+    mExtSource = source;
+}
+
 void MagPlayer::onPrepared(MagMessageHandle msg){
     if (ST_INITIALIZED != mState){
         AGILE_LOGE("MagPlayer is at wrong state:%d. QUIT!", mState);
@@ -93,6 +97,10 @@ void MagPlayer::onStop(MagMessageHandle msg){
         mFlushCompleteMQ->put(mFlushCompleteMQ, msg);
     }else if (ST_SEEKING == mState){
         mSeekCompleteMQ->put(mSeekCompleteMQ, msg);
+    }else if (ST_FASTING == mState){
+        mState = mFastBackState;
+        flush();
+        start();
     }else{
         AGILE_LOGE("MagPlayer is at wrong state:%d. QUIT!", mState);
         return;
@@ -198,11 +206,30 @@ void MagPlayer::seekTo(ui32 msec){
     }
 }
 
+void MagPlayer::onFast(MagMessageHandle msg){
+    if ((ST_PREPARED == mState) ||
+        (ST_RUNNING == mState)){
+        mFastBackState = mState;
+        /*todo*/
+        mState = ST_FASTING;
+    }else{
+        AGILE_LOGE("MagPlayer is at wrong state:%d. QUIT!", mState);
+    }
+}
+
+void MagPlayer::fast(i32 speed){
+    MagMessageHandle msg = createMessage(MagMsg_Fast);
+    if (msg != NULL){
+        msg->setInt32(msg, "speed", speed);
+        postMessage(msg, 0);
+    }
+}
+
 void MagPlayer::onReset(MagMessageHandle msg){
     /*todo*/
     mState = ST_IDLE;
     if (NULL != mNotifyResetCompleteFn)
-        mNotifyResetCompleteFn();
+        mNotifyResetCompleteFn(mResetCompletePriv);
 }
 
 void MagPlayer::resetAsync(){
@@ -212,25 +239,144 @@ void MagPlayer::resetAsync(){
     }
 }
 
-void MagPlayer::setResetCompleteListener(fnNotifyResetComplete fn){
+void MagPlayer::setResetCompleteListener(fnNotifyResetComplete fn, void *priv){
     if (NULL != fn){
         mNotifyResetCompleteFn = fn;
+        mResetCompletePriv = priv;
     }else{
         AGILE_LOGE("fn is NULL!");
     }
 }
 
-void MagPlayer::setPrepareCompleteListener(fnNotifyPrepareComplete fn){
+void MagPlayer::setPrepareCompleteListener(fnNotifyPrepareComplete fn, void *priv){
     if (NULL != fn){
         mNotifyPrepareCompleteFn = fn;
+        mPrepareCompletePriv = priv;
     }else{
         AGILE_LOGE("fn is NULL!");
+    }
+}
+
+void MagPlayer::setFlushCompleteListener(fnNotifyPrepareComplete fn, void *priv){
+    if (NULL != fn){
+        mNotifyFlushCompleteFn = fn;
+        mFlushCompletePriv = priv;
+    }else{
+        AGILE_LOGE("fn is NULL!");
+    }
+}
+
+void MagPlayer::setErrorListener(fnNotifyError fn, void *priv){
+    if (NULL != fn){
+        mErrorFn   = fn;
+        mErrorPriv = priv;
+    }else{
+        AGILE_LOGE("fn is NULL!");
+    }
+}
+
+void MagPlayer::setParameters(const char *name, MagParamType_t type, void *value){
+    if (NULL != mParametersDB){
+        switch (type){
+            case MagParamTypeInt32:
+                i32 v = static_cast<i32>(*value);
+                mParametersDB->setInt32(mParametersDB, name, v);
+                break;
+
+            case MagParamTypeInt64:
+                i64 v = static_cast<i64>(*value);
+                mParametersDB->setInt64(mParametersDB, name, v);
+                break;
+
+            case MagParamTypeUInt32:
+                ui32 v = static_cast<_size_t>(*value);
+                mParametersDB->setSize(mParametersDB, name, v);
+                break;
+
+            case MagParamTypeFloat:
+                fp32 v = static_cast<fp32>(*value);
+                mParametersDB->setFloat(mParametersDB, name, v);
+                break;
+
+            case MagParamTypeDouble:
+                fp64 v = static_cast<fp64>(*value);
+                mParametersDB->setDouble(mParametersDB, name, v);
+                break;
+
+            case MagParamTypePointer:
+                mParametersDB->setPointer(mParametersDB, name, value);
+                break;
+
+            case MagParamTypeString:
+                char *v = static_cast<char *>(value);
+                mParametersDB->setString(mParametersDB, name, v);
+                break;
+
+            default:
+                AGILE_LOGE("the parameter type(%d) is unrecognized!", type);
+                break;
+        }
+    }else{
+        AGILE_LOGE("the parameter db is NOT initialized!");
+    }
+}
+
+void MagPlayer::getParameters(const char *name, MagParamType_t type, void **value){
+    if (NULL != mParametersDB){
+        switch (type){
+            case MagParamTypeInt32:
+                i32 v;
+                mParametersDB->findInt32(mParametersDB, name, &v);
+                *value = v;
+                break;
+
+            case MagParamTypeInt64:
+                i64 v;;
+                mParametersDB->findInt64(mParametersDB, name, &v);
+                *value = v;
+                break;
+
+            case MagParamTypeUInt32:
+                ui32 v;
+                mParametersDB->findSize(mParametersDB, name, &v);
+                *value = v;
+                break;
+
+            case MagParamTypeFloat:
+                fp32 v;
+                mParametersDB->findFloat(mParametersDB, name, &v);
+                *value = v;
+                break;
+
+            case MagParamTypeDouble:
+                fp64 v;;
+                mParametersDB->findDouble(mParametersDB, name, &v);
+                *value = v;
+                break;
+
+            case MagParamTypePointer:
+                mParametersDB->findPointer(mParametersDB, name, value);
+                break;
+
+            case MagParamTypeString:
+                char **v;
+                mParametersDB->findString(mParametersDB, name, v);
+                *value = (void *)*v;
+                break;
+
+            default:
+                AGILE_LOGE("the parameter type(%d) is unrecognized!", type);
+                break;
+        }
+    }else{
+        AGILE_LOGE("the parameter db is NOT initialized!");
     }
 }
 
 bool MagPlayer::isValidFSState(State_t st){
     if ((ST_PREPARED == mState) ||
         (ST_RUNNING  == mState) ||
+        (ST_FASTING  == mState) ||
         (ST_PAUSED   == mState) ||
         (ST_PLAYBACK_COMPLETED == mState)){
         return true;
@@ -293,7 +439,7 @@ void MagPlayer::onCompletePrepareEvtCB(void *priv){
     thiz->mState = ST_PREPARED;
 
     if (mNotifyPrepareCompleteFn != NULL)
-        mNotifyPrepareCompleteFn();
+        mNotifyPrepareCompleteFn(mPrepareCompletePriv);
 }
 
 void MagPlayer::onCompleteSeekEvtCB(void *priv){
@@ -327,6 +473,11 @@ void MagPlayer::onCompleteFlushEvtCB(void *priv){
 
     if (isValidFSState(thiz->mFlushBackState)){
         thiz->mState = thiz->mFlushBackState;
+        if (ST_RUNNING == thiz->mState){
+            start();
+        }
+        if (NULL != mNotifyFlushCompleteFn)
+            mNotifyFlushCompleteFn(mFlushCompletePriv);
     }else{
         AGILE_LOGE("backstate:%d is not valid for Flush operation. QUIT!", thiz->mFlushBackState);
     }
@@ -338,9 +489,12 @@ void MagPlayer::initialize(){
     mSeekBackState  = ST_IDLE;
     mLooper         = NULL;
     mMsgHandler     = NULL;   
-
-    mNotifyResetCompleteFn = NULL;
+    mExtSource      = MAG_EXTERNAL_SOURCE_Unused;
     
+    mNotifyResetCompleteFn = NULL;
+
+    mParametersDB = createMagMiniDB(PARAMETERS_DB_SIZE);
+        
     mFlushCompleteMQ   = Mag_CreateMsgQueue();
     mSeekCompleteMQ    = Mag_CreateMsgQueue();
     mPrepareCompleteMQ = Mag_CreateMsgQueue();

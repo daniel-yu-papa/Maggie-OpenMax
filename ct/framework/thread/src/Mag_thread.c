@@ -177,7 +177,7 @@ MagThreadHandle Mag_CreateThread(const char* name, fnThreadLoop fn, void *priv){
         Mag_CreateMutex(&thread->mLock);
 
         Mag_CreateEventGroup(&thread->mExitEvtGroup);
-        if (MAG_ErrNone == Mag_CreateEvent(&thread->mExitEvt, 0)){}
+        if (MAG_ErrNone == Mag_CreateEvent(&thread->mExitEvt, 0))
             Mag_AddEventGroup(thread->mExitEvtGroup, thread->mExitEvt);
 
         thread->run = MagThread_Run;

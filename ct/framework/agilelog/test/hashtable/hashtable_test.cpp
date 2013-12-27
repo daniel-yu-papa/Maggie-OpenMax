@@ -1,6 +1,6 @@
 #include "hashTable.h"
 
-using namespace AGILELOG;
+//using namespace AGILELOG;
 
 int main(){
     HashTable *pTable = new HashTable(10);

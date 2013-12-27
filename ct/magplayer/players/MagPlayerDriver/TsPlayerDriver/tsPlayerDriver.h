@@ -136,6 +136,8 @@ public:
     virtual void playerback_register_evt_cb(IPTV_PLAYER_EVT_CB pfunc, void *handler) = 0;    
 };
 
+
+
 class TsPlayerDriver : public CTC_MediaProcessor, public MagSingleton<TsPlayerDriver>{
     friend class MagSingleton<TsPlayerDriver>;
 	TsPlayerDriver();
@@ -176,7 +178,34 @@ public:
 protected:
 	int		m_bLeaveChannel;
 private:
+
+    enum State_t{
+        TSP_IDLE = 0,
+        TSP_INITIALIZED,
+        TSP_PREPARING,
+        TSP_PREPARED,
+        TSP_FLUSHING,
+        TSP_RUNNING,
+        TSP_FASTING,
+        TSP_PAUSED,
+        TSP_STOPPED,
+        TSP_ERROR,
+    };
+
+    State_t mState;
+    State_t mSeekBackState;
     MagPlayer *mpPlayer;
+
+    ui32 convertVideoCodecType(vformat_t vcodec);
+    ui32 convertAudioCodecType(aformat_t acodec);
+
+    MagEventGroupHandle mPrepareEvtGroup;
+    MagEventHandle      mPrepareDoneEvt;
+    MagEventHandle      mPrepareErrorEvt;
+    void Prepare();
+    static void PrepareCompleteEvtListener(void *priv);
+    static void FlushCompleteEvtListener(void *priv);
+    static void ErrorEvtListener(void *priv, i32 what, i32 extra);
 };
 
 CTC_MediaProcessor* GetMediaProcessor();

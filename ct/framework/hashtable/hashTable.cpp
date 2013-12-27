@@ -3,6 +3,7 @@
 
 #include "hashTable.h"
 #include "hashTableC.h"
+#include "agilelog.h"
 
 HashTable::HashTable(int num){
     mpTable = (HashTable_t *)malloc(sizeof(HashTable_t) * num);
@@ -20,7 +21,7 @@ HashTable::~HashTable(){
         while(NULL != mpTable[i].head.first){
             hlist_for_each_entry_to_tail(tnode, pos, prev, &mpTable[i].head, node){
             }
-            printf("%s: remove node (%s)\n", __FUNCTION__, tnode->nodeStr);
+            AGILE_LOGD("remove node (%s)", tnode->nodeStr);
             hlist_del(prev);
             free((void *)tnode);
         }
@@ -48,19 +49,19 @@ void *HashTable::getHashItem(const char *str){
     tableIndex = calcDJBHashValue(str, strlen(str)) % mTableSize;
 
     if (NULL == mpTable[tableIndex].head.first){
-        printf("%s: the string[%s] has not been added into the Table!!\n", __FUNCTION__, str);
+        AGILE_LOGE("the string[%s] has not been added into the Table!!", str);
         return NULL;
     }else{
         /*several nodes has the same hash key so traverse the link*/
         hlist_for_each_entry(tnode, pos, &mpTable[tableIndex].head, node){
             if(!strcmp(str, tnode->nodeStr)){
-                printf("%s: get the node (%s)\n", __FUNCTION__, tnode->nodeStr);
+                AGILE_LOGD("get the node (%s)", tnode->nodeStr);
                 return tnode->nodeValue;
             }
         }
     }
     
-    printf("%s: failed to get the node (%s)\n", __FUNCTION__, str);
+    AGILE_LOGE("failed to get the node (%s)", str);
     return NULL;
 }
 
@@ -69,29 +70,28 @@ void HashTable::printHashTable(void){
 
     int i;
     char buf[AGILELOG_PRINT_BUFFER_SIZE];
-    char tmpBuf[128];
+    char tmpBuf[256];
     
     LinkedKeyNode_t *tnode = NULL;
     struct hlist_node *pos;
     
-    printf("\n\t------Hash Table------\n");
+    AGILE_LOGD("------Hash Table------");
     
     for(i = 0; i < mTableSize; i++){
         memset(buf, 0, AGILELOG_PRINT_BUFFER_SIZE);
         if (NULL == mpTable[i].head.first){
-            printf("\t%d - [NODE: NULL]\n", i);
+            AGILE_LOGD("%d - [NODE: NULL]", i);
         }else{
-            sprintf(buf, "\t%d - ", i);
+            sprintf(buf, "%d - ", i);
             hlist_for_each_entry(tnode, pos, &mpTable[i].head, node){
-                memset(tmpBuf, 0, 128);
                 sprintf(tmpBuf, "[NODE: %s] ->", tnode->nodeStr);
                 strcat(buf, tmpBuf);
             }
-            printf("%s\n", buf);
+            AGILE_LOGD("%s END", buf);
         }
     }
 
-    printf("\t-------  END  --------\n");
+    AGILE_LOGD("----- Table END  ------");
 }
 
 unsigned int HashTable::calcDJBHashValue(const char* str, unsigned int len){

@@ -47,19 +47,19 @@ void MagMiniDB_setInt64(struct mag_minidb *db, const char *name, i64 value){
     Mag_ReleaseMutex(db->mLock);
 }
 
-void MagMiniDB_setSize(struct mag_minidb *db, const char *name, _size_t value){
+void MagMiniDB_setUInt32(struct mag_minidb *db, const char *name, ui32 value){
     MagMiniDBItemHandle hItem;
 
     Mag_AcquireMutex(db->mLock);
     hItem = (MagMiniDBItemHandle)StrHashTable_GetItem(db->mhHashTable, name);
     if (NULL != hItem){
-        hItem->u.sizeValue = value;
-        hItem->mType = TypeSize;
+        hItem->u.uint32Value = value;
+        hItem->mType = TypeUInt32;
     }else{
         hItem = (MagMiniDBItemHandle)mag_malloc(sizeof(MagMiniDBItem_t));
         if (NULL != hItem){
-            hItem->u.sizeValue = value;
-            hItem->mType = TypeSize;
+            hItem->u.uint32Value = value;
+            hItem->mType = TypeUInt32;
             hItem->mName = mag_strdup(name);
             INIT_LIST(&hItem->node);
             list_add(&hItem->node, &db->mItemListHead);
@@ -202,15 +202,15 @@ boolean MagMiniDB_findInt64(struct mag_minidb *db, const char *name, i64 *value)
     return ret;
 }
 
-boolean MagMiniDB_findSize(struct mag_minidb *db, const char *name, _size_t *value){
+boolean MagMiniDB_findUInt32(struct mag_minidb *db, const char *name, _size_t *value){
     MagMiniDBItemHandle hItem;
     boolean ret;
 
     Mag_AcquireMutex(db->mLock);
     hItem = (MagMiniDBItemHandle)StrHashTable_GetItem(db->mhHashTable, name);
     if (NULL != hItem){
-        if (hItem->mType == TypeSize){
-            *value = hItem->u.sizeValue;
+        if (hItem->mType == TypeUInt32){
+            *value = hItem->u.uint32Value;
             ret = MAG_TRUE;
         }else{
             AGILE_LOGE("the value type of the key:%s is %d, not _size_t", name, hItem->mType);
@@ -329,7 +329,7 @@ MagMiniDBHandle createMagMiniDB(i32 maxItemsNum){
         h->setDouble  = MagMiniDB_setDouble;
         h->setPointer = MagMiniDB_setPointer;
         h->setString  = MagMiniDB_setString;
-        h->setSize    = MagMiniDB_setSize;
+        h->setUInt32  = MagMiniDB_setUInt32;
 
         h->findInt32   = MagMiniDB_findInt32;
         h->findInt64   = MagMiniDB_findInt64;
@@ -337,7 +337,7 @@ MagMiniDBHandle createMagMiniDB(i32 maxItemsNum){
         h->findDouble  = MagMiniDB_findDouble;
         h->findPointer = MagMiniDB_findPointer;
         h->findString  = MagMiniDB_findString;
-        h->findSize    = MagMiniDB_findSize;
+        h->findUInt32  = MagMiniDB_findUInt32;
     }
 
     return h;
