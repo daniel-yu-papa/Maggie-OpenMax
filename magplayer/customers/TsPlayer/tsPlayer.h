@@ -5,6 +5,8 @@
 #include "Mag_pub_type.h"
 #include "MagSingleton.h"
 
+#include "MagPlayerClient.h"
+
 typedef enum {
     VFORMAT_UNKNOWN = -1,
     VFORMAT_MPEG12 = 0,
@@ -138,10 +140,10 @@ public:
 
 
 
-class TsPlayerDriver : public CTC_MediaProcessor, public MagSingleton<TsPlayerDriver>{
-    friend class MagSingleton<TsPlayerDriver>;
-	TsPlayerDriver();
-	virtual ~TsPlayerDriver();
+class TsPlayer : public CTC_MediaProcessor, public MagSingleton<TsPlayer>{
+    friend class MagSingleton<TsPlayer>;
+	TsPlayer();
+	virtual ~TsPlayer();
 public:
 	virtual int  GetPlayMode();
 	virtual int  SetVideoWindow(int x,int y,int width,int height);
@@ -175,8 +177,10 @@ public:
 	virtual long GetCurrentPlayTime();
 	virtual void leaveChannel();
 	virtual void playerback_register_evt_cb(IPTV_PLAYER_EVT_CB pfunc, void *hander);
+    
 protected:
 	int		m_bLeaveChannel;
+    
 private:
 
     enum State_t{
@@ -194,7 +198,7 @@ private:
 
     State_t mState;
     State_t mSeekBackState;
-    MagPlayer *mpPlayer;
+    MagPlayerClient *mpPlayer;
 
     ui32 convertVideoCodecType(vformat_t vcodec);
     ui32 convertAudioCodecType(aformat_t acodec);
@@ -206,6 +210,8 @@ private:
     static void PrepareCompleteEvtListener(void *priv);
     static void FlushCompleteEvtListener(void *priv);
     static void ErrorEvtListener(void *priv, i32 what, i32 extra);
+
+    void initialize();
 };
 
 CTC_MediaProcessor* GetMediaProcessor();

@@ -21,10 +21,10 @@
 #include <binder/IPCThreadState.h>
 #include <binder/ProcessState.h>
 #include <binder/IServiceManager.h>
-#include <utils/Log.h>
 
 // from LOCAL_C_INCLUDES
 #include "MagPlayerService.h"
+#include "agilelog.h"
 
 using namespace android;
 
@@ -32,12 +32,9 @@ int main(int argc, char** argv)
 {
     sp<ProcessState> proc(ProcessState::self());
     sp<IServiceManager> sm = defaultServiceManager();
-    ALOGI("ServiceManager: %p", sm.get());
-    //AudioFlinger::instantiate();
+    AGILE_LOGI("ServiceManager: %p", sm.get());
     MagPlayerService::instantiate();
-    //CameraService::instantiate();
-    //AudioPolicyService::instantiate();
-    //MediaPlayerLoader::initialize(); //enable multiple players instances
+    //MediaPlayerLoader::initialize(); //enable multiple players instances. Not neccessary for now
     ProcessState::self()->startThreadPool();
     IPCThreadState::self()->joinThreadPool();
 }

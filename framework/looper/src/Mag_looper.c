@@ -3,7 +3,7 @@
 static ui32 gLooperId = 0;
 
 static i64 getNowMs() {
-    return Mag_GetSystemTime(SYSTEM_TIME_MONOTONIC) / 1000000ll;
+    return Mag_GetSystemTime(MAG_SYSTEM_TIME_MONOTONIC) / 1000000ll;
 }
 
 static MagLooperEvent_t *getFreeEvent(MagLooperHandle hLooper){

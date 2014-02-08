@@ -12,11 +12,11 @@ extern "C" {
 #endif
 
 enum {
-    SYSTEM_TIME_REALTIME = 0,  // system-wide realtime clock
-    SYSTEM_TIME_MONOTONIC = 1, // monotonic time since unspecified starting point
-    SYSTEM_TIME_PROCESS = 2,   // high-resolution per-process clock
-    SYSTEM_TIME_THREAD = 3,    // high-resolution per-thread clock
-    SYSTEM_TIME_BOOTTIME = 4   // same as SYSTEM_TIME_MONOTONIC, but including CPU suspend time
+    MAG_SYSTEM_TIME_REALTIME = 0,  // system-wide realtime clock
+    MAG_SYSTEM_TIME_MONOTONIC = 1, // monotonic time since unspecified starting point
+    MAG_SYSTEM_TIME_PROCESS = 2,   // high-resolution per-process clock
+    MAG_SYSTEM_TIME_THREAD = 3,    // high-resolution per-thread clock
+    MAG_SYSTEM_TIME_BOOTTIME = 4   // same as SYSTEM_TIME_MONOTONIC, but including CPU suspend time
 };
 
 struct MAG_MutexObj{

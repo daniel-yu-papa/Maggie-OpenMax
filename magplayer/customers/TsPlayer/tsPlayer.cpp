@@ -1,12 +1,12 @@
 #include "tsPlayerDriver.h"
 
-MAG_SINGLETON_STATIC_INSTANCE(TsPlayerDriver)
+MAG_SINGLETON_STATIC_INSTANCE(TsPlayer)
 
 CTC_MediaProcessor* GetMediaProcessor()
 {
     AGILE_LOGD("enter");
     
-    TsPlayerDriver& inst = TsPlayerDriver::getInstance();
+    TsPlayer& inst = TsPlayer::getInstance();
     
     return dynamic_cast<CTC_MediaProcessor *>(&inst);
 }
@@ -18,9 +18,8 @@ int GetMediaProcessorVersion()
     //return 1; //uses the interfaces before SwitchAudioTrack()
 }
 
-TsPlayerDriver::TsPlayerDriver():
-    mState(TSP_IDLE){
-    mpPlayer = new MagPlayer();
+void TsPlayer::initialize(){
+    mpPlayer = new MagPlayerClient();
 
     if (NULL != mpPlayer){
         MagMediaType_t t = MediaTypeTS;
@@ -37,7 +36,12 @@ TsPlayerDriver::TsPlayerDriver():
     }
 }
 
-TsPlayerDriver::~TsPlayerDriver(){
+TsPlayer::TsPlayer():
+    mState(TSP_IDLE){
+    initialize();
+}
+
+TsPlayer::~TsPlayer(){
     Mag_DestroyEvent(mPrepareDoneEvt);
     Mag_DestroyEvent(mPrepareErrorEvt);
     Mag_DestroyEventGroup(mPrepareEvtGroup);
@@ -45,26 +49,26 @@ TsPlayerDriver::~TsPlayerDriver(){
 }
 
 
-int  TsPlayerDriver::GetPlayMode(){
+int  TsPlayer::GetPlayMode(){
     return 1;
 }
 
-int  TsPlayerDriver::SetVideoWindow(int x,int y,int width,int height){
+int  TsPlayer::SetVideoWindow(int x,int y,int width,int height){
     MagVideoDisplay_t *window = (MagVideoDisplay_t *)mag_malloc(sizeof(MagVideoDisplay_t));
     mpPlayer->setParameters(kVideo_Display, MagParamTypePointer, (void *)window);
 
     return 0;
 }
 
-int  TsPlayerDriver::VideoShow(void){
+int  TsPlayer::VideoShow(void){
     
 }
 
-int  TsPlayerDriver::VideoHide(void){
+int  TsPlayer::VideoHide(void){
 
 }
 
-ui32 TsPlayerDriver::convertVideoCodecType(vformat_t vcodec){
+ui32 TsPlayer::convertVideoCodecType(vformat_t vcodec){
     switch(vcodec){
         case VFORMAT_MPEG12:
             return (ui32)OMX_VIDEO_CodingMPEG2;
@@ -86,7 +90,7 @@ ui32 TsPlayerDriver::convertVideoCodecType(vformat_t vcodec){
     };
 }
 
-ui32 TsPlayerDriver::convertAudioCodecType(aformat_t acodec){
+ui32 TsPlayer::convertAudioCodecType(aformat_t acodec){
     switch(acodec){
         case FORMAT_MPEG:
             return (ui32)OMX_AUDIO_CodingMP3;
@@ -108,7 +112,7 @@ ui32 TsPlayerDriver::convertAudioCodecType(aformat_t acodec){
     };
 }
 
-void TsPlayerDriver::InitVideo(PVIDEO_PARA_T pVideoPara){
+void TsPlayer::InitVideo(PVIDEO_PARA_T pVideoPara){
     MagTsPIDList_t *pid = (MagTsPIDList_t *)mag_mallocz(sizeof(PVIDEO_PARA_T));
     
     pid->pidTable[0] = pVideoPara.pid;
@@ -117,7 +121,7 @@ void TsPlayerDriver::InitVideo(PVIDEO_PARA_T pVideoPara){
     mpPlayer->setParameters(kVideo_TS_pidlist, MagParamTypePointer, (void *)pid);
 }
 
-void TsPlayerDriver::InitAudio(PAUDIO_PARA_T pAudioPara){
+void TsPlayer::InitAudio(PAUDIO_PARA_T pAudioPara){
     MagTsPIDList_t *pid = (MagTsPIDList_t *)mag_mallocz(sizeof(PVIDEO_PARA_T));
     ui32 i = 0;
     
@@ -130,7 +134,7 @@ void TsPlayerDriver::InitAudio(PAUDIO_PARA_T pAudioPara){
     mpPlayer->setParameters(kAudio_TS_pidlist, MagParamTypePointer, (void *)pid);
 }
 
-bool TsPlayerDriver::StartPlay(){
+bool TsPlayer::StartPlay(){
     mpPlayer->setPrepareCompleteListener(PrepareCompleteEvtListener, static_cast<void *>(this));
     Prepare();
 
@@ -144,11 +148,11 @@ bool TsPlayerDriver::StartPlay(){
     }
 }
 
-int  TsPlayerDriver::WriteData(unsigned char* pBuffer, unsigned int nSize){
+int  TsPlayer::WriteData(unsigned char* pBuffer, unsigned int nSize){
 
 }
 
-bool TsPlayerDriver::Pause(){
+bool TsPlayer::Pause(){
     if (TSP_RUNNING == mState){
         mState = TSP_PAUSED;
         mpPlayer->pause();
@@ -159,7 +163,7 @@ bool TsPlayerDriver::Pause(){
     }
 }
 
-bool TsPlayerDriver::Resume(){
+bool TsPlayer::Resume(){
     if (TSP_PAUSED == mState){
         mState = TSP_RUNNING;
         mpPlayer->resume();
@@ -170,7 +174,7 @@ bool TsPlayerDriver::Resume(){
     }
 }
 
-bool TsPlayerDriver::Fast(){
+bool TsPlayer::Fast(){
     if ((TSP_PREPARED == mState) ||
         (TSP_RUNNING  == mState)){
         mState = TSP_FASTING;
@@ -182,7 +186,7 @@ bool TsPlayerDriver::Fast(){
     }
 }
 
-bool TsPlayerDriver::StopFast(){
+bool TsPlayer::StopFast(){
     if (TSP_FASTING == mState){
         mState = TSP_RUNNING;
         mpPlayer->stop();
@@ -193,7 +197,7 @@ bool TsPlayerDriver::StopFast(){
     }
 }
 
-bool TsPlayerDriver::Stop(){
+bool TsPlayer::Stop(){
     if (TSP_RUNNING == mState){
         mState = TSP_STOPPED;
         mpPlayer->stop();
@@ -204,7 +208,7 @@ bool TsPlayerDriver::Stop(){
     }
 }
 
-bool TsPlayerDriver::Seek(){
+bool TsPlayer::Seek(){
     if ((TSP_RUNNING == mState) ||
         (TSP_PREPARED == mState) ||
         (TSP_PAUSED == mState){
@@ -219,63 +223,63 @@ bool TsPlayerDriver::Seek(){
     }
 }
 
-bool TsPlayerDriver::SetVolume(int volume){
+bool TsPlayer::SetVolume(int volume){
 
 }
 
-int  TsPlayerDriver::GetVolume(){
+int  TsPlayer::GetVolume(){
 
 }
 
-bool TsPlayerDriver::SetRatio(int nRatio){
+bool TsPlayer::SetRatio(int nRatio){
 
 }
 
-int  TsPlayerDriver::GetAudioBalance(){
+int  TsPlayer::GetAudioBalance(){
 
 }
 
-bool TsPlayerDriver::SetAudioBalance(int nAudioBalance){
+bool TsPlayer::SetAudioBalance(int nAudioBalance){
 
 }
 
-void TsPlayerDriver::GetVideoPixels(int& width, int& height){
+void TsPlayer::GetVideoPixels(int& width, int& height){
 
 }
 
-bool TsPlayerDriver::IsSoftFit(){
+bool TsPlayer::IsSoftFit(){
 
 }
 
-void TsPlayerDriver::SetEPGSize(int w, int h){
+void TsPlayer::SetEPGSize(int w, int h){
 
 }
 
-void TsPlayerDriver::SetSurface(Surface* pSurface){
+void TsPlayer::SetSurface(Surface* pSurface){
 
 }
 
-void TsPlayerDriver::SwitchAudioTrack(int pid){
+void TsPlayer::SwitchAudioTrack(int pid){
 
 }
 
-void TsPlayerDriver::SwitchSubtitle(int pid){
+void TsPlayer::SwitchSubtitle(int pid){
 
 }
 
-void TsPlayerDriver::SetProperty(int nType, int nSub, int nValue){
+void TsPlayer::SetProperty(int nType, int nSub, int nValue){
 
 }
 
-long TsPlayerDriver::GetCurrentPlayTime(){
+long TsPlayer::GetCurrentPlayTime(){
 
 }
 
-void TsPlayerDriver::leaveChannel(){
+void TsPlayer::leaveChannel(){
 
 }
 
-void TsPlayerDriver::Prepare(){
+void TsPlayer::Prepare(){
     MagErr_t ret;
     
     mpPlayer->prepareAsync();
@@ -284,27 +288,27 @@ void TsPlayerDriver::Prepare(){
     AGILE_LOGD("exit!");
 }
 
-void TsPlayerDriver::playerback_register_evt_cb(IPTV_PLAYER_EVT_CB pfunc, void *hander){
+void TsPlayer::playerback_register_evt_cb(IPTV_PLAYER_EVT_CB pfunc, void *hander){
 
 }
 
-void TsPlayerDriver::PrepareCompleteEvtListener(void *priv){
-    TsPlayerDriver *inst = static_cast<TsPlayerDriver *>(priv);
+void TsPlayer::PrepareCompleteEvtListener(void *priv){
+    TsPlayer *inst = static_cast<TsPlayer *>(priv);
 
     inst->mState = TSP_PREPARED;
     Mag_SetEvent(inst->mPrepareDoneEvt);
 }
 
-void TsPlayerDriver::ErrorEvtListener(void *priv, i32 what, i32 extra){
-    TsPlayerDriver *inst = static_cast<TsPlayerDriver *>(priv);
+void TsPlayer::ErrorEvtListener(void *priv, i32 what, i32 extra){
+    TsPlayer *inst = static_cast<TsPlayer *>(priv);
     if (TSP_PREPARING == inst->mState){
         inst->mState = TSP_ERROR;
         Mag_SetEvent(inst->mPrepareErrorEvt);
     }
 }
 
-void TsPlayerDriver::FlushCompleteEvtListener(void *priv){
-    TsPlayerDriver *inst = static_cast<TsPlayerDriver *>(priv);
+void TsPlayer::FlushCompleteEvtListener(void *priv){
+    TsPlayer *inst = static_cast<TsPlayer *>(priv);
 
     inst->mState = inst->mSeekBackState;
 }

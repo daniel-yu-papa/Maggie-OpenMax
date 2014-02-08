@@ -77,4 +77,8 @@ typedef int32_t            _status_t;
 
 #endif
 
+#ifdef __cplusplus
+}
+#endif
+
 #endif

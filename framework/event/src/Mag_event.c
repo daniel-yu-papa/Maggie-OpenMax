@@ -11,7 +11,7 @@
 #define MODULE_TAG "MAG_EVENT_MODULE"
 
 #ifdef MAG_DEBUG
-static int evtNumTotal = 0;
+static i32 evtNumTotal = 0;
 #endif
 /*
 * 1) if multiple threads waiting upon the same event, only one thread is woken up in terms of the thread priorities
@@ -20,7 +20,7 @@ static int evtNumTotal = 0;
 */
 
 MagErr_t Mag_CreateEvent(MagEventHandle *evtHandle, MAG_EVENT_PRIO_t prio){
-    int rc;
+    i32 rc;
     
     *evtHandle = (MagEventHandle)malloc(sizeof(**evtHandle));
     if(NULL == *evtHandle)
@@ -84,7 +84,7 @@ err_evt_mutex:
 }
 
 MagErr_t Mag_DestroyEvent(MagEventHandle evtHandle){
-    int rc;
+    i32 rc;
     MagErr_t ret = MAG_ErrNone;
 
     if (evtHandle->pEvtCommon->hEventGroup){
@@ -107,8 +107,8 @@ MagErr_t Mag_DestroyEvent(MagEventHandle evtHandle){
     return ret;
 }
 
-static MagErr_t MagPriv_ms2timespec(struct timespec *target, int timeoutMsec){
-    int rc;
+static MagErr_t MagPriv_ms2timespec(struct timespec *target, i32 timeoutMsec){
+    i32 rc;
     struct timeval now;
     rc = gettimeofday(&now, NULL);
     if (0 != rc)
@@ -125,7 +125,7 @@ static MagErr_t MagPriv_ms2timespec(struct timespec *target, int timeoutMsec){
 
 
 MagErr_t  Mag_SetEvent(MagEventHandle evtHandle){
-    int rc;
+    i32 rc;
     MagEventGroupHandle evtGrp;
     Mag_EventCallback_t *pEvtCB;
     MagErr_t ret = MAG_ErrNone;
@@ -214,7 +214,7 @@ MagErr_t  Mag_SetEvent(MagEventHandle evtHandle){
 
 MagErr_t Mag_RegisterEventCallback(MagEventSchedulerHandle schedHandle, MagEventHandle evtHandle, void (*pCallback)(void *), void *pContext){
     MagErr_t ret = MAG_ErrNone;
-    int rc;
+    i32 rc;
     Mag_EventCallback_t *pEvtCB = evtHandle->pEvtCallBack;
 
     if (NULL == evtHandle){
@@ -256,7 +256,7 @@ MagErr_t Mag_RegisterEventCallback(MagEventSchedulerHandle schedHandle, MagEvent
 
 MagErr_t Mag_UnregisterEventCallback(MagEventHandle evtHandle){
     MagErr_t ret = MAG_ErrNone;
-    int rc;
+    i32 rc;
     Mag_EventCallback_t *pEvtCB = evtHandle->pEvtCallBack;
 
     if(NULL == pEvtCB){
@@ -298,7 +298,7 @@ MagErr_t Mag_UnregisterEventCallback(MagEventHandle evtHandle){
 
 
 MagErr_t Mag_CreateEventGroup(MagEventGroupHandle *evtGrphandle){
-    int rc;
+    i32 rc;
 
     *evtGrphandle = (MagEventGroupHandle)malloc(sizeof(**evtGrphandle));
     if (NULL == *evtGrphandle)
@@ -317,7 +317,9 @@ MagErr_t Mag_CreateEventGroup(MagEventGroupHandle *evtGrphandle){
     INIT_LIST(&(*evtGrphandle)->EventGroupHead);
     (*evtGrphandle)->eventNum = 0;
 
+#ifdef MAG_DEBUG
     evtNumTotal = 0;
+#endif
     return MAG_ErrNone;
     
 err_cond:
@@ -349,7 +351,7 @@ void Mag_DestroyEventGroup(MagEventGroupHandle evtGrphandle){
 }
 
 MagErr_t Mag_AddEventGroup(MagEventGroupHandle evtGrphandle, MagEventHandle event){
-    int rc;
+    i32 rc;
     MagErr_t ret = MAG_ErrNone;
 
     if (NULL != event->pEvtCommon->hEventGroup){
@@ -388,7 +390,7 @@ done:
 }
 
 MagErr_t Mag_RemoveEventGroup(MagEventGroupHandle evtGrphandle, MagEventHandle event){
-    int rc;
+    i32 rc;
     MagErr_t ret = MAG_ErrNone;
 
     if (NULL == event->pEvtCommon->hEventGroup){
@@ -432,8 +434,8 @@ static MagErr_t Mag_EventStatusCheck(MagEventGroupHandle evtGrphandle, MAG_EVENT
     List_t *tmpNode = evtGrphandle->EventGroupHead.next;
     Mag_EventCommon_t *pEventCommon;
     MagErr_t ret = MAG_EventStatusErr;
-    int rc;
-    int signalEvtNum = 0;
+    i32 rc;
+    i32 signalEvtNum = 0;
 
     while (tmpNode != &evtGrphandle->EventGroupHead){
         pEventCommon = (Mag_EventCommon_t *)list_entry(tmpNode, Mag_EventCommon_t, entry);
@@ -464,7 +466,7 @@ static MagErr_t Mag_EventStatusCheck(MagEventGroupHandle evtGrphandle, MAG_EVENT
             ret = MAG_EventStatusMeet;
         }
     }else{
-        if (signalEvtNum == evtGrphandle->eventNum){
+        if (signalEvtNum == (i32)evtGrphandle->eventNum){
 #ifdef MAG_DEBUG
             evtNumTotal += signalEvtNum;
             AGILE_LOGD("[AND]triggered event number: %d. Total triggered events: %d", signalEvtNum, evtNumTotal);
@@ -480,7 +482,7 @@ static MagErr_t Mag_ClearAllEvents(MagEventGroupHandle evtGrphandle){
     List_t *tmpNode = evtGrphandle->EventGroupHead.next;
     Mag_EventCommon_t  *pEventCommon;
     MagErr_t ret = MAG_ErrNone;
-    int rc;
+    i32 rc;
     
     while (tmpNode != &evtGrphandle->EventGroupHead){
         pEventCommon = (Mag_EventCommon_t *)list_entry(tmpNode, Mag_EventCommon_t, entry);
@@ -495,18 +497,19 @@ static MagErr_t Mag_ClearAllEvents(MagEventGroupHandle evtGrphandle){
 
         tmpNode = tmpNode->next;
     }
+    return MAG_ErrNone;
 }
 
 
-MagErr_t Mag_WaitForEventGroup(MagEventGroupHandle evtGrphandle, MAG_EVENT_GROUP_OP_t op, int timeoutMsec){
+MagErr_t Mag_WaitForEventGroup(MagEventGroupHandle evtGrphandle, MAG_EVENT_GROUP_OP_t op, i32 timeoutMsec){
     struct timespec target;
     MagErr_t ret = MAG_ErrNone;
-    int rc;
+    i32 rc;
 
-    if ((timeoutMsec < 0) && (timeoutMsec != MAG_TIMEOUT_INFINITE))
+    if ((timeoutMsec < 0) && (timeoutMsec != (i32)MAG_TIMEOUT_INFINITE))
         return MAG_BadParameter;
 
-    if(timeoutMsec != MAG_TIMEOUT_INFINITE){
+    if(timeoutMsec != (i32)MAG_TIMEOUT_INFINITE){
         if ((ret = MagPriv_ms2timespec(&target, timeoutMsec)) != MAG_ErrNone)
             return ret;
     }
@@ -521,7 +524,7 @@ MagErr_t Mag_WaitForEventGroup(MagEventGroupHandle evtGrphandle, MAG_EVENT_GROUP
     }
 
     while(MAG_EventStatusMeet != Mag_EventStatusCheck(evtGrphandle, op)){ /* we might have been wokenup and then event has been cleared */
-        if (timeoutMsec == MAG_TIMEOUT_INFINITE){
+        if (timeoutMsec == (i32)MAG_TIMEOUT_INFINITE){
             rc = pthread_cond_wait(&evtGrphandle->cond, &evtGrphandle->lock);
         }else{
             rc = pthread_cond_timedwait(&evtGrphandle->cond, &evtGrphandle->lock, &target);
@@ -552,11 +555,11 @@ done:
 static MagErr_t getCallbackExeList(MagEventSchedulerHandle schedHandle, List_t *listHead, int *timeout /*ms*/){
     List_t *tmpNode;
     Mag_EventCallback_t *evtCBHanlde;
-    int rc;
-    unsigned int highPrioTotal = 0;
-    unsigned int defPrioTotal = 0;
+    i32 rc;
+    ui32 highPrioTotal = 0;
+    ui32 defPrioTotal = 0;
     Mag_EvtCbTimeStamp_t *timeStampNode;
-    int calcTimeOut = 0; //in ms
+    i32 calcTimeOut = 0; //in ms
     MagErr_t ret = MAG_ErrNone;
     MagEventCallbackHandle cbHandle;
 
@@ -680,8 +683,8 @@ L_done:
 static void processEventCallbacks(List_t *exeListHead){
     List_t *tmpNode = exeListHead->next;
     MagEventCallbackHandle evtCbHandle;
-    int i = 0;
-    int rc;
+    ui32 i = 0;
+    i32 rc;
     
     while (tmpNode != exeListHead){
         evtCbHandle = (MagEventCallbackHandle)list_entry(tmpNode, MagEventCallbackObj_t, exeEntry);
@@ -708,9 +711,9 @@ static void processEventCallbacks(List_t *exeListHead){
 
 static void *Mag_EventScheduleEntry(void *arg){
     MagEventSchedulerHandle schedHandle = (MagEventSchedulerHandle) arg;
-    int rc;
+    i32 rc;
     List_t cbExeListHead;
-    int timeout = MAG_TIMEOUT_INFINITE;
+    i32 timeout = MAG_TIMEOUT_INFINITE;
     struct timespec target;
     
     for(;;){
@@ -721,7 +724,7 @@ static void *Mag_EventScheduleEntry(void *arg){
         }
 
 restart:
-        if (MAG_TIMEOUT_INFINITE == timeout){
+        if ((i32)MAG_TIMEOUT_INFINITE == timeout){
             rc = pthread_cond_wait(&schedHandle->cond, &schedHandle->lock);
         }else{
             MagPriv_ms2timespec(&target, timeout);
@@ -749,11 +752,12 @@ restart:
         
         processEventCallbacks(&cbExeListHead);
     }
+    return NULL;
 }
 
 MagErr_t Mag_CreateEventScheduler(MagEventSchedulerHandle *evtSched, MagEvtSchedPolicy_t option){
-    int rc;
-    int i;
+    i32 rc;
+    i32 i;
     Mag_EvtCbTimeStamp_t *node;
         
     *evtSched = (MagEventSchedulerHandle)malloc(sizeof(**evtSched));
@@ -812,7 +816,7 @@ err_thread:
 }
 
 MagErr_t Mag_DestroyEventScheduler(MagEventSchedulerHandle evtSched){
-    int rc;
+    i32 rc;
     MagErr_t ret = MAG_ErrNone;
     
     rc = pthread_mutex_lock(&evtSched->lock);

@@ -14,7 +14,7 @@ void MagPlayer::onSourceNotify(MagMessageHandle msg){
     mState = ST_INITIALIZED;
 }
 
-_status_t MagPlayer::setDataSource(const char *url, const void* parameters){
+_status_t MagPlayer::setDataSource(const char *url, const MagMiniDBHandle settings){
     getLooper();
 
     MagMessageHandle msg = createMessage(MagMsg_SourceNotify);
@@ -23,7 +23,7 @@ _status_t MagPlayer::setDataSource(const char *url, const void* parameters){
     }
 }
 
-_status_t MagPlayer::setDataSource(int fd, i64 offset, i64 length){
+_status_t MagPlayer::setDataSource(i32 fd, i64 offset, i64 length){
     getLooper();
 
     MagMessageHandle msg = createMessage(MagMsg_SourceNotify);
@@ -239,6 +239,10 @@ void MagPlayer::resetAsync(){
     }
 }
 
+void MagPlayer::setDriver(MagPlayerDriver *driver) {
+    mpDriver = driver;
+}
+
 void MagPlayer::setResetCompleteListener(fnNotifyResetComplete fn, void *priv){
     if (NULL != fn){
         mNotifyResetCompleteFn = fn;
@@ -438,8 +442,8 @@ void MagPlayer::onCompletePrepareEvtCB(void *priv){
     }while(msg);
     thiz->mState = ST_PREPARED;
 
-    if (mNotifyPrepareCompleteFn != NULL)
-        mNotifyPrepareCompleteFn(mPrepareCompletePriv);
+    if (mpDriver != NULL)
+        mpDriver->PrepareCompleteEvtListener();
 }
 
 void MagPlayer::onCompleteSeekEvtCB(void *priv){
@@ -476,8 +480,8 @@ void MagPlayer::onCompleteFlushEvtCB(void *priv){
         if (ST_RUNNING == thiz->mState){
             start();
         }
-        if (NULL != mNotifyFlushCompleteFn)
-            mNotifyFlushCompleteFn(mFlushCompletePriv);
+        if (mpDriver != NULL)
+            mpDriver->FlushCompleteEvtListener();
     }else{
         AGILE_LOGE("backstate:%d is not valid for Flush operation. QUIT!", thiz->mFlushBackState);
     }

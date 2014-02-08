@@ -25,8 +25,8 @@ public:
     MagPlayer();
     virtual ~MagPlayer();
     
-    _status_t        setDataSource(const char *url, const void* parameters);
-    _status_t        setDataSource(int fd, i64 offset, i64 length);
+    _status_t        setDataSource(const char *url, const MagMiniDBHandle settings);
+    _status_t        setDataSource(i32 fd, i64 offset, i64 length);
     /*the source is the memory buffer*/
     _status_t        setDataSource(MagBufferHandle buffer);
     _status_t        setDataSource(MAG_EXTERNAL_SOURCE source);
@@ -62,6 +62,8 @@ private:
     Mag_MsgQueueHandle mSeekCompleteMQ;
     Mag_MsgQueueHandle mPrepareCompleteMQ;
 
+    MagPlayerDriver *mpDriver;
+        
     fnNotifyResetComplete mNotifyResetCompleteFn;
     void *mResetCompletePriv;
     fnNotifyPrepareComplete mNotifyPrepareCompleteFn;

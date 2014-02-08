@@ -41,13 +41,13 @@ private:
         virtual status_t        setParameter(int key, const Parcel &request);
         virtual status_t        getParameter(int key, Parcel *reply);
 
-        sp<MagPlayer>        createPlayer();
+        MagPlayerDriver*        createPlayer();
 
         virtual status_t        setDataSource(
                                 const char *url,
-                                const KeyedVector<String8, String8> *headers);
+                                const MagMessageHandle hHeaders);
 
-        virtual status_t        setDataSource(int fd, int64_t offset, int64_t length);
+        virtual status_t        setDataSource(i32 fd, i64 offset, i64 length);
 
         virtual status_t        setDataSource(const sp<IStreamSource> &source);
 
@@ -71,14 +71,14 @@ private:
 
         void                    deletePlayer();
 
-        sp<MagPlayer>        getPlayer() const { Mutex::Autolock lock(mLock); return mPlayer; }
+        sp<MagPlayerDriver>     getPlayer() const { Mutex::Autolock lock(mLock); return mPlayer; }
 
 
         // Disconnect from the currently connected ANativeWindow.
         //void disconnectNativeWindow();
 
         mutable     Mutex                       mLock;
-                    sp<MagPlayer>            mPlayer; /*initialized as NULL*/
+                    MagPlayerDriver             *mPlayer; /*initialized as NULL*/
                     sp<MagPlayerService>        mService;
                     sp<IMagPlayerClient>        mClient;
                     pid_t                       mPid;

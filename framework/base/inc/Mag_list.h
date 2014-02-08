@@ -4,6 +4,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" 
+{
+#endif
+
 #define list_offsetof(TYPE, MEMBER) ( (uintptr_t)(&((TYPE *)0)->MEMBER) ) 
 
 #define container_of(ptr, type, member) ({			\
@@ -29,11 +34,11 @@ static inline void INIT_LIST(List_t *head){
  * @param head
  *        list head
  */
-static inline void list_add_tail(List_t *new, List_t *head){
-    new->next = head;
-    head->prev->next = new;
-    new->prev = head->prev;
-    head->prev = new;
+static inline void list_add_tail(List_t *pnew, List_t *head){
+    pnew->next = head;
+    head->prev->next = pnew;
+    pnew->prev = head->prev;
+    head->prev = pnew;
 }
 
 /** add a new entry after the node
@@ -43,11 +48,11 @@ static inline void list_add_tail(List_t *new, List_t *head){
  * @param head
  *        list head
  */
-static inline void list_add(List_t *new, List_t *head){
-    new->prev = head;
-    head->next->prev = new;
-    new->next = head->next;
-    head->next = new;
+static inline void list_add(List_t *pnew, List_t *head){
+    pnew->prev = head;
+    head->next->prev = pnew;
+    pnew->next = head->next;
+    head->next = pnew;
 }
 
 static inline void list_del(List_t *node){
@@ -64,5 +69,9 @@ static inline int is_added_list(List_t *node){
     else
         return 1;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -6,6 +6,10 @@
 #include "Mag_base.h"
 #include "Mag_event.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
     MAGTHREAD_PRIORITY_LOWEST         = 19,
     MAGTHREAD_PRIORITY_LOW            = 10,
@@ -49,5 +53,9 @@ typedef MagThread_t*   MagThreadHandle;
 
 MagThreadHandle Mag_CreateThread(const char* name, fnThreadLoop fn, void *priv);
 void        Mag_DestroyThread(MagThreadHandle self);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -36,6 +36,7 @@ MagErr_t Mag_DestroyMutex(MagMutexHandle handler){
 
     pthread_mutex_destroy(&handler->mutex);
     free(handler);
+    return MAG_ErrNone;
 }
 
 MagErr_t Mag_TryAcquireMutex(MagMutexHandle handler){

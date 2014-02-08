@@ -72,23 +72,13 @@ MagPlayerService::Client::~Client()
 void MagPlayerService::Client::disconnect()
 {
     AGILE_LOGV("disconnect(%d) from pid %d", mConnId, mPid);
-    // grab local reference and clear main reference to prevent future
-    // access to object
-    sp<MediaPlayerBase> p;
-    {
-        Mutex::Autolock l(mLock);
-        p = mPlayer;
-    }
+    
     mClient.clear();
 
-    mPlayer.clear();
-
-    // clear the notification to prevent callbacks to dead client
-    // and reset the player. We assume the player will serialize
-    // access to itself if necessary.
-    if (p != 0) {
-        p->setNotifyCallback(0, 0);
-        p->reset();
+    if (NULL != mPlayer){
+        mPlayer->setNotifyCallback(0, 0);
+        delete mPlayer;
+        mPlayer = NULL;
     }
 
     //disconnectNativeWindow();
@@ -96,31 +86,31 @@ void MagPlayerService::Client::disconnect()
     IPCThreadState::self()->flushCommands();
 }
 
-sp<MagPlayer> MagPlayerService::Client::createPlayer()
+MagPlayerDriver* MagPlayerService::Client::createPlayer()
 {
     // determine if we have the right player type
-    sp<MagPlayer> p = mPlayer;
+    MagPlayerDriver *p = mPlayer;
     
     if (p == NULL) {
-        p = new MagPlayer(this, notify);
+        p = new MagPlayerDriver(this, notify);
 
         if (p != NULL) {
             p->setUID(mUID);
         }else{
-            AGILE_LOGE("Failed to create MagPlayer!!!");
+            AGILE_LOGE("Failed to create MagPlayerDriver!!!");
         }
     }
     return p;
 }
 
-status_t MagPlayerService::Client::setDataSource(
-        const char *url, const KeyedVector<String8, String8> *headers)
+_status_t MagPlayerService::Client::setDataSource(
+        const char *url, const MagMiniDBHandle settings)
 {
-    status_t status;
+    _status_t status;
     
     AGILE_LOGV("setDataSource(%s)", url);
     if (url == NULL)
-        return UNKNOWN_ERROR;
+        return MAG_UNKNOWN_ERROR;
 
     if (strncmp(url, "content://", 10) == 0) {
         // get a filedescriptor for the content Uri and
@@ -130,18 +120,18 @@ status_t MagPlayerService::Client::setDataSource(
         int fd = android::openContentProviderFile(url16);
         if (fd < 0)
         {
-            ALOGE("Couldn't open fd for %s", url);
-            return UNKNOWN_ERROR;
+            AGILE_LOGE("Couldn't open fd for %s", url);
+            return MAG_UNKNOWN_ERROR;
         }
         status = setDataSource(fd, 0, 0x7fffffffffLL); // this sets mStatus
         close(fd);
     } else {
-        sp<MagPlayer> p = createPlayer();
+        MagPlayerDriver *p = createPlayer();
         if (p == NULL){
-            status = NO_INIT;
+            status = MAG_NO_INIT;
         }else{
-            status = p->setDataSource(url, headers);
-            if (status == OK){
+            status = p->setDataSource(url, settings);
+            if (status == MAG_OK){
                 mPlayer = p;
             }else{
                 AGILE_LOGE("error: %d", status);
@@ -151,14 +141,14 @@ status_t MagPlayerService::Client::setDataSource(
     return status;
 }
 
-status_t MagPlayerService::Client::setDataSource(int fd, int64_t offset, int64_t length)
+_status_t MagPlayerService::Client::setDataSource(int fd, int64_t offset, int64_t length)
 {
     AGILE_LOGV("setDataSource fd=%d, offset=%lld, length=%lld", fd, offset, length);
     struct stat sb;
     int ret = fstat(fd, &sb);
     if (ret != 0) {
         AGILE_LOGE("fstat(%d) failed: %d, %s", fd, ret, strerror(errno));
-        return UNKNOWN_ERROR;
+        return MAG_UNKNOWN_ERROR;
     }
 
     AGILE_LOGV("st_dev  = %llu", sb.st_dev);
@@ -170,20 +160,20 @@ status_t MagPlayerService::Client::setDataSource(int fd, int64_t offset, int64_t
     if (offset >= sb.st_size) {
         AGILE_LOGE("offset error");
         ::close(fd);
-        return UNKNOWN_ERROR;
+        return MAG_UNKNOWN_ERROR;
     }
     if (offset + length > sb.st_size) {
         length = sb.st_size - offset;
         AGILE_LOGV("calculated length = %lld", length);
     }
 
-    status_t status;
-    sp<MagPlayer> p = createPlayer();
+    _status_t status;
+    MagPlayerDriver *p = createPlayer();
     if (p == NULL){
-        status = NO_INIT;
+        status = MAG_NO_INIT;
     }else{
         status = p->setDataSource(fd, offset, length);
-        if (status == OK){
+        if (status == MAG_OK){
             mPlayer = p;
         }else{
             AGILE_LOGE("error: %d", status);
@@ -192,15 +182,15 @@ status_t MagPlayerService::Client::setDataSource(int fd, int64_t offset, int64_t
     return status;
 }
 
-status_t MagPlayerService::Client::setDataSource(
+_status_t MagPlayerService::Client::setDataSource(
         const sp<IStreamSource> &source) {
-    status_t status;
-    sp<MagPlayer> p = createPlayer();
+    _status_t status;
+    MagPlayerDriver *p = createPlayer();
     if (p == NULL){
-        status = NO_INIT;
+        status = MAG_NO_INIT;
     }else{
         status = p->setDataSource(source);
-        if (status == OK){
+        if (status == MAG_OK){
             mPlayer = p;
         }else{
             AGILE_LOGE("error: %d", status);
@@ -209,71 +199,71 @@ status_t MagPlayerService::Client::setDataSource(
     return status;
 }
 
-status_t MagPlayerService::Client::setVideoSurfaceTexture(
+_status_t MagPlayerService::Client::setVideoSurfaceTexture(
         const sp<ISurfaceTexture>& surfaceTexture)
 {
-    return OK;
+    return MAG_OK;
 }
 
-status_t MagPlayerService::Client::invoke(const Parcel& request,
+_status_t MagPlayerService::Client::invoke(const Parcel& request,
                                             Parcel *reply)
 {
-    sp<MagPlayer> p = getPlayer();
-    if (p == NULL) return UNKNOWN_ERROR;
+    MagPlayerDriver *p = getPlayer();
+    if (p == NULL) return MAG_UNKNOWN_ERROR;
     return p->invoke(request, reply);
 }
 
-status_t MagPlayerService::Client::prepareAsync()
+_status_t MagPlayerService::Client::prepareAsync()
 {
     AGILE_LOGV("[%d] prepareAsync", mConnId);
-    sp<MagPlayer> p = getPlayer();
-    if (p == 0) return UNKNOWN_ERROR;
-    status_t ret = p->prepareAsync();
+    MagPlayerDriver *p = getPlayer();
+    if (p == 0) return MAG_UNKNOWN_ERROR;
+    _status_t ret = p->prepareAsync();
     return ret;
 }
 
-status_t MagPlayerService::Client::start()
+_status_t MagPlayerService::Client::start()
 {
     AGILE_LOGV("[%d] start", mConnId);
-    sp<MagPlayer> p = getPlayer();
-    if (p == 0) return UNKNOWN_ERROR;
+    MagPlayerDriver *p = getPlayer();
+    if (p == 0) return MAG_UNKNOWN_ERROR;
     p->setLooping(mLoop);
     return p->start();
 }
 
-status_t MagPlayerService::Client::stop()
+_status_t MagPlayerService::Client::stop()
 {
     AGILE_LOGV("[%d] stop", mConnId);
-    sp<MagPlayer> p = getPlayer();
-    if (p == 0) return UNKNOWN_ERROR;
+    MagPlayerDriver *p = getPlayer();
+    if (p == 0) return MAG_UNKNOWN_ERROR;
     return p->stop();
 }
 
-status_t MagPlayerService::Client::pause()
+_status_t MagPlayerService::Client::pause()
 {
     AGILE_LOGV("[%d] pause", mConnId);
-    sp<MagPlayer> p = getPlayer();
-    if (p == 0) return UNKNOWN_ERROR;
+    MagPlayerDriver *p = getPlayer();
+    if (p == 0) return MAG_UNKNOWN_ERROR;
     return p->pause();
 }
 
-status_t MagPlayerService::Client::isPlaying(bool* state)
+_status_t MagPlayerService::Client::isPlaying(bool* state)
 {
     *state = false;
-    sp<MagPlayer> p = getPlayer();
-    if (p == 0) return UNKNOWN_ERROR;
+    MagPlayerDriver *p = getPlayer();
+    if (p == 0) return MAG_UNKNOWN_ERROR;
     *state = p->isPlaying();
     AGILE_LOGV("[%d] isPlaying: %d", mConnId, *state);
-    return NO_ERROR;
+    return MAG_NO_ERROR;
 }
 
-status_t MagPlayerService::Client::getCurrentPosition(int *msec)
+_status_t MagPlayerService::Client::getCurrentPosition(int *msec)
 {
     AGILE_LOGV("getCurrentPosition");
-    sp<MagPlayer> p = getPlayer();
-    if (p == 0) return UNKNOWN_ERROR;
-    status_t ret = p->getCurrentPosition(msec);
-    if (ret == NO_ERROR) {
+    MagPlayerDriver *p = getPlayer();
+    if (p == 0) return MAG_UNKNOWN_ERROR;
+    _status_t ret = p->getCurrentPosition(msec);
+    if (ret == MAG_NO_ERROR) {
         AGILE_LOGV("[%d] getCurrentPosition = %d", mConnId, *msec);
     } else {
         AGILE_LOGE("getCurrentPosition returned %d", ret);
@@ -281,13 +271,13 @@ status_t MagPlayerService::Client::getCurrentPosition(int *msec)
     return ret;
 }
 
-status_t MagPlayerService::Client::getDuration(int *msec)
+_status_t MagPlayerService::Client::getDuration(int *msec)
 {
     AGILE_LOGV("getDuration");
-    sp<MagPlayer> p = getPlayer();
-    if (p == 0) return UNKNOWN_ERROR;
-    status_t ret = p->getDuration(msec);
-    if (ret == NO_ERROR) {
+    MagPlayerDriver *p = getPlayer();
+    if (p == 0) return MAG_UNKNOWN_ERROR;
+    _status_t ret = p->getDuration(msec);
+    if (ret == MAG_NO_ERROR) {
         AGILE_LOGV("[%d] getDuration = %d", mConnId, *msec);
     } else {
         AGILE_LOGV("getDuration returned %d", ret);
@@ -295,50 +285,50 @@ status_t MagPlayerService::Client::getDuration(int *msec)
     return ret;
 }
 
-status_t MagPlayerService::Client::seekTo(int msec)
+_status_t MagPlayerService::Client::seekTo(int msec)
 {
     AGILE_LOGV("[%d] seekTo(%d)", mConnId, msec);
-    sp<MagPlayer> p = getPlayer();
-    if (p == 0) return UNKNOWN_ERROR;
+    MagPlayerDriver *p = getPlayer();
+    if (p == 0) return MAG_UNKNOWN_ERROR;
     return p->seekTo(msec);
 }
 
-status_t MagPlayerService::Client::reset()
+_status_t MagPlayerService::Client::reset()
 {
     AGILE_LOGV("[%d] reset", mConnId);
-    sp<MagPlayer> p = getPlayer();
-    if (p == 0) return UNKNOWN_ERROR;
+    MagPlayerDriver *p = getPlayer();
+    if (p == 0) return MAG_UNKNOWN_ERROR;
     return p->reset();
 }
 
-status_t MagPlayerService::Client::setLooping(int loop)
+_status_t MagPlayerService::Client::setLooping(int loop)
 {
     AGILE_LOGV("[%d] setLooping(%d)", mConnId, loop);
     mLoop = loop;
-    sp<MagPlayer> p = getPlayer();
+    MagPlayerDriver *p = getPlayer();
     if (p != 0) return p->setLooping(loop);
-    return NO_ERROR;
+    return MAG_NO_ERROR;
 }
 
-status_t MagPlayerService::Client::setVolume(float leftVolume, float rightVolume)
+_status_t MagPlayerService::Client::setVolume(float leftVolume, float rightVolume)
 {
     AGILE_LOGV("[%d] setVolume(L:%f - R:%f)", mConnId, leftVolume, rightVolume);
-    sp<MagPlayer> p = getPlayer();
+    MagPlayerDriver *p = getPlayer();
     if (p != 0) return p->setVolume(leftVolume, rightVolume);
-    return NO_ERROR;
+    return MAG_NO_ERROR;
 }
 
-status_t MagPlayerService::Client::setParameter(int key, const Parcel &request) {
+_status_t MagPlayerService::Client::setParameter(int key, const Parcel &request) {
     AGILE_LOGV("[%d] setParameter(%d)", mConnId, key);
-    sp<MagPlayer> p = getPlayer();
-    if (p == 0) return UNKNOWN_ERROR;
+    MagPlayerDriver *p = getPlayer();
+    if (p == 0) return MAG_UNKNOWN_ERROR;
     return p->setParameter(key, request);
 }
 
-status_t MagPlayerService::Client::getParameter(int key, Parcel *reply) {
+_status_t MagPlayerService::Client::getParameter(int key, Parcel *reply) {
     AGILE_LOGV("[%d] getParameter(%d)", mConnId, key);
-    sp<MagPlayer> p = getPlayer();
-    if (p == 0) return UNKNOWN_ERROR;
+    MagPlayerDriver *p = getPlayer();
+    if (p == 0) return MAG_UNKNOWN_ERROR;
     return p->getParameter(key, reply);
 }
 

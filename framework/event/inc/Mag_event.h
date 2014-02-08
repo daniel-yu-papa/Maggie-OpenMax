@@ -2,9 +2,15 @@
 #define _MAG_EVENT_H__
 
 #include "Mag_pub_def.h"
+#include "Mag_pub_type.h"
 #include "Mag_list.h"
 #include <pthread.h>
 #include <time.h>
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*max 16 events in 1 event group*/
 #define MAX_EVENTS_EG    16 
@@ -30,7 +36,7 @@ typedef struct mag_event_group_obj{
     List_t EventGroupHead;
     pthread_mutex_t lock;            /* mutex for protecting signal and conditional variables */
     pthread_cond_t  cond;            /* condition to wake up from event set*/
-    unsigned int    eventNum;        /* the number of the events*/
+    ui32    eventNum;        /* the number of the events*/
 }MagEventGroupObj_t;
 
 typedef MagEventGroupObj_t    *MagEventGroupHandle;
@@ -55,7 +61,7 @@ typedef Mag_EventScheduler_t *MagEventSchedulerHandle;
 
 typedef struct mag_event_callback_obj{
     List_t          exeEntry;
-    unsigned int    exeNum;
+    ui32            exeNum;
     pthread_mutex_t lock;
     
     void (*pCallback)(void *);
@@ -67,7 +73,7 @@ typedef MagEventCallbackObj_t *MagEventCallbackHandle;
 typedef struct mag_evt_cb_ts_obj{
     List_t          tsListNode;
     struct timespec timeStamp;
-    int             timeDiff; /*the time difference between 2 continuous incoming events*/
+    i32             timeDiff; /*the time difference between 2 continuous incoming events*/
     MagEventCallbackHandle cbBody;
 }Mag_EvtCbTimeStamp_t;
 
@@ -107,11 +113,15 @@ MagErr_t Mag_CreateEventGroup(MagEventGroupHandle *evtGrphandle);
 void     Mag_DestroyEventGroup(MagEventGroupHandle evtGrphandle);
 MagErr_t Mag_AddEventGroup(MagEventGroupHandle evtGrphandle, MagEventHandle event);
 MagErr_t Mag_RemoveEventGroup(MagEventGroupHandle evtGrphandle, MagEventHandle event);
-MagErr_t Mag_WaitForEventGroup(MagEventGroupHandle evtGrphandle, MAG_EVENT_GROUP_OP_t op, int timeoutMsec);
+MagErr_t Mag_WaitForEventGroup(MagEventGroupHandle evtGrphandle, MAG_EVENT_GROUP_OP_t op, i32 timeoutMsec);
 
 MagErr_t Mag_CreateEventScheduler(MagEventSchedulerHandle *evtSched, MagEvtSchedPolicy_t option);
 MagErr_t Mag_DestroyEventScheduler(MagEventSchedulerHandle evtSched);
 MagErr_t Mag_RegisterEventCallback(MagEventSchedulerHandle schedHandle, MagEventHandle evtHandle, void (*pCallback)(void *), void *pContext);
 MagErr_t Mag_UnregisterEventCallback(MagEventHandle evtHandle);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
