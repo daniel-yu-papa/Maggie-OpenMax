@@ -312,6 +312,26 @@ boolean MagMiniDB_findString(struct mag_minidb *db, const char *name, char **s){
     return ret;
 }
 
+void    MagMiniDB_deleteItem(struct mag_minidb *db, const char *name){
+    MagMiniDBItemHandle hItem;
+    boolean ret;
+
+    Mag_AcquireMutex(db->mLock);
+    hItem = (MagMiniDBItemHandle)StrHashTable_GetItem(db->mhHashTable, name);
+    if (NULL != hItem){
+        if (hItem->mType == TypeString)
+            mag_free(hItem->u.stringValue);
+        if (hItem->mType == TypePointer)
+            mag_free(hItem->u.ptrValue);
+        
+        list_del(&hItem->node);
+        mag_free(hItem);
+    }else{
+        AGILE_LOGE("failed to find the key: %s", name);
+    }
+    Mag_ReleaseMutex(db->mLock);
+}
+
 MagMiniDBHandle createMagMiniDB(i32 maxItemsNum){
     MagMiniDBHandle h;
 
@@ -338,6 +358,8 @@ MagMiniDBHandle createMagMiniDB(i32 maxItemsNum){
         h->findPointer = MagMiniDB_findPointer;
         h->findString  = MagMiniDB_findString;
         h->findUInt32  = MagMiniDB_findUInt32;
+
+        h->deleteItem  = MagMiniDB_deleteItem;
     }
 
     return h;
@@ -355,6 +377,9 @@ void destroyMagMiniDB(MagMiniDBHandle db){
         hItem = (MagMiniDBItemHandle)list_entry(tmpNode, MagMiniDBItem_t, node);
         if (hItem->mType == TypeString)
             mag_free(hItem->u.stringValue);
+        if (hItem->mType == TypePointer)
+            mag_free(hItem->u.ptrValue);
+        
         list_del(&hItem->node);
         mag_free(hItem);
         tmpNode = db->mItemListHead.next;

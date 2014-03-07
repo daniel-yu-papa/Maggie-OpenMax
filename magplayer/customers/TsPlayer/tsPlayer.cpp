@@ -19,13 +19,21 @@ int GetMediaProcessorVersion()
 }
 
 void TsPlayer::initialize(){
-    mpPlayer = new MagPlayerClient();
+    mPlayer = new MagPlayerClient();
 
-    if (NULL != mpPlayer){
-        MagMediaType_t t = MediaTypeTS;
-        mpPlayer->setParameters(kMediaType, MagParamTypeInt32, (void *)&t);
+    if (NULL != GET_POINTER(mPlayer)){
+        mStreamBuf = new StreamBuffer();
 
-        mpPlayer->setDataSource(MAG_EXTERNAL_SOURCE_TSMemory);
+        if (NULL == GET_POINTER(mStreamBuf)){
+            AGILE_LOG_FATAL("failed to create StreamBuffer object!");
+            return;
+        }
+
+        Parcel data;
+        data.writeInt32(MediaTypeTS);
+        mPlayer->setParameters(idsMediaType, data);
+
+        mPlayer->setDataSource(mStreamBuf);
         mState = TSP_INITIALIZED;
         
         Mag_CreateEventGroup(&mPrepareEvtGroup);
@@ -33,6 +41,8 @@ void TsPlayer::initialize(){
             Mag_AddEventGroup(mPrepareEvtGroup, mPrepareDoneEvt);
         if (MAG_ErrNone == Mag_CreateEvent(&mPrepareErrorEvt, 0))
             Mag_AddEventGroup(mPrepareEvtGroup, mPrepareErrorEvt);
+    }else{
+        AGILE_LOG_FATAL("failed to create MagPlayerClient object!");
     }
 }
 
@@ -45,7 +55,7 @@ TsPlayer::~TsPlayer(){
     Mag_DestroyEvent(mPrepareDoneEvt);
     Mag_DestroyEvent(mPrepareErrorEvt);
     Mag_DestroyEventGroup(mPrepareEvtGroup);
-    delete mpPlayer;
+    delete mPlayer;
 }
 
 
@@ -54,18 +64,30 @@ int  TsPlayer::GetPlayMode(){
 }
 
 int  TsPlayer::SetVideoWindow(int x,int y,int width,int height){
-    MagVideoDisplay_t *window = (MagVideoDisplay_t *)mag_malloc(sizeof(MagVideoDisplay_t));
-    mpPlayer->setParameters(kVideo_Display, MagParamTypePointer, (void *)window);
+    Parcel request;
+    Parcel reply;
+
+    if ((mState == TSP_IDLE) ||
+        (mState == TSP_ERROR)){
+        return 1;
+    }
+    
+    request.writeInt32(MAG_INVOKE_ID_SET_WINDOW_SIZE);
+    request.writeInt32(x);
+    request.writeInt32(y);
+    request.writeInt32(width);
+    request.writeInt32(height);
+    mPlayer->invoke(request, &reply);
 
     return 0;
 }
 
 int  TsPlayer::VideoShow(void){
-    
+    return 0;
 }
 
 int  TsPlayer::VideoHide(void){
-
+    return 0;
 }
 
 ui32 TsPlayer::convertVideoCodecType(vformat_t vcodec){
@@ -113,49 +135,76 @@ ui32 TsPlayer::convertAudioCodecType(aformat_t acodec){
 }
 
 void TsPlayer::InitVideo(PVIDEO_PARA_T pVideoPara){
-    MagTsPIDList_t *pid = (MagTsPIDList_t *)mag_mallocz(sizeof(PVIDEO_PARA_T));
-    
-    pid->pidTable[0] = pVideoPara.pid;
-    pid->num         = 1;
-    pid->codec[0]    = convertVideoCodecType(pVideoPara->vFmt);
-    mpPlayer->setParameters(kVideo_TS_pidlist, MagParamTypePointer, (void *)pid);
+    Parcel request;
+
+    if (mState == TSP_INITIALIZED){
+        request.writeInt32(1);
+        request.writeInt32(pVideoPara.pid);
+        request.writeInt32(convertVideoCodecType(pVideoPara->vFmt));
+        
+        mPlayer->setParameters(idsVideo_TS_pidlist, request);
+    }
 }
 
 void TsPlayer::InitAudio(PAUDIO_PARA_T pAudioPara){
-    MagTsPIDList_t *pid = (MagTsPIDList_t *)mag_mallocz(sizeof(PVIDEO_PARA_T));
-    ui32 i = 0;
+    Parcel request;
     
-    while(pAudioPara[i].pid){
-        pid->pidTable[i] = pAudioPara[i].pid;
-        pid->codec[i]    = convertAudioCodecType(pAudioPara[i].aFmt);
-        ++i;
+    ui32 i = 0;
+    ui32 num = 0;
+
+    if (mState == TSP_INITIALIZED){
+        while(pAudioPara[i].pid){
+            ++i;
+        }
+
+        num = i;
+
+        if (num > 32){
+            AGILE_LOGE("the number(%d) exceeds 32 and set to 32", num);
+            num = 32;
+        }else{
+            AGILE_LOGD("total number is %d", num);
+        }
+        
+        request.writeInt32(num);
+
+        for (i = 0; i < num; i++){
+            request.writeInt32(pAudioPara[i].pid);
+            request.writeInt32(convertAudioCodecType(pAudioPara[i].aFmt));
+        }
+        mPlayer->setParameters(idsAudio_TS_pidlist, request);
     }
-    pid->num = i;
-    mpPlayer->setParameters(kAudio_TS_pidlist, MagParamTypePointer, (void *)pid);
 }
 
 bool TsPlayer::StartPlay(){
-    mpPlayer->setPrepareCompleteListener(PrepareCompleteEvtListener, static_cast<void *>(this));
-    Prepare();
+    if (mState == TSP_INITIALIZED){
+        mPlayer->setPrepareCompleteListener(PrepareCompleteEvtListener, static_cast<void *>(this));
+        Prepare();
 
-    if (TSP_PREPARED == mState){
-        mState = TSP_RUNNING;
-        mpPlayer->start();
-        return true;
-    }else{
-        AGILE_LOGE("the state[%d] is wrong", mState);
-        return false;
+        if (TSP_PREPARED == mState){
+            mState = TSP_RUNNING;
+            mPlayer->start();
+            return true;
+        }else{
+            AGILE_LOGE("the state[%d] is wrong", mState);
+            return false;
+        }
     }
+    return false;
 }
 
 int  TsPlayer::WriteData(unsigned char* pBuffer, unsigned int nSize){
+    if ((TSP_RUNNING == mState) ||
+        (TSP_FASTING == mState))
+        mStreamBuf->WriteData(pBuffer, nSize, true);
 
+    return 0;
 }
 
 bool TsPlayer::Pause(){
     if (TSP_RUNNING == mState){
         mState = TSP_PAUSED;
-        mpPlayer->pause();
+        mPlayer->pause();
         return true;
     }else{
         AGILE_LOGE("the state[%d] is wrong", mState);
@@ -166,7 +215,7 @@ bool TsPlayer::Pause(){
 bool TsPlayer::Resume(){
     if (TSP_PAUSED == mState){
         mState = TSP_RUNNING;
-        mpPlayer->resume();
+        mPlayer->resume();
         return true;
     }else{
         AGILE_LOGE("the state[%d] is wrong", mState);
@@ -178,7 +227,7 @@ bool TsPlayer::Fast(){
     if ((TSP_PREPARED == mState) ||
         (TSP_RUNNING  == mState)){
         mState = TSP_FASTING;
-        mpPlayer->fast();
+        mPlayer->fast();
         return true;
     }else{
         AGILE_LOGE("the state[%d] is wrong", mState);
@@ -189,7 +238,8 @@ bool TsPlayer::Fast(){
 bool TsPlayer::StopFast(){
     if (TSP_FASTING == mState){
         mState = TSP_RUNNING;
-        mpPlayer->stop();
+        mPlayer->stop();
+        mPlayer->start();
         return true;
     }else{
         AGILE_LOGE("the state[%d] is wrong", mState);
@@ -200,7 +250,7 @@ bool TsPlayer::StopFast(){
 bool TsPlayer::Stop(){
     if (TSP_RUNNING == mState){
         mState = TSP_STOPPED;
-        mpPlayer->stop();
+        mPlayer->stop();
         return true;
     }else{
         AGILE_LOGE("the state[%d] is wrong", mState);
@@ -212,10 +262,10 @@ bool TsPlayer::Seek(){
     if ((TSP_RUNNING == mState) ||
         (TSP_PREPARED == mState) ||
         (TSP_PAUSED == mState){
-        mpPlayer->setFlushCompleteListener(FlushCompleteEvtListener);
+        mPlayer->setFlushCompleteListener(FlushCompleteEvtListener);
         mSeekBackState = mState;
         mState = TSP_FLUSHING;
-        mpPlayer->flush();
+        mPlayer->flush();
         return true;
     }else{
         AGILE_LOGE("the state[%d] is wrong", mState);
@@ -281,8 +331,8 @@ void TsPlayer::leaveChannel(){
 
 void TsPlayer::Prepare(){
     MagErr_t ret;
-    
-    mpPlayer->prepareAsync();
+
+    mPlayer->prepareAsync();
     mState = TSP_PREPARING;
     Mag_WaitForEventGroup(mPrepareEvtGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
     AGILE_LOGD("exit!");
@@ -312,28 +362,4 @@ void TsPlayer::FlushCompleteEvtListener(void *priv){
 
     inst->mState = inst->mSeekBackState;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

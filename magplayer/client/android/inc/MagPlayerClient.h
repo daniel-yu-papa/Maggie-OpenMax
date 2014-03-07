@@ -13,8 +13,6 @@
 
 #include "IMagPlayerClient.h"
 
-namespace android {
-
 class Surface;
 class ISurfaceTexture;
 
@@ -190,5 +188,10 @@ private:
     float                       mSendLevel;
 };
 
-}; // namespace android
+typedef sp<MagPlayerClient> MagPlayerClient_t;
+
+enum mag_player_invoke_ids {
+    MAG_INVOKE_ID_SET_WINDOW_SIZE = 1,
+};
+
 #endif

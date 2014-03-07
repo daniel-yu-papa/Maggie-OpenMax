@@ -97,7 +97,7 @@ public:
         return reply.readInt32();
     }
 
-    _status_t setDataSource(const sp<IStreamSource> &source) {
+    _status_t setDataSource(const sp<IStreamBuffer> &source) {
         Parcel data, reply;
         data.writeInterfaceToken(IMagPlayerClient::getInterfaceDescriptor());
         data.writeStrongBinder(source->asBinder());
@@ -275,7 +275,7 @@ _status_t BnMagPlayerClient::onTransact(
         case SET_DATA_SOURCE_STREAM: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
             sp<IStreamSource> source =
-                interface_cast<IStreamSource>(data.readStrongBinder());
+                interface_cast<IStreamBuffer>(data.readStrongBinder());
             reply->writeInt32(setDataSource(source));
             return NO_ERROR;
         }

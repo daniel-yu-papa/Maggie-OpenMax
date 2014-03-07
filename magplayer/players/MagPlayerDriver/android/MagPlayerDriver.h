@@ -62,13 +62,16 @@ private:
     State_t mFlushBackState;
     
     MagPlayer *mpPlayer;
-
+    StreamBufferUser *mpStreamBufUser;
+    
     MagEventGroupHandle mPrepareEvtGroup;
     MagEventHandle      mPrepareDoneEvt;
     MagEventHandle      mPrepareErrorEvt;
 
     MagMutexHandle      mNotifyLock;
 
+    ui32 mSetTrackIndex;
+    
     void sendEvent(int msg, int ext1=0, int ext2=0, const Parcel *obj=NULL);
 };
 

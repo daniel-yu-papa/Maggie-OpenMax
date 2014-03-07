@@ -6,6 +6,10 @@
 #include "Mag_list.h"
 #include "Mag_base.h"
 
+/*
+* the pointers that setPointer() and setString() use must be malloced, they would be freed while the mini db is destroyed. 
+*/
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -59,6 +63,8 @@ typedef struct mag_minidb{
     boolean (*findDouble)(struct mag_minidb *db, const char *name, fp64 *value);
     boolean (*findPointer)(struct mag_minidb *db, const char *name, void **value);
     boolean (*findString)(struct mag_minidb *db, const char *name, char **s);
+
+    void    (*deleteItem)(struct mag_minidb *db, const char *name);
 }MagMiniDB_t;
 
 typedef MagMiniDB_t* MagMiniDBHandle;

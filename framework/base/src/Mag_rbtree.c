@@ -93,7 +93,7 @@ static RBTreeNodeHandle rbtree_delete_priv(RBTreeNodeHandle root, i64 key, RBTre
         /*delete leaf node*/
         if (root->right == NULL){
             if (root->key == key){
-                AGILE_LOGD("find the key: %lld", key);
+                //AGILE_LOGD("find the key: %lld", key);
                 *deleteNode = root;
                 return NULL;
             }

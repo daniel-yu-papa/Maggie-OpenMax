@@ -1,7 +1,5 @@
 #include "MagPlayerClient.h"
 
-namespace android {
-
 MagPlayerClient::MagPlayerClient()
 {
 
@@ -110,7 +108,7 @@ status_t MagPlayerClient::setDataSource(int fd, int64_t offset, int64_t length)
     return err;
 }
 
-status_t MagPlayerClient::setDataSource(const sp<IStreamSource> &source){
+status_t MagPlayerClient::setDataSource(const sp<IStreamBuffer> &source){
     AGILE_LOGV("setDataSource");
     status_t err = BAD_VALUE;
     if (url != NULL) {
@@ -584,6 +582,3 @@ void MagPlayerClient::died()
     notify(MEDIA_ERROR, MEDIA_ERROR_SERVER_DIED, 0);
 }
 
-
-
-};

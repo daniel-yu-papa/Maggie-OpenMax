@@ -1,6 +1,6 @@
-#include "Mag_message.h"
+#include "Mag_looper.h"
 
-static void freeItem(MagMessage_t *msg, MagItem_t *item){
+static void freeItem(MagItem_t *item){
     switch(item->mType){
         case TypeString:
             mag_free(item->u.stringValue);
@@ -10,12 +10,12 @@ static void freeItem(MagMessage_t *msg, MagItem_t *item){
     }
 }
 
-static const MagItem_t *findItem(MagMessage_t *msg, const char *name, MsgPayloadType type) const{
+static MagItem_t *findItem(MagMessage_t *msg, const char *name, enum MsgPayloadType type){
     ui32 i = 0;
 
     for(i = 0; i < msg->mNumItems; i++){
-        if (strcmp(msg->mItem[i].mName, name) == 0 ){
-            return msg->mItem[i].mType == type ? &msg->mItem[i] : NULL;
+        if (strcmp(msg->mItems[i].mName, name) == 0 ){
+            return msg->mItems[i].mType == type ? &msg->mItems[i] : NULL;
         }
     }
     return NULL;
@@ -24,7 +24,7 @@ static const MagItem_t *findItem(MagMessage_t *msg, const char *name, MsgPayload
 static MagItem_t *allocateItem(MagMessage_t *msg, const char *name){
     ui32 i = 0;
 
-    while(i < msg->mNumItems && strcmp(msg->mItem[i].mName, name) != 0){
+    while(i < msg->mNumItems && strcmp(msg->mItems[i].mName, name) != 0){
         ++i;
     }
 
@@ -176,16 +176,26 @@ static boolean MagMessage_findString(MagMessage_t *msg, const char *name, char *
     return MAG_FALSE;
 }
 
-ui32 MagMessage_what(struct mag_message *msg){
+ui32 MagMessage_what(MagMessage_t *msg){
     return msg->mWhat;
 }
 
-MagMessage_t *createMessage(ui32 what, ui32 target){
+boolean MagMessage_postMessage(MagMessage_t *msg, i64 delayMs){
+    if (msg->mLooper != NULL){
+        msg->mLooper->postMessage(msg->mLooper, msg, delayMs);
+        return MAG_TRUE;
+    }else{
+        return MAG_FALSE;
+    }
+}
+
+MagMessageHandle createMagMessage(struct MagLooper *looper, ui32 what, ui32 target){
     MagMessage_t *msg;
 
     msg = mag_malloc(sizeof(MagMessage_t));
 
     if (msg != NULL){
+        msg->mLooper = looper;
         msg->mWhat   = what;
         msg->mTarget = target;
         msg->mNumItems = 0;
@@ -206,8 +216,28 @@ MagMessage_t *createMessage(ui32 what, ui32 target){
         msg->findPointer = MagMessage_findPointer;
         msg->findString  = MagMessage_findString;
         msg->findSize    = MagMessage_findSize;
+
+        msg->postMessage = MagMessage_postMessage;
     }
 
     return msg;
+}
+
+void             destroyMagMessage(MagMessageHandle msg){
+    i32 i;
+
+    if (msg == NULL)
+        return;
+    
+    for (i = 0; i < msg->mNumItems; i++){
+        if (msg->mItems[i].mType == TypePointer){
+            mag_free(msg->mItems[i].u.ptrValue);
+        }
+
+        if (msg->mItems[i].mType == TypeString){
+            mag_free(msg->mItems[i].u.stringValue);
+        }
+    }
+    mag_free(msg);
 }
 

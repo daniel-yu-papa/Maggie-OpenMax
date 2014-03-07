@@ -7,18 +7,16 @@
 
 #define PARAMETERS_DB_SIZE   256
 
+typedef enum{
+    E_WHAT_UNKNOWN = 0,
+    E_WHAT_DEMUXER,
+}ErrorWhatCode_t;
+
+
 typedef void (*fnNotifyResetComplete)(void *priv);
 typedef void (*fnNotifyPrepareComplete)(void *priv);
 typedef void (*fnNotifyFlushComplete)(void *priv);
 typedef void (*fnNotifyError)(void *priv, i32 what, i32 extra);
-
-typedef enum MAG_EXTERNAL_SOURCE{
-    MAG_EXTERNAL_SOURCE_Unused,
-    MAG_EXTERNAL_SOURCE_TSMemory, /*the continuous memory block filled with ts data*/
-    MAG_EXTERNAL_SOURCE_ESMemory, /*the memory block filled with audio/video es data attached with PTS&DTS*/
-    MAG_EXTERNAL_SOURCE_VendorStartUnused = 0x7F000000, /**< Reserved region for introducing External Source Extensions */
-    MAG_EXTERNAL_SOURCE_Max = 0x7FFFFFFF
-}MAG_EXTERNAL_SOURCE;
 
 class MagPlayer {
 public:
@@ -28,7 +26,7 @@ public:
     _status_t        setDataSource(const char *url, const MagMiniDBHandle settings);
     _status_t        setDataSource(i32 fd, i64 offset, i64 length);
     /*the source is the memory buffer*/
-    _status_t        setDataSource(MagBufferHandle buffer);
+    _status_t        setDataSource(StreamBufferUser *buffer);
     _status_t        setDataSource(MAG_EXTERNAL_SOURCE source);
 
     void prepareAsync();
@@ -48,9 +46,11 @@ public:
     void setErrorListener(fnNotifyError fn, void *priv);
 
     void setParameters(const char *name, MagParamType_t type, void *value);
-    void getParameters(const char *name, MagParamType_t type, void **value);
+    _status_t getParameters(const char *name, MagParamType_t type, void **value);
 
     void fast(i32 speed);
+
+    void setDisplayWindow(ui32 x, ui32 y, ui32 w, ui32 h);
     
 protected:
     
@@ -84,6 +84,7 @@ private:
         MagMsg_SeekTo,
         MagMsg_Fast,
         MagMsg_Reset,
+        MagMsg_ErrorNotify,
     };
     enum State_t{
         ST_IDLE = 0,
@@ -114,7 +115,10 @@ private:
 
     MagMiniDBHandle mParametersDB;
 
-    MAG_EXTERNAL_SOURCE mExtSource;
+    MagPlayer_Component_CP *mSource;
+    MagPlayer_Demuxer_Base *mDemuxer;
+
+    TrackInfoTable_t *mTrackTable;
     
     static void onCompletePrepareEvtCB(void *priv);
     static void onCompleteSeekEvtCB(void *priv);
@@ -135,7 +139,8 @@ private:
     void onSeek(MagMessageHandle msg);
     void onFast(MagMessageHandle msg);
     void onReset(MagMessageHandle msg);
-
+    void onError(MagMessageHandle msg);
+    
     bool isValidFSState(State_t st);
 };
 #endif

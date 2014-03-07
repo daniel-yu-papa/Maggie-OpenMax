@@ -41,7 +41,8 @@ private:
     void writeToFile();
 
     FILE *mOutputFile;
-    sp<StreamBufferUser> mStreamBufUser;
+    //sp<StreamBufferUser> mStreamBufUser;
+    StreamBufferUser *mStreamBufUser;
 }; 
 
 SBTestService::SBTestService(){

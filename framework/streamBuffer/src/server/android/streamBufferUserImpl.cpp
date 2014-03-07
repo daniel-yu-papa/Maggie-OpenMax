@@ -62,7 +62,7 @@ StreamBufferUser::~StreamBufferUser(){
 void StreamBufferUser::fill_CircularBuffer(_size_t size){
     if (mCBMgr != NULL){
         Mag_AcquireMutex(mCBMgr->lock);
-        AGILE_LOGI("filled %u bytes data", size);
+        //AGILE_LOGI("filled %u bytes data", size);
         mCBMgr->writeIndex += size;
         mCBMgr->writeIndex = mCBMgr->writeIndex % mCBMgr->totalSize;
         Mag_ReleaseMutex(mCBMgr->lock);
@@ -111,7 +111,7 @@ _size_t StreamBufferUser::readData_CircularBuffer(void *data, _size_t size){
     Mag_ReleaseMutex(mCBMgr->lock);
     
     if (mCBMgr != NULL){
-        AGILE_LOGI("readIndex=%d, writeIndex=%u, size=%u", mCBMgr->readIndex, w, size);
+        //AGILE_LOGI("readIndex=%d, writeIndex=%u, size=%u", mCBMgr->readIndex, w, size);
         if (w == mCBMgr->readIndex){
             /*if w == r: the buffer is empty*/
             return 0;

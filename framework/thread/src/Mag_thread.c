@@ -26,6 +26,7 @@ static _status_t loopEntryWrapper(void *userData){
         if (ret != MAG_TRUE || user->mExitPending){
             user->mExitPending = MAG_TRUE;
             user->mRunning     = MAG_FALSE;
+            AGILE_LOGD("exit!");
             break;
         }
     }while(1);
@@ -134,32 +135,34 @@ _status_t MagThread_setParm_StackSize(MagThread_t *self, _size_t stackSize){
 }
 
 _status_t  MagThread_requestExit(MagThread_t *self){
-    _status_t ret;
-    
-    Mag_AcquireMutex(self->mLock);
-    if (self){
-        self->mExitPending= MAG_TRUE;
-        ret = MAG_NO_ERROR;
-    }else{
-        ret = MAG_NO_INIT;
+    _status_t ret = MAG_NO_ERROR;
+
+    if (self->mRunning){
+        Mag_AcquireMutex(self->mLock);
+        if (self){
+            self->mExitPending= MAG_TRUE;
+        }else{
+            ret = MAG_NO_INIT;
+        }
+        Mag_ReleaseMutex(self->mLock);
     }
-    Mag_ReleaseMutex(self->mLock);
     return ret;
 }
 
 _status_t MagThread_requestExitAndWait(MagThread_t *self, i32 timeout){
-    _status_t ret;
-    
-    Mag_AcquireMutex(self->mLock);
-    if (self){
-        self->mExitPending= MAG_TRUE;
-        ret = MAG_NO_ERROR;
-    }else{
-        ret = MAG_NO_INIT;
-    }
-    Mag_ReleaseMutex(self->mLock);
+    _status_t ret = MAG_NO_ERROR;
 
-    Mag_WaitForEventGroup(self->mExitEvtGroup, MAG_EG_OR, timeout);
+    if (self->mRunning){
+        Mag_AcquireMutex(self->mLock);
+        if (self){
+            self->mExitPending= MAG_TRUE;
+        }else{
+            ret = MAG_NO_INIT;
+        }
+        Mag_ReleaseMutex(self->mLock);
+
+        Mag_WaitForEventGroup(self->mExitEvtGroup, MAG_EG_OR, timeout);
+    }
     return ret;
 }
 

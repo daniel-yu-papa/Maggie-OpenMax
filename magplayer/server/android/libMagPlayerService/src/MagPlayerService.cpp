@@ -183,7 +183,7 @@ _status_t MagPlayerService::Client::setDataSource(int fd, int64_t offset, int64_
 }
 
 _status_t MagPlayerService::Client::setDataSource(
-        const sp<IStreamSource> &source) {
+        const sp<IStreamBuffer> &source) {
     _status_t status;
     MagPlayerDriver *p = createPlayer();
     if (p == NULL){

@@ -58,4 +58,6 @@ struct StreamBufferUser_Server : public BnInterface<IStreamBufferUser> {
             uint32_t flags = 0);
 };
 
+typedef sp<IStreamBuffer>  streamBuf_t;
+
 #endif

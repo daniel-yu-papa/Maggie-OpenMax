@@ -6,6 +6,7 @@
 #include "MagSingleton.h"
 
 #include "MagPlayerClient.h"
+#include "streamBuffer.h"
 
 typedef enum {
     VFORMAT_UNKNOWN = -1,
@@ -198,8 +199,10 @@ private:
 
     State_t mState;
     State_t mSeekBackState;
-    MagPlayerClient *mpPlayer;
-
+    
+    MagPlayerClient_t mPlayer;
+    streamBuf_t       mStreamBuf;
+    
     ui32 convertVideoCodecType(vformat_t vcodec);
     ui32 convertAudioCodecType(aformat_t acodec);
 
