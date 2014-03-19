@@ -80,6 +80,11 @@ typedef enum
 
 typedef void (*IPTV_PLAYER_EVT_CB)(IPTV_PLAYER_EVT_e evt, void *handler);
 
+class TsPlayerListener: public MagPlayerListener{
+public:
+    virtual void notify(int msg, int ext1, int ext2);
+};
+
 class CTC_MediaProcessor{
 public:
 	CTC_MediaProcessor(){}
@@ -202,6 +207,8 @@ private:
     
     MagPlayerClient_t mPlayer;
     streamBuf_t       mStreamBuf;
+
+    TsPlayerListener  *mpListener;
     
     ui32 convertVideoCodecType(vformat_t vcodec);
     ui32 convertAudioCodecType(aformat_t acodec);

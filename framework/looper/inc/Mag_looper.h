@@ -13,6 +13,8 @@ extern "C" {
 
 #define MAX_MSG_PAYLOAD_NUM 32
 
+struct mag_message;
+
 enum MsgPayloadType {
     TypeInt32,
     TypeInt64,
@@ -21,6 +23,7 @@ enum MsgPayloadType {
     TypeDouble,
     TypePointer,
     TypeString,
+    TypeMessage,
 };
 
 typedef struct mag_item{
@@ -32,6 +35,7 @@ typedef struct mag_item{
         fp64    doubleValue;
         void    *ptrValue;
         char    *stringValue;
+        struct mag_message *messageValue;
     } u;
     const char *mName;
     enum MsgPayloadType mType;
@@ -57,7 +61,8 @@ typedef struct mag_message{
     void (*setDouble)(struct mag_message *msg, const char *name, fp64 value);
     void (*setPointer)(struct mag_message *msg, const char *name, void *value);
     void (*setString)(struct mag_message *msg, const char *name, const char *s);
-
+    void (*setMessage)(struct mag_message *msg, const char *name, struct mag_message *message);
+    
     boolean (*findInt32)(struct mag_message *msg, const char *name, i32 *value);
     boolean (*findInt64)(struct mag_message *msg, const char *name, i64 *value);
     boolean (*findSize)(struct mag_message *msg, const char *name, _size_t *value);
@@ -65,6 +70,7 @@ typedef struct mag_message{
     boolean (*findDouble)(struct mag_message *msg, const char *name, fp64 *value);
     boolean (*findPointer)(struct mag_message *msg, const char *name, void **value);
     boolean (*findString)(struct mag_message *msg, const char *name, char **s);
+    boolean (*findMessage)(struct mag_message *msg, const char *name, struct mag_message **message);
 
     boolean (*postMessage)(struct mag_message *msg, i64 delayMs);
 }MagMessage_t;
@@ -78,7 +84,7 @@ void             destroyMagMessage(MagMessageHandle msg);
 * definitions of Looper
 */
 
-#define NUM_PRE_ALLOCATED_EVENTS 64
+#define NUM_PRE_ALLOCATED_EVENTS 32
 
 typedef struct Event {
     List_t node;

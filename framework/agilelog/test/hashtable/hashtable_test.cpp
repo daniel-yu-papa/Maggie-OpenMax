@@ -1,27 +1,27 @@
 #include "hashTable.h"
-
+#include <stdio.h>
 //using namespace AGILELOG;
 
 int main(){
-    HashTable *pTable = new HashTable(10);
+    HashTableHandle pTable = createMagStrHashTable(10);
 
-    pTable->buildHashTable(NULL, "YuJun");
-    pTable->buildHashTable(NULL, "PengQianlan");
-    pTable->buildHashTable(NULL, "XiaoXiao");
-    pTable->buildHashTable(NULL, "Mother");
-    pTable->buildHashTable(NULL, "Father");
-    pTable->buildHashTable(NULL, "Ridiculous");
-    pTable->buildHashTable(NULL, "Please");
-    pTable->buildHashTable(NULL, "helloworld");
-    pTable->buildHashTable(NULL, "sorry");
-    pTable->buildHashTable(NULL, "happy");
+    pTable->addItem(pTable, NULL, "YuJun");
+    pTable->addItem(pTable, NULL, "PengQianlan");
+    pTable->addItem(pTable, NULL, "XiaoXiao");
+    pTable->addItem(pTable, NULL, "Mother");
+    pTable->addItem(pTable, NULL, "Father");
+    pTable->addItem(pTable, NULL, "Ridiculous");
+    pTable->addItem(pTable, NULL, "Please");
+    pTable->addItem(pTable, NULL, "helloworld");
+    pTable->addItem(pTable, NULL, "sorry");
+    pTable->addItem(pTable, NULL, "happy");
 
-    pTable->getHashItem("XiaoXiao");
-    pTable->getHashItem("Please");
-    pTable->getHashItem("Ridiculous");
-    pTable->getHashItem("TestT");
-    
-    pTable->printHashTable();
+    pTable->getItem(pTable, "XiaoXiao");
+    pTable->getItem(pTable, "Please");
+    pTable->getItem(pTable, "Ridiculous");
+    pTable->getItem(pTable, "TestT");
 
-    delete pTable;
+    pTable->print(pTable);
+
+    destroyMagStrHashTable(pTable);
 }

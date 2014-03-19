@@ -14,9 +14,11 @@ static MagLooperEvent_t *getFreeEvent(MagLooperHandle hLooper){
 
     if(tmpNode == &hLooper->mFreeEvtQueue){
         AGILE_LOGV("no nodes in the free list. malloc one");
-        pEvent = mag_malloc(sizeof(MagLooperEvent_t));
-        if (pEvent != NULL)
+        pEvent = mag_mallocz(sizeof(MagLooperEvent_t));
+        if (pEvent != NULL){
             INIT_LIST(&pEvent->node);
+            pEvent->mMessage = (struct mag_message *)mag_mallocz(sizeof(struct mag_message));
+        }
     }else{
         list_del(tmpNode);
         pEvent = (MagLooperEvent_t *)list_entry(tmpNode, MagLooperEvent_t, node);    
@@ -196,9 +198,9 @@ static void MagLooper_postMessage(MagLooperHandle hLooper, MagMessage_t *msg, i6
     
     evt = getFreeEvent(hLooper);
     if (evt != NULL){
+        memcpy(evt->mMessage, msg, sizeof(MagMessage_t));
         if (delayMs > 0){
             evt->mWhenMs = getNowMs() + delayMs;
-            evt->mMessage = msg;
             if (hLooper->mDelayEvtTreeRoot == NULL)
                 postEvt = MAG_TRUE;
             
@@ -208,7 +210,6 @@ static void MagLooper_postMessage(MagLooperHandle hLooper, MagMessage_t *msg, i6
             hLooper->mDelayEvtTreeRoot = rbtree_insert(hLooper->mDelayEvtTreeRoot, evt->mWhenMs, (void *)evt);
         }else{
             evt->mWhenMs = 0;
-            evt->mMessage = msg;
             /*only take care of the NoDelay Message Queue Empty status*/
             if (&hLooper->mNoDelayEvtQueue == hLooper->mNoDelayEvtQueue.next)
                 postEvt = MAG_TRUE;
@@ -274,9 +275,12 @@ MagLooperHandle createLooper(const char *pName){
         ui32 i;
         MagLooperEvent_t *pEvent;
         for (i = 0; i < NUM_PRE_ALLOCATED_EVENTS; i++){
-            pEvent = mag_malloc(sizeof(MagLooperEvent_t));
-            INIT_LIST(&pEvent->node);
-            list_add(&pEvent->node, &pLooper->mFreeEvtQueue);
+            pEvent = mag_mallocz(sizeof(MagLooperEvent_t));
+            if (NULL != pEvent){
+                INIT_LIST(&pEvent->node);
+                pEvent->mMessage = (struct mag_message *)mag_mallocz(sizeof(struct mag_message));
+                list_add(&pEvent->node, &pLooper->mFreeEvtQueue);
+            }
         }
     }else{
         AGILE_LOGE("failed to malloc MagLooper_t");
@@ -301,6 +305,8 @@ void destroyLooper(MagLooperHandle hLooper){
     while (tmpNode != &hLooper->mFreeEvtQueue){
         list_del(tmpNode);
         evt = (MagLooperEvent_t *)list_entry(tmpNode, MagLooperEvent_t, node);   
+        if (evt->mMessage)
+            mag_free(evt->mMessage);
         mag_free(evt);
         tmpNode = hLooper->mFreeEvtQueue.next;
     }

@@ -27,28 +27,28 @@
 
 #include "IMagPlayerClient.h"
 
-namespace android {
-
 enum {
     DISCONNECT = IBinder::FIRST_CALL_TRANSACTION,
     SET_DATA_SOURCE_URL,
     SET_DATA_SOURCE_FD,
     SET_DATA_SOURCE_STREAM,
+    PREPARE,
     PREPARE_ASYNC,
     START,
     STOP,
     IS_PLAYING,
     PAUSE,
     SEEK_TO,
+    FAST,
     GET_CURRENT_POSITION,
     GET_DURATION,
     RESET,
-    SET_LOOPING,
     SET_VOLUME,
     INVOKE,
     SET_VIDEO_SURFACETEXTURE,
     SET_PARAMETER,
     GET_PARAMETER,
+    FLUSH,
 };
 
 class BpMagPlayerClient: public BpInterface<IMagPlayerClient>
@@ -67,27 +67,16 @@ public:
         remote()->transact(DISCONNECT, data, &reply);
     }
 
-    _status_t setDataSource(const char* url,
-            const KeyedVector<String8, String8>* headers)
+    _status_t setDataSource(const char* url)
     {
         Parcel data, reply;
         data.writeInterfaceToken(IMagPlayerClient::getInterfaceDescriptor());
         data.writeCString(url);
-        if (headers == NULL) {
-            data.writeInt32(0);
-        } else {
-            // serialize the headers
-            data.writeInt32(headers->size());
-            for (size_t i = 0; i < headers->size(); ++i) {
-                data.writeString8(headers->keyAt(i));
-                data.writeString8(headers->valueAt(i));
-            }
-        }
         remote()->transact(SET_DATA_SOURCE_URL, data, &reply);
         return reply.readInt32();
     }
 
-    _status_t setDataSource(int fd, int64_t offset, int64_t length) {
+    _status_t setDataSource(i32 fd, i64 offset, i64 length) {
         Parcel data, reply;
         data.writeInterfaceToken(IMagPlayerClient::getInterfaceDescriptor());
         data.writeFileDescriptor(fd);
@@ -116,6 +105,14 @@ public:
         return reply.readInt32();
     }
 
+    _status_t prepare()
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IMagPlayerClient::getInterfaceDescriptor());
+        remote()->transact(PREPARE, data, &reply);
+        return reply.readInt32();
+    }
+    
     _status_t prepareAsync()
     {
         Parcel data, reply;
@@ -166,6 +163,23 @@ public:
         return reply.readInt32();
     }
 
+    _status_t flush()
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IMagPlayerClient::getInterfaceDescriptor());
+        remote()->transact(FLUSH, data, &reply);
+        return reply.readInt32();
+    }
+    
+    _status_t fast(int multiple)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IMagPlayerClient::getInterfaceDescriptor());
+        data.writeInt32(multiple);
+        remote()->transact(FAST, data, &reply);
+        return reply.readInt32();
+    }
+        
     _status_t getCurrentPosition(int* msec)
     {
         Parcel data, reply;
@@ -189,14 +203,6 @@ public:
         Parcel data, reply;
         data.writeInterfaceToken(IMagPlayerClient::getInterfaceDescriptor());
         remote()->transact(RESET, data, &reply);
-        return reply.readInt32();
-    }
-    _status_t setLooping(int loop)
-    {
-        Parcel data, reply;
-        data.writeInterfaceToken(IMagPlayerClient::getInterfaceDescriptor());
-        data.writeInt32(loop);
-        remote()->transact(SET_LOOPING, data, &reply);
         return reply.readInt32();
     }
 
@@ -249,7 +255,7 @@ _status_t BnMagPlayerClient::onTransact(
         case DISCONNECT: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
             disconnect();
-            return NO_ERROR;
+            return MAG_NO_ERROR;
         } break;
         case SET_DATA_SOURCE_URL: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
@@ -262,7 +268,7 @@ _status_t BnMagPlayerClient::onTransact(
                 headers.add(key, value);
             }
             reply->writeInt32(setDataSource(url, numHeaders > 0 ? &headers : NULL));
-            return NO_ERROR;
+            return MAG_NO_ERROR;
         } break;
         case SET_DATA_SOURCE_FD: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
@@ -270,36 +276,41 @@ _status_t BnMagPlayerClient::onTransact(
             int64_t offset = data.readInt64();
             int64_t length = data.readInt64();
             reply->writeInt32(setDataSource(fd, offset, length));
-            return NO_ERROR;
+            return MAG_NO_ERROR;
         }
         case SET_DATA_SOURCE_STREAM: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
             sp<IStreamSource> source =
                 interface_cast<IStreamBuffer>(data.readStrongBinder());
             reply->writeInt32(setDataSource(source));
-            return NO_ERROR;
+            return MAG_NO_ERROR;
         }
         case SET_VIDEO_SURFACETEXTURE: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
             sp<ISurfaceTexture> surfaceTexture =
                     interface_cast<ISurfaceTexture>(data.readStrongBinder());
             reply->writeInt32(setVideoSurfaceTexture(surfaceTexture));
-            return NO_ERROR;
+            return MAG_NO_ERROR;
+        } break;
+        case PREPARE: {
+            CHECK_INTERFACE(IMagPlayerClient, data, reply);
+            reply->writeInt32(prepare());
+            return MAG_NO_ERROR;
         } break;
         case PREPARE_ASYNC: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
             reply->writeInt32(prepareAsync());
-            return NO_ERROR;
+            return MAG_NO_ERROR;
         } break;
         case START: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
             reply->writeInt32(start());
-            return NO_ERROR;
+            return MAG_NO_ERROR;
         } break;
         case STOP: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
             reply->writeInt32(stop());
-            return NO_ERROR;
+            return MAG_NO_ERROR;
         } break;
         case IS_PLAYING: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
@@ -307,17 +318,27 @@ _status_t BnMagPlayerClient::onTransact(
             _status_t ret = isPlaying(&state);
             reply->writeInt32(state);
             reply->writeInt32(ret);
-            return NO_ERROR;
+            return MAG_NO_ERROR;
         } break;
         case PAUSE: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
             reply->writeInt32(pause());
-            return NO_ERROR;
+            return MAG_NO_ERROR;
         } break;
         case SEEK_TO: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
             reply->writeInt32(seekTo(data.readInt32()));
-            return NO_ERROR;
+            return MAG_NO_ERROR;
+        } break;
+        case FLUSH: {
+            CHECK_INTERFACE(IMagPlayerClient, data, reply);
+            reply->writeInt32(flush());
+            return MAG_NO_ERROR;
+        } break;
+        case FAST: {
+            CHECK_INTERFACE(IMagPlayerClient, data, reply);
+            reply->writeInt32(fast(data.readInt32()));
+            return MAG_NO_ERROR;
         } break;
         case GET_CURRENT_POSITION: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
@@ -325,7 +346,7 @@ _status_t BnMagPlayerClient::onTransact(
             _status_t ret = getCurrentPosition(&msec);
             reply->writeInt32(msec);
             reply->writeInt32(ret);
-            return NO_ERROR;
+            return MAG_NO_ERROR;
         } break;
         case GET_DURATION: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
@@ -333,24 +354,19 @@ _status_t BnMagPlayerClient::onTransact(
             _status_t ret = getDuration(&msec);
             reply->writeInt32(msec);
             reply->writeInt32(ret);
-            return NO_ERROR;
+            return MAG_NO_ERROR;
         } break;
         case RESET: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
             reply->writeInt32(reset());
-            return NO_ERROR;
-        } break;
-        case SET_LOOPING: {
-            CHECK_INTERFACE(IMagPlayerClient, data, reply);
-            reply->writeInt32(setLooping(data.readInt32()));
-            return NO_ERROR;
+            return MAG_NO_ERROR;
         } break;
         case SET_VOLUME: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
             float leftVolume = data.readFloat();
             float rightVolume = data.readFloat();
             reply->writeInt32(setVolume(leftVolume, rightVolume));
-            return NO_ERROR;
+            return MAG_NO_ERROR;
         } break;
         case INVOKE: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
@@ -368,7 +384,7 @@ _status_t BnMagPlayerClient::onTransact(
             }
             request.setDataPosition(0);
             reply->writeInt32(setParameter(key, request));
-            return NO_ERROR;
+            return MAG_NO_ERROR;
         } break;
         case GET_PARAMETER: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
@@ -379,7 +395,4 @@ _status_t BnMagPlayerClient::onTransact(
     }
 }
 
-// ----------------------------------------------------------------------------
-
-}; // namespace android
 

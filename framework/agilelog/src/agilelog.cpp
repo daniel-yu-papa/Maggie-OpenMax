@@ -42,7 +42,7 @@ AgileLog::AgileLog(){
 }
 
 AgileLog::~AgileLog(){
-
+    destroyMagStrHashTable(mpModuleHashT);
 }
 
 Error_t AgileLog::parseGlobalConfigElement(XMLElement *ele){ 
@@ -116,7 +116,7 @@ Error_t AgileLog::parseModuleConfigElement(XMLElement *eleIn){
     mConfigValue.moduleNum = count;
     mConfigValue.pModules = (ModuleConfig_t *)malloc(count * sizeof(ModuleConfig_t));
 
-    mpModuleHashT = new HashTable(count);
+    mpModuleHashT = createMagStrHashTable(count);
     
     count = 0;
     for( XMLNode* node = eleIn->FirstChild(); node; node = node->NextSibling() )
@@ -145,7 +145,7 @@ Error_t AgileLog::parseModuleConfigElement(XMLElement *eleIn){
             //if not matching any, set it to verbose anyway!
             mConfigValue.pModules[count].debugLevel = DEBUG_LEVEL_VERBOSE;
         }
-        mpModuleHashT->buildHashTable((void *)&mConfigValue.pModules[count], mConfigValue.pModules[count].moduleName);
+        mpModuleHashT->addItem(mpModuleHashT, (void *)&mConfigValue.pModules[count], mConfigValue.pModules[count].moduleName);
         
         ++count;
 	}
@@ -227,7 +227,7 @@ void AgileLog::printConfig(){
     printf("\tModules [%d]:\n", mConfigValue.moduleNum);
 
     for (int i = 0; i < mConfigValue.moduleNum; i++){
-        pM = (ModuleConfig_t *)mpModuleHashT->getHashItem(mConfigValue.pModules[i].moduleName);
+        pM = (ModuleConfig_t *)mpModuleHashT->getItem(mpModuleHashT, mConfigValue.pModules[i].moduleName);
         printf("\t  |-module: %s\n", pM->moduleName);
         printf("\t      |-debug on: %d\n", pM->debugOn);
         printf("\t      |-debug level: %d\n", pM->debugLevel);
@@ -266,7 +266,7 @@ void AgileLog::printLog(int prio, const char *module, const char *caller, int li
     //printf("enter printLog: prio = %d, module = %s, printData = %s\n", prio, module, printData);
     
     if(mConfigValue.moduleNum > 0){
-        pM = (ModuleConfig_t *)mpModuleHashT->getHashItem(module);
+        pM = (ModuleConfig_t *)mpModuleHashT->getItem(mpModuleHashT, module);
         //print nothing
         if (NULL != pM){
             if ((!pM->debugOn) || (prio < pM->debugLevel))

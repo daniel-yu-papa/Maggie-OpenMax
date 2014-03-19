@@ -53,11 +53,10 @@ MODULE := agilelog
 # Only support shared library.
 LIB_NAME := lib$(MODULE).so
 
-LIB_INC_PATH := $(SOURCE_DIR)/inc $(SOURCE_DIR)/inc/pub $(SOURCE_DIR)/external/tinyxml2 $(SOURCE_DIR)/../hashtable
+LIB_INC_PATH := $(SOURCE_DIR)/inc $(SOURCE_DIR)/inc/pub $(SOURCE_DIR)/external/tinyxml2 $(SOURCE_DIR)/../hashtable/inc
 
 LIB_SRCS := agilelog.cpp \
 agilelog_inf.cpp \
-hashTable.cpp \
 tinyxml2.cpp
 
 
@@ -78,11 +77,12 @@ CPPFLAGS += -Wno-unused-parameter -Werror -Wno-missing-field-initializers
 CPPFLAGS += $(addprefix -I,$(LIB_INC_PATH))
 
 
-CFLAGS += -g -fpermissive
+CFLAGS += -g
 CFLAGS += -Wno-unused-parameter -Wno-missing-field-initializers
 CFLAGS += $(addprefix -I,$(LIB_INC_PATH))
 
 LIB_OBJS=$(patsubst %.cpp, $(OBJDIR)/%.o, $(LIB_SRCS))
+LIB_OBJS+=$(OBJDIR)/hashTable.o
 
 LDFLAGS += -lc -L$(BINDIR) -lagilelog
 
@@ -90,11 +90,16 @@ LDFLAGS += -lc -L$(BINDIR) -lagilelog
 
 all: $(BINDIR)/$(LIB_NAME) $(BINDIR)/agiletest $(BINDIR)/htTest
 
-VPATH = $(SOURCE_DIR)/src $(SOURCE_DIR)/inc $(SOURCE_DIR)/inc/pub $(SOURCE_DIR)/external/tinyxml2 $(SOURCE_DIR)/test/agilelog $(SOURCE_DIR)/test/hashtable $(SOURCE_DIR)/../hashtable
+VPATH = $(SOURCE_DIR)/src $(SOURCE_DIR)/inc $(SOURCE_DIR)/inc/pub $(SOURCE_DIR)/external/tinyxml2 $(SOURCE_DIR)/test/agilelog $(SOURCE_DIR)/test/hashtable \
+        $(SOURCE_DIR)/../hashtable/src $(SOURCE_DIR)/../hashtable/inc
 
 $(OBJDIR)/%.o: %.cpp agilelog_def.h agilelog_priv.h
 	@echo "[compiling.. $(notdir $<)]"
 	$(CXX) -c -fPIC -o $@ $< $(CPPFLAGS)
+
+$(OBJDIR)/%.o: %.c agilelog_def.h agilelog_priv.h
+	@echo "[compiling.. $(notdir $<)]"
+	$(CC) -c -fPIC -o $@ $< $(CFLAGS)
 
 $(BINDIR)/$(LIB_NAME): $(LIB_OBJS)
 	@echo [creating.. $(notdir $@)]

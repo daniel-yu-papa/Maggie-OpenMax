@@ -1,4 +1,5 @@
 #include "tsPlayerDriver.h"
+#include "platform.h"
 
 MAG_SINGLETON_STATIC_INSTANCE(TsPlayer)
 
@@ -44,6 +45,10 @@ void TsPlayer::initialize(){
     }else{
         AGILE_LOG_FATAL("failed to create MagPlayerClient object!");
     }
+
+    mpListener = new TsPlayerListener();
+    if (mpListener != NULL)
+        mPlayer->setListener(mpListener);
 }
 
 TsPlayer::TsPlayer():
@@ -180,16 +185,17 @@ bool TsPlayer::StartPlay(){
     if (mState == TSP_INITIALIZED){
         mPlayer->setPrepareCompleteListener(PrepareCompleteEvtListener, static_cast<void *>(this));
         Prepare();
-
-        if (TSP_PREPARED == mState){
-            mState = TSP_RUNNING;
-            mPlayer->start();
-            return true;
-        }else{
-            AGILE_LOGE("the state[%d] is wrong", mState);
-            return false;
-        }
     }
+    
+    if (TSP_PREPARED == mState){
+        mState = TSP_RUNNING;
+        mPlayer->start();
+        return true;
+    }else{
+        AGILE_LOGE("the state[%d] is wrong", mState);
+        return false;
+    }
+
     return false;
 }
 
@@ -361,5 +367,9 @@ void TsPlayer::FlushCompleteEvtListener(void *priv){
     TsPlayer *inst = static_cast<TsPlayer *>(priv);
 
     inst->mState = inst->mSeekBackState;
+}
+
+void TsPlayerListener::notify(int msg, int ext1, int ext2){
+    AGILE_LOGD("get message: %d(ext1:%d, ext2:%d)", msg, ext1, ext2);
 }
 

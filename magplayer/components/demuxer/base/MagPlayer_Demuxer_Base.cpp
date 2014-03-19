@@ -2,8 +2,8 @@
 
 #define MAX_PARAM_DB_ITEMS_NUMBER  64
 
-_status_t releaseMediaBuffer(void* thiz, MediaBuffer_t *mb){
-    Stream_Track *strack = static_cast<Stream_Track *>(thiz);
+_status_t releaseMediaBuffer(MediaBuffer_t *mb){
+    Stream_Track *strack = static_cast<Stream_Track *>(mb->track_obj);
     return strack->releaseFrame(mb);
 }
 
@@ -348,51 +348,45 @@ _status_t   MagPlayer_Demuxer_Base::readFrame(ui32 trackIndex, MediaBuffer_t **b
     }
 }
 
-void MagPlayer_Demuxer_Base::onReadFrame(MagMessageHandle msg){
+MagMessageHandle MagPlayer_Demuxer_Base::createNotifyMsg(){
+    MagMessageHandle msg;
+
+    msg = createMessage(MagDemuxerMsg_PlayerNotify);
+    return msg;
+}
+
+void MagPlayer_Demuxer_Base::onPlayerNotify(MagMessageHandle msg){
     boolean ret;
-    i32 value;
+    i32 idx;
 
     MediaBuffer_t *buf = NULL;
-    
-    ret = msg->findInt32(msg, "track-idx", &value);
+    MagMessageHandle reply;
+    i32 what;
+
+    ret = msg->findInt32(msg, "what", &what);
     if (!ret){
-        AGILE_LOGE("failed to find the track-idx!");
+        AGILE_LOGE("failed to find the what int32!");
         return;
-    }   
+    }
 
-    if (MAG_NO_ERROR == readFrame(value, &buf)){
-        if (NULL != buf){
-            void *looper;
-            MagLooperHandle instLooper = NULL;
-            
-            void *msgHandler;
-            MagMessageHandle instMsgHandler = NULL;
-            
-            i64 delay;
+    if (what == MagPlayer_Demuxer_Base::kWhatReadFrame){
+        ret = msg->findInt32(msg, "track-idx", &idx);
+        if (!ret){
+            AGILE_LOGE("failed to find the track-idx!");
+            return;
+        }   
 
-            ret = msg->findPointer(msg, "looper", &looper);
-            if (!ret){
-                AGILE_LOGE("failed to find the looper!");
-                return;
-            } 
-            instLooper = static_cast<MagLooperHandle>(looper);
-
-            ret = msg->findPointer(msg, "msg-handler", &msgHandler);
-            if (!ret){
-                AGILE_LOGE("failed to find the msg-handler!");
-                return;
-            } 
-            instMsgHandler = static_cast<MagMessageHandle>(msgHandler);
-
-            ret = msg->findInt64(msg, "delay", &delay);
-            if (!ret){
-                AGILE_LOGE("failed to find the delay!");
-                delay = 0;
-            } 
-
-            instMsgHandler->setPointer(instMsgHandler, "media-buffer", static_cast<void *>(buf));
-            /*send message to OMX component that owns the media track processing*/
-            instLooper->postMessage(instMsgHandler, delay);
+        if (MAG_NO_ERROR == readFrame(idx, &buf)){
+            if (NULL != buf){
+                ret = msg->findMessage(msg, "reply", &reply);
+                if (!ret){
+                    AGILE_LOGE("failed to find the reply message!");
+                } 
+                
+                msg->setPointer(msg, "media-buffer", static_cast<void *>(buf));
+                /*send message to OMX component that owns the media track processing*/
+                reply->postMessage(reply, 0);
+            }
         }
     }
 }
@@ -401,8 +395,8 @@ void MagPlayer_Demuxer_Base::onMessageReceived(const MagMessageHandle msg, void 
     MagPlayer_Demuxer_Base *thiz = (MagPlayer_Demuxer_Base *)priv;
     
     switch (msg->what(msg)) {
-        case MagDemuxerMsg_ReadFrame:
-            thiz->onReadFrame(msg);
+        case MagDemuxerMsg_PlayerNotify:
+            thiz->onPlayerNotify(msg);
             break;
 
         default:
@@ -411,25 +405,20 @@ void MagPlayer_Demuxer_Base::onMessageReceived(const MagMessageHandle msg, void 
 }
 
 MagMessageHandle MagPlayer_Demuxer_Base::createMessage(ui32 what) {
-    MagMessageHandle msg = mag_mallocz(sizeof(MagMessage_t));
-    if (msg != NULL){
-        msg->mWhat   = what;
-        msg->mTarget = mMsgHandler->id(mMsgHandler);
+    getLooper();
+    
+    MagMessageHandle msg = createMagMessage(mLooper, what, mMsgHandler->id(mMsgHandler));
+    if (msg == NULL){
+        AGILE_LOGE("failed to create the message");
     }
     return msg;
 }
 
-_status_t MagPlayer_Demuxer_Base::postMessage(MagMessageHandle msg, ui64 delay){
-    if ((NULL == mLooper) || (NULL == mMsgHandler)){
-        AGILE_LOGE("Looper is not running correctly(looper=0x%p, handler=0x%p)", mLooper, mMsgHandler);
-        return MAG_NO_INIT;
-    }
-
-    mLooper->postMessage(msg, delay);
-    return MAG_NO_ERROR;
-}
-
 _status_t MagPlayer_Demuxer_Base::getLooper(){
+    if ((NULL != mLooper) && (NULL != mMsgHandler)){
+        return MAG_NO_ERROR;
+    }
+    
     if (NULL == mLooper){
         mLooper = createLooper(LOOPER_NAME);
     }

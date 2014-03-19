@@ -20,7 +20,7 @@ typedef struct media_buffer_t{
 
     void *track_obj;
 
-    _status_t (*release)(void* , struct media_buffer_t *);
+    _status_t (*release)(struct media_buffer_t *);
 }MediaBuffer_t;
 
 #endif

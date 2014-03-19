@@ -99,6 +99,14 @@ static void MagMessage_setString(MagMessage_t *msg, const char *name, const char
     item->u.stringValue = mag_strdup(s);
 }
 
+static void MagMessage_setMessage(MagMessage_t *msg, const char *name, struct mag_message *message){
+    MagItem_t *item;
+
+    item = allocateItem(msg, name);
+    item->mType = TypeMessage;
+    item->u.messageValue = message;
+}
+
 static boolean MagMessage_findInt32(MagMessage_t *msg, const char *name, i32 *value){
     MagItem_t *item;
 
@@ -176,6 +184,18 @@ static boolean MagMessage_findString(MagMessage_t *msg, const char *name, char *
     return MAG_FALSE;
 }
 
+static boolean MagMessage_findMessage(MagMessage_t *msg, const char *name, struct mag_message **message){
+    MagItem_t *item;
+
+    item = findItem(msg, name, TypeMessage);
+    if (item != NULL){
+        *message = item->u.messageValue;
+        return MAG_TRUE;
+    }
+    return MAG_FALSE;
+}
+
+
 ui32 MagMessage_what(MagMessage_t *msg){
     return msg->mWhat;
 }
@@ -208,7 +228,8 @@ MagMessageHandle createMagMessage(struct MagLooper *looper, ui32 what, ui32 targ
         msg->setPointer = MagMessage_setPointer;
         msg->setString  = MagMessage_setString;
         msg->setSize    = MagMessage_setSize;
-
+        msg->setMessage = MagMessage_setMessage;
+        
         msg->findInt32   = MagMessage_findInt32;
         msg->findInt64   = MagMessage_findInt64;
         msg->findFloat   = MagMessage_findFloat;
@@ -216,7 +237,8 @@ MagMessageHandle createMagMessage(struct MagLooper *looper, ui32 what, ui32 targ
         msg->findPointer = MagMessage_findPointer;
         msg->findString  = MagMessage_findString;
         msg->findSize    = MagMessage_findSize;
-
+        msg->findMessage  = MagMessage_findMessage;
+        
         msg->postMessage = MagMessage_postMessage;
     }
 
@@ -236,6 +258,10 @@ void             destroyMagMessage(MagMessageHandle msg){
 
         if (msg->mItems[i].mType == TypeString){
             mag_free(msg->mItems[i].u.stringValue);
+        }
+
+        if (msg->mItems[i].mType == TypeMessage){
+            destroyMagMessage(msg->mItems[i].u.messageValue);
         }
     }
     mag_free(msg);

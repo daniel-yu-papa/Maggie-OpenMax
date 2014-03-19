@@ -9,46 +9,49 @@ static const MagParametersTable_t sParamTable[] = {
 };
 
 MagPlayerDriver::MagPlayerDriver(void *client, notify_client_callback_f cb):
-    mState(MPD_IDLE),
-    mSetTrackIndex(0){
-
+    mState(MPD_ST_IDLE){
     mpClient = client;
     mClientNotifyFn = cb;
     
     mpPlayer = new MagPlayer();
-
     if (NULL != mpPlayer){
-        Mag_CreateEventGroup(&mPrepareEvtGroup);
-        if (MAG_ErrNone == Mag_CreateEvent(&mPrepareDoneEvt, 0))
-            Mag_AddEventGroup(mPrepareEvtGroup, mPrepareDoneEvt);
-        if (MAG_ErrNone == Mag_CreateEvent(&mPrepareErrorEvt, 0))
-            Mag_AddEventGroup(mPrepareEvtGroup, mPrepareErrorEvt);
+        mpPlayer->setPrepareCompleteListener(PrepareCompleteEvtListener, static_cast<void *>(this));
+        mpPlayer->setFlushCompleteListener(FlushCompleteEvtListener, static_cast<void *>(this));
+        mpPlayer->setErrorListener(ErrorEvtListener, static_cast<void *>(this));
+        mpPlayer->setInfoListener(InfoEvtListener, static_cast<void *>(this));
+        mpPlayer->setSeekCompleteListener(SeekCompleteEvtListener, static_cast<void *>(this));
     }
-
-    Mag_CreateMutex(&mNotifyLock);
 }
 
 MagPlayerDriver::~MagPlayerDriver(){
-    Mag_DestroyEvent(mPrepareDoneEvt);
-    Mag_DestroyEvent(mPrepareErrorEvt);
-    Mag_DestroyEventGroup(mPrepareEvtGroup);
     delete mpPlayer;
 }
 
-_status_t MagPlayerDriver::setDataSource(
-             const char *url, const MagMiniDBHandle settings){
-    mState = MPD_INITIALIZED;
-    return mpPlayer->setDataSource(url, settings);
+_status_t MagPlayerDriver::setDataSource(const char *url){
+    if (mpPlayer != NULL){
+        mState = MPD_ST_INITIALIZED;
+        return mpPlayer->setDataSource(url);
+    }else{
+        return MAG_NO_INIT;
+    }
 }
 
 _status_t MagPlayerDriver::setDataSource(i32 fd, i64 offset, i64 length){
-    mState = MPD_INITIALIZED;
-    return mpPlayer->setDataSource(fd, offset, length);
+    if (mpPlayer != NULL){
+        mState = MPD_ST_INITIALIZED;
+        return mpPlayer->setDataSource(fd, offset, length);
+    }else{
+        return MAG_NO_INIT;
+    }
 }
 
 _status_t MagPlayerDriver::setDataSource(const sp<IStreamBuffer> &source){
     Parcel param;
     _status_t ret;
+
+    if (mpPlayer ==  NULL){
+        return MAG_NO_INIT;
+    }
     
     ret = getParameter(idsMediaType, &param);
     if (ret == MAG_NO_ERROR){
@@ -66,103 +69,118 @@ _status_t MagPlayerDriver::setDataSource(const sp<IStreamBuffer> &source){
         return MAG_INVALID_OPERATION;
     }
     
-    mState = MPD_INITIALIZED;
+    mState = MPD_ST_INITIALIZED;
     return mpPlayer->setDataSource(mpStreamBufUser);
 }
 
-_status_t MagPlayerDriver::setVideoSurface(const sp<Surface> &surface){
-
-}
-
 _status_t MagPlayerDriver::setVideoSurfaceTexture(const sp<ISurfaceTexture> &surfaceTexture){
-
-}
-
-_status_t MagPlayerDriver::prepare(){
-    MagErr_t ret;
-    
-    mpPlayer->prepareAsync();
-    mState = MPD_PREPARING;
-    Mag_WaitForEventGroup(mPrepareEvtGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
-    AGILE_LOGD("exit!");
-}
-
-_status_t MagPlayerDriver::prepareAsync(){
-    mpPlayer->prepareAsync();
     return MAG_NO_ERROR;
 }
 
-_status_t MagPlayerDriver::start(){
-    if (MPD_PREPARED == mState){
-        mState = MPD_RUNNING;
-        mpPlayer->start();
-        return MAG_NO_ERROR;
+_status_t MagPlayerDriver::prepare(){
+    if (MPD_ST_INITIALIZED == mState){
+        return mpPlayer->prepare();
     }else{
         AGILE_LOGE("the state[%d] is wrong", mState);
-        return MAG_NO_INIT;
+        return MAG_INVALID_OPERATION;
+    }
+}
+
+_status_t MagPlayerDriver::prepareAsync(){
+    if (MPD_ST_INITIALIZED == mState){
+        return mpPlayer->prepareAsync();
+    }else{
+        AGILE_LOGE("the state[%d] is wrong", mState);
+        return MAG_INVALID_OPERATION;
+    }
+}
+
+_status_t MagPlayerDriver::start(){
+    if (MPD_ST_INITIALIZED == mState){
+        return mpPlayer->start();
+    }else{
+        AGILE_LOGE("the state[%d] is wrong", mState);
+        return MAG_INVALID_OPERATION;
     }
 }
 
 _status_t MagPlayerDriver::stop(){
-    if (MPD_RUNNING == mState){
-        mState = MPD_STOPPED;
-        mSetTrackIndex = 0;
-        
-        mpPlayer->stop();
-        return MAG_NO_ERROR;
+    if (MPD_ST_INITIALIZED == mState){
+        return mpPlayer->stop();
     }else{
         AGILE_LOGE("the state[%d] is wrong", mState);
-        return MAG_UNKNOWN_ERROR;
+        return MAG_INVALID_OPERATION;
     }
 }
 
 _status_t MagPlayerDriver::pause(){
-    if (MPD_RUNNING == mState){
-        mState = MPD_PAUSED;
-        mpPlayer->pause();
-        return MAG_NO_ERROR;
+    if (MPD_ST_INITIALIZED == mState){
+        return mpPlayer->pause();
     }else{
         AGILE_LOGE("the state[%d] is wrong", mState);
-        return MAG_UNKNOWN_ERROR;
+        return MAG_INVALID_OPERATION;
     }
 }
 
 bool MagPlayerDriver::isPlaying(){
-    if (MPD_RUNNING == mState)
-        return true;
-    else
+    if (MPD_ST_INITIALIZED == mState){
+        return mpPlayer->isPlaying();
+    }else{
+        AGILE_LOGE("the state[%d] is wrong", mState);
         return false;
+    }
 }
 
 _status_t MagPlayerDriver::seekTo(int msec){
-    if ((MPD_PREPARED == mState) ||
-        (MPD_RUNNING  == mState) ||
-        (MPD_PAUSED   == mState) ||
-        (MPD_PLAYBACK_COMPLETED == mState)){
-        mSeekBackState = mState;
-        mState = MPD_SEEKING;
-        mpPlayer->seekTo(msec);
-        return MAG_NO_ERROR;
+    if (MPD_ST_INITIALIZED == mState){
+        return mpPlayer->seekTo(msec);
     }else{
         AGILE_LOGE("the state[%d] is wrong", mState);
-        return MAG_UNKNOWN_ERROR;
+        return MAG_INVALID_OPERATION;
+    }
+}
+
+_status_t MagPlayerDriver::flush(){
+    if (MPD_ST_INITIALIZED == mState){
+        return mpPlayer->flush();
+    }else{
+        AGILE_LOGE("the state[%d] is wrong", mState);
+        return MAG_INVALID_OPERATION;
     }
 }
 
 _status_t MagPlayerDriver::getCurrentPosition(int *msec){
-
+    if (MPD_ST_INITIALIZED == mState){
+        return mpPlayer->getCurrentPosition(msec);
+    }else{
+        AGILE_LOGE("the state[%d] is wrong", mState);
+        return MAG_INVALID_OPERATION;
+    }
 }
 
 _status_t MagPlayerDriver::getDuration(int *msec){
-
+    if (MPD_ST_INITIALIZED == mState){
+        return mpPlayer->getDuration(msec);
+    }else{
+        AGILE_LOGE("the state[%d] is wrong", mState);
+        return MAG_INVALID_OPERATION;
+    }
 }
 
 _status_t MagPlayerDriver::reset(){
-
+    if (MPD_ST_INITIALIZED == mState){
+        return mpPlayer->reset();
+    }else{
+        AGILE_LOGE("the state[%d] is wrong", mState);
+        return MAG_INVALID_OPERATION;
+    }
 }
 
 _status_t MagPlayerDriver::setParameter(int key, const Parcel &request){
     _status_t ret = MAG_NO_ERROR;
+
+    if (MPD_ST_INITIALIZED != mState)
+        return MAG_INVALID_OPERATION;
     
     switch(key){
         case idsMediaType:
@@ -221,6 +239,9 @@ _status_t MagPlayerDriver::setParameter(int key, const Parcel &request){
 _status_t MagPlayerDriver::getParameter(int key, Parcel *reply){
     _status_t ret = MAG_NO_ERROR;
     void *value;
+
+    if (MPD_ST_INITIALIZED != mState)
+        return MAG_INVALID_OPERATION;
     
     switch(key){
         case idsMediaType:
@@ -242,7 +263,12 @@ _status_t MagPlayerDriver::getParameter(int key, Parcel *reply){
 }
 
 _status_t MagPlayerDriver::invoke(const Parcel &request, Parcel *reply){
-    i32 methodID = request.readInt32();
+    i32 methodID;
+    
+    if (MPD_ST_INITIALIZED != mState)
+        return MAG_INVALID_OPERATION;
+
+    methodID = request.readInt32();
     
     switch(methodID){
         case MAG_INVOKE_ID_SET_WINDOW_SIZE:
@@ -258,40 +284,55 @@ _status_t MagPlayerDriver::invoke(const Parcel &request, Parcel *reply){
     };
 }
 
-void MagPlayerDriver::PrepareCompleteEvtListener(){
-    mState = MPD_PREPARED;
-    Mag_SetEvent(mPrepareDoneEvt);
-}
-
-void MagPlayerDriver::SeekCompleteEvtListener(){
-    mState = mSeekBackState;
-    Mag_SetEvent(mPrepareDoneEvt);
-}
-
-void MagPlayerDriver::ErrorEvtListener(i32 what, i32 extra){
-    if (MPD_PREPARING == mState){
-        mState = MPD_ERROR;
-        Mag_SetEvent(mPrepareErrorEvt);
+void MagPlayerDriver::PrepareCompleteEvtListener(void *priv){
+    if (priv != NULL){
+        MagPlayerDriver *obj = static_cast<MagPlayerDriver *>(priv);
+        obj->sendEvent(MEDIA_PREPARED);
+    }else{
+        AGILE_LOGE("priv is NULL, quit!");
     }
-    sendEvent()
 }
 
-void MagPlayerDriver::FlushCompleteEvtListener(){
-    mState = mFlushBackState;
+void MagPlayerDriver::SeekCompleteEvtListener(void *priv){
+    if (priv != NULL){
+        MagPlayerDriver *obj = static_cast<MagPlayerDriver *>(priv);
+        obj->sendEvent(MEDIA_SEEK_COMPLETE);
+    }else{
+        AGILE_LOGE("priv is NULL, quit!");
+    }
 }
 
-void MagPlayerDriver::setNotifyCallback(void* client, notify_client_callback_f notifyFunc){
-    Mag_AcquireMutex(mNotifyLock);
-
-    mpClient        = client;
-    mClientNotifyFn = notifyFunc;
-    
-    Mag_ReleaseMutex(mNotifyLock);
+void MagPlayerDriver::ErrorEvtListener(void *priv, i32 what, i32 extra){
+    mState = MPD_ST_ERROR;
+    if (priv != NULL){
+        MagPlayerDriver *obj = static_cast<MagPlayerDriver *>(priv);
+        obj->sendEvent(MEDIA_ERROR, what, extra);
+    }else{
+        AGILE_LOGE("priv is NULL, quit!");
+    }
 }
 
-void MagPlayerDriver::sendEvent(int msg, int ext1, int ext2, const Parcel *obj) {
+void MagPlayerDriver::InfoEvtListener(void *priv, i32 what, i32 extra){
+    if (priv != NULL){
+        MagPlayerDriver *obj = static_cast<MagPlayerDriver *>(priv);
+        obj->sendEvent(MEDIA_INFO, what, extra);
+    }else{
+        AGILE_LOGE("priv is NULL, quit!");
+    }
+}
+
+void MagPlayerDriver::FlushCompleteEvtListener(void *priv){
+    if (priv != NULL){
+        MagPlayerDriver *obj = static_cast<MagPlayerDriver *>(priv);
+        obj->sendEvent(MEDIA_FLUSH_COMPLETE);
+    }else{
+        AGILE_LOGE("priv is NULL, quit!");
+    }
+}
+
+void MagPlayerDriver::sendEvent(int msg, int ext1, int ext2) {
     if ((NULL != mClientNotifyFn) && (NULL != mpClient)){
-        mClientNotifyFn(mpClient, msg, ext1, ext2, obj);
+        mClientNotifyFn(mpClient, msg, ext1, ext2);
     }else{
         AGILE_LOGE("failed to do sendEvent! (mClientNotifyFn=0x%p, mpClient=0x%p)", mClientNotifyFn, mpClient);
     }

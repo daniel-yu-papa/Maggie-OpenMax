@@ -11,11 +11,12 @@
 #endif 
 #define MODULE_TAG "AGILELOG_TEST"
 
+
 static void loadComponentLib(const char *file, void *arg){
     AGILE_LOGI("load file %s.", file);
     *(int *)arg = *(int *)arg + 1;
 }
-
+#if 1
 static void loadComponentRecursive(char *loadPath,
                                               void (*loader)(const char *file, void *arg),
                                               void *arg){
@@ -44,7 +45,7 @@ static void loadComponentRecursive(char *loadPath,
             AGILE_LOGI("find dir: %s", dirPathFull);
             loadComponentRecursive(dirPathFull, loader, arg);
         }else if ((fileInfo->d_type == DT_REG) || (fileInfo->d_type == DT_LNK)){
-            sprintf(dirPathFull, "%s/%s", loadPath, fileInfo->d_name);
+            sprintf(dirPathFull, "%s%s", loadPath, fileInfo->d_name);
             AGILE_LOGI("find file: %s", dirPathFull);
             (*loader)(dirPathFull, arg);
         }
@@ -52,7 +53,7 @@ static void loadComponentRecursive(char *loadPath,
 
     closedir(dir);
 }
-
+#endif
 int main(){
     int i = 9;
     char str[30] = "Hello world - AgileLog";
@@ -71,7 +72,7 @@ int main(){
     AGILE_LOG_FATAL("fatal log: %s - %d", str, i);
 
     int num = 0;
-    loadComponentRecursive(dir, loadComponentLib, &num);
+    loadComponentRecursive(dir, loadComponentLib, (void *)&num);
     AGILE_LOGI("%d files are found", num);
     return 0;
 }

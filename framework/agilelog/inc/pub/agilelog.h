@@ -13,10 +13,19 @@
 #ifdef __cplusplus
 inline char *CPPFuncName(const char *prettyFunction, const char *func){
     char *str = strdup(prettyFunction);
-    char *tmp1 = strtok(str, ":");
-    char *result = strrchr(tmp1, ' ');
+    char *token = NULL; 
+    char *result = NULL;
+
+    result = strrchr(str, ':');
+    if (result == NULL)
+        return const_cast<char*>(func);
+    
+    token = strtok(str, ":");
+    result = strrchr(token, ' ');
+    
     if (NULL == result)
-        result = tmp1;
+        result = token;
+    
     sprintf(result, "%s::%s", result, func);
     return result;
 } 
@@ -26,7 +35,6 @@ inline char *CPPFuncName(const char *prettyFunction, const char *func){
     #undef __FUNCTION_NAME__
     #define __FUNCTION_NAME__  __FUNCTION__
 #endif
-
 
 #ifndef AGILE_LOGV
 #define AGILE_LOGV(...) ((void)AGILE_LOG(LOG_VERBOSE, MODULE_TAG, __VA_ARGS__))
@@ -62,5 +70,6 @@ inline char *CPPFuncName(const char *prettyFunction, const char *func){
     "#undef MODULE_TAG"  \
     "#endif"             \
     "#define MODULE_TAG ##tag"
+
 
 #endif

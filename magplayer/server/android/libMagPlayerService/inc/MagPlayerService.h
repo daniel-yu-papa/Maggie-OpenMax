@@ -9,7 +9,7 @@
 #include <utils/String8.h>
 #include <utils/Vector.h>
 
-namespace android {
+using namespace android;
 
 class MagPlayerService : public BnMagPlayerService{
     class Client;
@@ -18,45 +18,39 @@ public:
     static  void                instantiate();
 
     virtual sp<IMagPlayerClient>    create(pid_t pid, const sp<IMagPlayerClient>& client);
-    void                removeClient(wp<Client> client);
+    void                            removeClient(wp<Client> client);
     
 private:
     class Client : public BnMagPlayerClient {
-        // IMediaPlayer interface
-        virtual void            disconnect();
-        virtual status_t        setVideoSurfaceTexture(
-                                        const sp<ISurfaceTexture>& surfaceTexture);
-        virtual status_t        prepareAsync();
-        virtual status_t        start();
-        virtual status_t        stop();
-        virtual status_t        pause();
-        virtual status_t        isPlaying(bool* state);
-        virtual status_t        seekTo(int msec);
-        virtual status_t        getCurrentPosition(int* msec);
-        virtual status_t        getDuration(int* msec);
-        virtual status_t        reset();
-        virtual status_t        setLooping(int loop);
-        virtual status_t        setVolume(float leftVolume, float rightVolume);
-        virtual status_t        invoke(const Parcel& request, Parcel *reply);
-        virtual status_t        setParameter(int key, const Parcel &request);
-        virtual status_t        getParameter(int key, Parcel *reply);
+        virtual void             disconnect();
+        virtual _status_t        setDataSource(const char *url);
+        virtual _status_t        setDataSource(i32 fd, i64 offset, i64 length);
+        virtual _status_t        setDataSource(const sp<IStreamBuffer>& source);
+        virtual _status_t        setVideoSurfaceTexture(const sp<ISurfaceTexture>& surfaceTexture);
+        virtual _status_t        prepare();
+        virtual _status_t        prepareAsync();
+        virtual _status_t        start();
+        virtual _status_t        stop();
+        virtual _status_t        pause();
+        virtual _status_t        isPlaying(bool* state);
+        virtual _status_t        seekTo(int msec);
+        virtual _status_t        flush();
+        virtual _status_t        fast(int multiple);
+        virtual _status_t        getCurrentPosition(int* msec);
+        virtual _status_t        getDuration(int* msec);
+        virtual _status_t        reset();
+        virtual _status_t        setVolume(float leftVolume, float rightVolume);
+        virtual _status_t        setParameter(int key, const Parcel& request);
+        virtual _status_t        getParameter(int key, Parcel* reply);
+        virtual _status_t        invoke(const Parcel& request, Parcel *reply);
 
         MagPlayerDriver*        createPlayer();
 
-        virtual status_t        setDataSource(
-                                const char *url,
-                                const MagMessageHandle hHeaders);
-
-        virtual status_t        setDataSource(i32 fd, i64 offset, i64 length);
-
-        virtual status_t        setDataSource(const sp<IStreamSource> &source);
-
 
         static  void            notify(void* cookie, int msg,
-                                       int ext1, int ext2, const Parcel *obj);
+                                       int ext1, int ext2);
 
                 pid_t           pid() const { return mPid; }
-        virtual status_t        dump(int fd, const Vector<String16>& args) const;
 
 
     private:
@@ -66,10 +60,7 @@ private:
                                         int32_t connId,
                                         const sp<IMagPlayerClient>& client,
                                         uid_t uid);
-                                Client();
         virtual                 ~Client();
-
-        void                    deletePlayer();
 
         sp<MagPlayerDriver>     getPlayer() const { Mutex::Autolock lock(mLock); return mPlayer; }
 
@@ -83,7 +74,7 @@ private:
                     sp<IMagPlayerClient>        mClient;
                     pid_t                       mPid;
                     bool                        mLoop;
-                    int32_t                     mConnId;
+                    i32                         mConnId;
                     uid_t                       mUID;
                     sp<ANativeWindow>           mConnectedWindow;
                     sp<IBinder>                 mConnectedWindowBinder;
@@ -101,5 +92,4 @@ private:
                 int32_t                     mNextConnId;
 };
 
-};
 #endif

@@ -1,17 +1,10 @@
-#ifndef __MAGPLAYER_BASE_H__
-#define __MAGPLAYER_BASE_H__
+#ifndef __MAGPLAYER_CLIENT_H__
+#define __MAGPLAYER_CLIENT_H__
 
-
-#include <binder/IMemory.h>
-#include <media/IMediaPlayerClient.h>
-#include <media/IMediaPlayer.h>
-#include <media/IMediaDeathNotifier.h>
-#include <media/IStreamSource.h>
-
-#include <utils/KeyedVector.h>
-#include <utils/String8.h>
 
 #include "IMagPlayerClient.h"
+
+using namespace android;
 
 class Surface;
 class ISurfaceTexture;
@@ -22,22 +15,20 @@ enum media_event_type {
     MEDIA_PLAYBACK_COMPLETE = 2,
     MEDIA_BUFFERING_UPDATE  = 3,
     MEDIA_SEEK_COMPLETE     = 4,
-    MEDIA_SET_VIDEO_SIZE    = 5,
-    MEDIA_TIMED_TEXT        = 99,
+    MEDIA_FLUSH_COMPLETE    = 5,
     MEDIA_ERROR             = 100,
     MEDIA_INFO              = 200,
+};
+
+enum mag_player_invoke_ids {
+    MAG_INVOKE_ID_SET_WINDOW_SIZE = 1,
 };
 
 enum mag_player_states {
     MAG_PLAYER_STATE_ERROR        = 0,
     MAG_PLAYER_IDLE               = 1 << 0,
     MAG_PLAYER_INITIALIZED        = 1 << 1,
-    MAG_PLAYER_PREPARING          = 1 << 2,
-    MAG_PLAYER_PREPARED           = 1 << 3,
-    MAG_PLAYER_STARTED            = 1 << 4,
-    MAG_PLAYER_PAUSED             = 1 << 5,
-    MAG_PLAYER_STOPPED            = 1 << 6,
-    MAG_PLAYER_PLAYBACK_COMPLETE  = 1 << 7
+    MAG_PLAYER_RUNNING            = 1 << 2,
 };
 
 // Info and warning codes for the media player framework.  These are non fatal,
@@ -122,14 +113,14 @@ enum media_error_type {
 
 // ----------------------------------------------------------------------------
 // ref-counted object for callbacks
-class MagPlayerListener: virtual public RefBase
+class MagPlayerListener
 {
 public:
-    virtual void notify(int msg, int ext1, int ext2, const Parcel *obj) = 0;
+    virtual void notify(int msg, int ext1, int ext2) = 0;
 };
 
 class MagPlayerClient : public BnMagPlayerClient,
-                           public virtual IMagPlayerDeathNotifier
+                             public virtual IMagPlayerDeathNotifier
 {
 public:
     MagPlayerClient();
@@ -138,60 +129,42 @@ public:
         void            died();
         void            disconnect();
 
-        status_t        setDataSource(
-                        const char *url,
-                        const KeyedVector<String8, String8> *headers);
-
-        status_t        setDataSource(int fd, int64_t offset, int64_t length);
-        status_t        setDataSource(const sp<IStreamSource> &source);
-        status_t        setVideoSurfaceTexture(
+        _status_t        setDataSource(const char *url);
+        _status_t        setDataSource(i32 fd, i64 offset, i64 length);
+        _status_t        setDataSource(const sp<IStreamBuffer> &source);
+        _status_t        setVideoSurfaceTexture(
                                         const sp<ISurfaceTexture>& surfaceTexture);
-        status_t        setListener(const sp<MagPlayerListener>& listener);
-        status_t        prepare();
-        status_t        prepareAsync();
-        status_t        start();
-        status_t        stop();
-        status_t        pause();
-        bool            isPlaying();
-        status_t        getVideoWidth(int *w);
-        status_t        getVideoHeight(int *h);
-        status_t        seekTo(int msec);
-        status_t        getCurrentPosition(int *msec);
-        status_t        getDuration(int *msec);
-        status_t        reset();
+        _status_t        setListener(const sp<MagPlayerListener>& listener);
+        _status_t        prepare();
+        _status_t        prepareAsync();
+        _status_t        start();
+        _status_t        stop();
+        _status_t        pause();
+        _status_t        isPlaying(bool* state);
+        _status_t        seekTo(int msec);
+        _status_t        fast(int multiple);
+        _status_t        getCurrentPosition(int *msec);
+        _status_t        getDuration(int *msec);
+        _status_t        reset();
+        _status_t        setParameter(int key, const Parcel& request);
+        _status_t        getParameter(int key, Parcel *reply);
+        void             notify(int msg, int ext1, int ext2, const Parcel *obj);
+        _status_t        setVolume(float leftVolume, float rightVolume);
+        bool             isPlaying();
+        _status_t        invoke(const Parcel& request, Parcel *reply);
+        _status_t        flush();
+        
 private:
-        void            clear_l();
-        status_t        seekTo_l(int msec);
-        status_t        prepareAsync_l();
-        status_t        getDuration_l(int *msec);
-        status_t        attachNewPlayer(const sp<IMagPlayerClient>& player);
-        status_t        reset_l();
+        _status_t        attachNewPlayer(const sp<IMagPlayerClient>& player);
 
 
-    sp<IMagPlayerClient>          mPlayer;
-    thread_id_t                 mLockThreadId;
+    sp<IMagPlayerClient>        mPlayer;
     Mutex                       mLock;
     Mutex                       mNotifyLock;
-    Condition                   mSignal;
-    sp<MagPlayerListener>       mListener;
-    void*                       mCookie;
+    MagPlayerListener           *mpListener;
     mag_player_states           mCurrentState;
-    int                         mCurrentPosition;
-    int                         mSeekPosition;
-    bool                        mPrepareSync;
-    status_t                    mPrepareStatus;
-    bool                        mLoop;
-    float                       mLeftVolume;
-    float                       mRightVolume;
-    int                         mVideoWidth;
-    int                         mVideoHeight;
-    float                       mSendLevel;
 };
 
 typedef sp<MagPlayerClient> MagPlayerClient_t;
-
-enum mag_player_invoke_ids {
-    MAG_INVOKE_ID_SET_WINDOW_SIZE = 1,
-};
 
 #endif

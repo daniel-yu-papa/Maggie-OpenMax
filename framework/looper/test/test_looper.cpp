@@ -15,7 +15,6 @@ public:
     ~Comp_A();
 
     MagMessageHandle createMessage(ui32 what, ui32 handlerID);
-    _status_t        postMessage(MagMessageHandle msg, ui64 delay);
     _status_t        start();
     void             waitOnAllDone();
     
@@ -65,66 +64,110 @@ Comp_A::~Comp_A(){
 void Comp_A::onMsg_Test_1(MagMessageHandle msg){
     boolean ret;
     char *value;
+    i32 idx;
     
     ret = msg->findString(msg, "msg", &value);
     if (!ret){
         AGILE_LOGE("failed to find the msg string!");
         return;
     } 
-    AGILE_LOGD("handler %d: do message %s action!", msg->mTarget, value);
-    //usleep(100000);
+
+    ret = msg->findInt32(msg, "num", &idx);
+    if (!ret){
+        AGILE_LOGE("failed to find the idx int32!");
+        return;
+    } 
+    AGILE_LOGD("handler %d: do message %s action[index: %d]!", msg->mTarget, value, idx);
+    usleep(100000);
 }
 
 void Comp_A::onMsg_Test_2(MagMessageHandle msg){
     
     boolean ret;
     char *value;
+    i32 idx;
     
     ret = msg->findString(msg, "msg", &value);
     if (!ret){
         AGILE_LOGE("failed to find the msg string!");
         return;
     } 
-    AGILE_LOGD("handler %d: do message %s action!", msg->mTarget, value);
+
+    ret = msg->findInt32(msg, "num", &idx);
+    if (!ret){
+        AGILE_LOGE("failed to find the idx int32!");
+        return;
+    } 
+    AGILE_LOGD("handler %d: do message %s action[index: %d]!", msg->mTarget, value, idx);
     //usleep(200000);
 }
 
 void Comp_A::onMsg_Test_3(MagMessageHandle msg){
     boolean ret;
     char *value;
+    i32 idx;
     
     ret = msg->findString(msg, "msg", &value);
     if (!ret){
         AGILE_LOGE("failed to find the msg string!");
         return;
     } 
-    AGILE_LOGD("handler %d: do message %s action!", msg->mTarget, value);
+
+    ret = msg->findInt32(msg, "num", &idx);
+    if (!ret){
+        AGILE_LOGE("failed to find the idx int32!");
+        return;
+    } 
+    AGILE_LOGD("handler %d: do message %s action[index: %d]!", msg->mTarget, value, idx);
     //usleep(300000);
 }
 
 void Comp_A::onMsg_Test_4(MagMessageHandle msg){
     boolean ret;
     char *value;
+    i32 idx;
     
     ret = msg->findString(msg, "msg", &value);
     if (!ret){
         AGILE_LOGE("failed to find the msg string!");
         return;
     } 
-    AGILE_LOGD("handler %d: do message %s action!", msg->mTarget, value);
+
+    ret = msg->findInt32(msg, "num", &idx);
+    if (!ret){
+        AGILE_LOGE("failed to find the idx int32!");
+        return;
+    } 
+    AGILE_LOGD("handler %d: do message %s action[index: %d]!", msg->mTarget, value, idx);
     //usleep(400000);
 }
 
 void Comp_A::onMsg_Test_5(MagMessageHandle msg){
     boolean ret;
     char *value;
+    i32 idx;
+    MagMessageHandle back_msg;
     
     ret = msg->findString(msg, "msg", &value);
     if (!ret){
         AGILE_LOGE("failed to find the msg string!");
         return;
     } 
-    AGILE_LOGD("handler %d: do message %s action!", msg->mTarget, value);
+
+    ret = msg->findInt32(msg, "num", &idx);
+    if (!ret){
+        AGILE_LOGE("failed to find the idx int32!");
+        return;
+    } 
+    AGILE_LOGD("handler %d: do message %s action[index: %d]!", msg->mTarget, value, idx);
+
+    ret = msg->findMessage(msg, "reply", &back_msg);
+    if (!ret){
+        AGILE_LOGE("failed to find the reply message!");
+        return;
+    } 
+    back_msg->setString(back_msg, "caller", "Msg_Test_5");
+    back_msg->postMessage(back_msg, 0);
     //usleep(500000);
 }
 
@@ -179,16 +222,6 @@ MagMessageHandle Comp_A::createMessage(ui32 what, ui32 handlerID) {
     return msg;
 }
 
-_status_t Comp_A::postMessage(MagMessageHandle msg, ui64 delay){
-    if ((NULL == mLooper) || (NULL == mMsgHandler)){
-        AGILE_LOGE("Looper is not running correctly(looper=0x%p, handler=0x%p)", mLooper, mMsgHandler);
-        return MAG_NO_INIT;
-    }
-
-    mLooper->postMessage(mLooper, msg, delay);
-    return MAG_NO_ERROR;
-}
-
 _status_t Comp_A::getLooper(){
     if (NULL == mLooper){
         mLooper = createLooper(LOOPER_NAME);
@@ -215,6 +248,109 @@ _status_t Comp_A::getLooper(){
     return MAG_NO_ERROR;
 }
 
+
+class Comp_B{
+public:
+    Comp_B();
+    ~Comp_B();
+
+    MagMessageHandle createMessage(ui32 what, ui32 handlerID);
+    _status_t        start();
+    
+    enum{
+        Msg_reply,
+    };
+    
+private:
+    void onMsg_reply(MagMessageHandle msg);
+    
+    _status_t getLooper();
+    static void onMessageReceived(const MagMessageHandle msg, void *priv);
+    
+    MagLooperHandle  mLooper;
+    MagHandlerHandle mMsgHandler;
+};
+
+Comp_B::Comp_B():
+        mLooper(NULL),
+        mMsgHandler(NULL){
+}
+
+Comp_B::~Comp_B(){
+    if (mMsgHandler != NULL){
+        destroyHandler(mMsgHandler);
+    }
+    
+    if (mLooper != NULL){
+        destroyLooper(mLooper);
+    }
+}
+
+_status_t Comp_B::start(){
+    getLooper();
+
+    if (mLooper != NULL)
+        mLooper->start(mLooper);
+}
+
+void Comp_B::onMsg_reply(MagMessageHandle msg){
+    boolean ret;
+    char *value;
+    
+    ret = msg->findString(msg, "caller", &value);
+    if (!ret){
+        AGILE_LOGE("failed to find the msg string!");
+        return;
+    } 
+    AGILE_LOGD("handler %d: caller %s do the message action!", msg->mTarget, value);
+}
+
+void Comp_B::onMessageReceived(const MagMessageHandle msg, void *priv){
+    Comp_B *thiz = (Comp_B *)priv;
+
+    switch (msg->what(msg)) {
+        case Msg_reply:
+            thiz->onMsg_reply(msg);
+            break;
+    
+        default:
+            break;
+    };
+}
+
+MagMessageHandle Comp_B::createMessage(ui32 what, ui32 handlerID) {
+    getLooper();
+    
+    MagMessageHandle msg = createMagMessage(mLooper, what, mMsgHandler->id(mMsgHandler));
+    if (msg == NULL){
+        AGILE_LOGE("failed to create the message");
+    }
+    return msg;
+}
+
+_status_t Comp_B::getLooper(){
+    if (NULL == mLooper){
+        mLooper = createLooper(LOOPER_NAME);
+    }
+
+    if (NULL != mLooper){
+        if (NULL == mMsgHandler){
+            mMsgHandler = createHandler(mLooper, onMessageReceived, (void *)this);
+
+            if (NULL != mMsgHandler){
+                mLooper->registerHandler(mLooper, mMsgHandler);
+            }else{
+                AGILE_LOGE("failed to create Handler");
+                return MAG_NO_INIT;
+            }
+        }
+    }else{
+        AGILE_LOGE("failed to create Looper: %s", LOOPER_NAME);
+        return MAG_NO_INIT;
+    }
+    return MAG_NO_ERROR;
+}
+
 int main(){
     i32 i;
     MagMessageHandle msg1;
@@ -223,10 +359,13 @@ int main(){
     MagMessageHandle msg4;
     MagMessageHandle msg5;
 
+    MagMessageHandle reply;
+    
     AGILE_LOGE("enter test_looper app");
     
     Comp_A *obj = new Comp_A();
-
+    Comp_B *replyObj = new Comp_B();
+    
     msg1 = obj->createMessage(Comp_A::Msg_Test_1, 0);
     msg1->setString(msg1, "msg", "Msg_Test_1");
 
@@ -241,19 +380,32 @@ int main(){
 
     msg5 = obj->createMessage(Comp_A::Msg_Test_5, 4);
     msg5->setString(msg5, "msg", "Msg_Test_5");
+    reply = replyObj->createMessage(Comp_B::Msg_reply, 0);
+    msg5->setMessage(msg5, "reply", reply);
     
     obj->start();
+    replyObj->start();
+    
     sleep(5);
     
-    for (i = 0; i < 20000; i++){
+    for (i = 0; i < 10; i++){
+        msg1->setInt32(msg1, "num", i);
         msg1->postMessage(msg1, 200);
         usleep(10000);
+
+        msg2->setInt32(msg2, "num", i);
         msg2->postMessage(msg2, 0);
         usleep(2000);
+
+        msg3->setInt32(msg3, "num", i);
         msg3->postMessage(msg3, 100);
         usleep(3000);
+
+        msg4->setInt32(msg4, "num", i);
         msg4->postMessage(msg4, 50);
         usleep(400);
+
+        msg5->setInt32(msg5, "num", i);
         msg5->postMessage(msg5, 400);
     }
     
@@ -264,8 +416,9 @@ int main(){
     destroyMagMessage(msg3);
     destroyMagMessage(msg4);
     destroyMagMessage(msg5);
-
+    //destroyMagMessage(reply);
     delete obj;
+    delete replyObj;
     return 0;
 }
 

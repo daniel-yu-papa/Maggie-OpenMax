@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- the root layout-->
+<FrameLayout  xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    >
+    
+    <!-- the first tab layout-->
+    <LinearLayout android:id="@+id/tsplayerID"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:orientation="vertical" >
+            
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" >
+            
+            <TextView
+                 android:id="@+id/VideoPIDView"
+                 android:layout_width="wrap_content"
+                 android:layout_height="wrap_content"
+                 android:textSize="20sp"
+                 android:text="video pid:"
+                 android:textAppearance="?android:attr/textAppearanceLarge" />
+                 
+            <EditText android:id="@+id/videoPID" 
+                android:layout_width="100dip"
+                android:layout_height="wrap_content" 
+                android:text="101"
+                android:textSize="20sp" />
+            
+            <Spinner
+                android:id="@+id/videoCodec"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+            
+            <TextView
+                 android:id="@+id/AudioPIDView"
+                 android:layout_width="wrap_content"
+                 android:layout_height="wrap_content"
+                 android:textSize="20sp"
+                 android:text="audio pid:"
+                 android:textAppearance="?android:attr/textAppearanceLarge" />
+                 
+            <EditText android:id="@+id/audioPID" 
+                android:layout_width="100dip"
+                android:layout_height="wrap_content" 
+                android:text="144"
+                android:textSize="20sp" />
+            
+            <Spinner
+                android:id="@+id/audioCodec"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" /> 
+            
+            <Button
+                android:id="@+id/tsplayer_select_file"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Select File" />  
+            
+            <TextView
+                 android:id="@+id/PlayTuningView"
+                 android:layout_width="wrap_content"
+                 android:layout_height="wrap_content"
+                 android:textSize="20sp"
+                 android:text="Tuning Param:"
+                 android:textAppearance="?android:attr/textAppearanceLarge" />    
+            
+            <EditText android:id="@+id/writeNumInTSPackets" 
+                 android:layout_width="100dip"
+                 android:layout_height="wrap_content" 
+                 android:text="40"
+                 android:textSize="20sp" />  
+                 
+            <TextView
+                 android:id="@+id/writeNumInTSPacketsView"
+                 android:layout_width="wrap_content"
+                 android:layout_height="wrap_content"
+                 android:textSize="20sp"
+                 android:text="ts packets"
+                 android:textAppearance="?android:attr/textAppearanceLarge" />  
+                 
+            <EditText android:id="@+id/writeCycleInMS" 
+                 android:layout_width="100dip"
+                 android:layout_height="wrap_content" 
+                 android:text="20"
+                 android:textSize="20sp" />
+                 
+            <TextView
+                 android:id="@+id/writeCycleInMSView"
+                 android:layout_width="wrap_content"
+                 android:layout_height="wrap_content"
+                 android:textSize="20sp"
+                 android:text="ms"
+                 android:textAppearance="?android:attr/textAppearanceLarge" />       
+        </LinearLayout>
+        
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" >
+
+            <Button
+                android:id="@+id/tsplayer_play"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Play" />  
+            
+            <Button
+                android:id="@+id/tsplayer_stop"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Stop" />       
+        </LinearLayout>
+    </LinearLayout>
+    
+    <!-- the second tab layout-->
+    <LinearLayout android:id="@+id/localPlayBackID"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:orientation="horizontal" >
+        <Button
+                android:id="@+id/local_select_file"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Select File" /> 
+        
+        <Button
+                android:id="@+id/localPlayBack_play"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Play" />  
+            
+        <Button
+                android:id="@+id/localPlayBack_stop"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Stop" />   
+    </LinearLayout>
+    
+    <!-- the third tab layout-->
+    <LinearLayout android:id="@+id/networkPlayBackID"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:orientation="horizontal" >
+
+        <Button
+                android:id="@+id/networkPlayBack_play"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Play" />  
+            
+        <Button
+                android:id="@+id/networkPlayBack_stop"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Stop" />   
+                
+        <EditText android:id="@+id/network_url" 
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content" 
+                android:layout_gravity="left"
+                android:text=""
+                android:textSize="15sp" /> 
+    </LinearLayout>
+</FrameLayout >
+

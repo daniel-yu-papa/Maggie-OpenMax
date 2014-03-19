@@ -43,7 +43,7 @@ typedef struct mag_minidb_item{
 typedef MagMiniDBItem_t* MagMiniDBItemHandle;
 
 typedef struct mag_minidb{
-    void *mhHashTable;
+    HashTableHandle mhHashTable;
     List_t mItemListHead;
     ui32 mItemNum;
     MagMutexHandle mLock;

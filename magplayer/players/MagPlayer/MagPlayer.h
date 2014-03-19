@@ -3,6 +3,8 @@
 
 #include "Mag_base.h"
 
+#define MOCK_OMX_IL
+
 #define LOOPER_NAME "MagPlayerLooper"
 
 #define PARAMETERS_DB_SIZE   256
@@ -13,45 +15,50 @@ typedef enum{
 }ErrorWhatCode_t;
 
 
-typedef void (*fnNotifyResetComplete)(void *priv);
+typedef void (*fnNotifyInfo)(void *priv);
+typedef void (*fnNotifySeekComplete)(void *priv);
 typedef void (*fnNotifyPrepareComplete)(void *priv);
 typedef void (*fnNotifyFlushComplete)(void *priv);
 typedef void (*fnNotifyError)(void *priv, i32 what, i32 extra);
 
 class MagPlayer {
 public:
+    enum {
+        kWhatFillThisBuffer      = 'filb',
+        kWhatError               = 'error',
+    };
+    
     MagPlayer();
     virtual ~MagPlayer();
-    
-    _status_t        setDataSource(const char *url, const MagMiniDBHandle settings);
+
+    _status_t        setDataSource(const char *url);
     _status_t        setDataSource(i32 fd, i64 offset, i64 length);
-    /*the source is the memory buffer*/
     _status_t        setDataSource(StreamBufferUser *buffer);
-    _status_t        setDataSource(MAG_EXTERNAL_SOURCE source);
 
-    void prepareAsync();
-    void start();
-    void stop();
+    _status_t        prepare();
+    _status_t        prepareAsync();
+    _status_t        start();
+    _status_t        stop();
+    _status_t        pause();
+    bool             isPlaying();
+    _status_t        seekTo(int msec);
+    _status_t        flush();
+    _status_t        fast(int speed);
+    _status_t        getCurrentPosition(int* msec);
+    _status_t        getDuration(int* msec);
+    _status_t        reset();
+    _status_t        setVolume(float leftVolume, float rightVolume);
+    _status_t        setParameters(const char *name, MagParamType_t type, void *value);
+    _status_t        getParameters(const char *name, MagParamType_t type, void **value);
 
-    void pause();
-    void resume();
-
-    void flush();
-    void seekTo(ui32 msec);
-    void resetAsync();
+    void             setDisplayWindow(ui32 x, ui32 y, ui32 w, ui32 h);
     
-    void setResetCompleteListener(fnNotifyResetComplete fn, void *priv);
-    void setPrepareCompleteListener(fnNotifyPrepareComplete fn, void *priv);
-    void setFlushCompleteListener(fnNotifyFlushComplete fn, void *priv);
-    void setErrorListener(fnNotifyError fn, void *priv);
+    void             setInfoListener(fnNotifyInfo fn, void *priv);
+    void             setSeekCompleteListener(fnNotifySeekComplete fn, void *priv);
+    void             setPrepareCompleteListener(fnNotifyPrepareComplete fn, void *priv);
+    void             setFlushCompleteListener(fnNotifyFlushComplete fn, void *priv);
+    void             setErrorListener(fnNotifyError fn, void *priv);
 
-    void setParameters(const char *name, MagParamType_t type, void *value);
-    _status_t getParameters(const char *name, MagParamType_t type, void **value);
-
-    void fast(i32 speed);
-
-    void setDisplayWindow(ui32 x, ui32 y, ui32 w, ui32 h);
-    
 protected:
     
 private:
@@ -61,17 +68,17 @@ private:
     Mag_MsgQueueHandle mFlushCompleteMQ;
     Mag_MsgQueueHandle mSeekCompleteMQ;
     Mag_MsgQueueHandle mPrepareCompleteMQ;
-
-    MagPlayerDriver *mpDriver;
         
-    fnNotifyResetComplete mNotifyResetCompleteFn;
-    void *mResetCompletePriv;
+    fnNotifySeekComplete mNotifySeekCompleteFn;
+    void *mSeekCompletePriv;
     fnNotifyPrepareComplete mNotifyPrepareCompleteFn;
     void *mPrepareCompletePriv;
     fnNotifyFlushComplete mNotifyFlushCompleteFn;
     void *mFlushCompletePriv;
     fnNotifyError mErrorFn;
     void *mErrorPriv;
+    fnNotifyInfo mInfoFn;
+    void *mInfoPriv;
     
     enum{
         MagMsg_SourceNotify,
@@ -79,13 +86,15 @@ private:
         MagMsg_Start,
         MagMsg_Stop,
         MagMsg_Pause,
-        MagMsg_Resume,
         MagMsg_Flush,
         MagMsg_SeekTo,
         MagMsg_Fast,
         MagMsg_Reset,
+        MagMsg_SetVolume,
         MagMsg_ErrorNotify,
+        MagMsg_ComponentNotify,
     };
+    
     enum State_t{
         ST_IDLE = 0,
         ST_INITIALIZED,
@@ -101,6 +110,19 @@ private:
         ST_ERROR,
     };
 
+    MagMessageHandle mSourceNotifyMsg;
+    MagMessageHandle mPrepareMsg;
+    MagMessageHandle mStartMsg;
+    MagMessageHandle mStopMsg;
+    MagMessageHandle mPauseMsg;
+    MagMessageHandle mFlushMsg;
+    MagMessageHandle mSeekToMsg;
+    MagMessageHandle mFastMsg;
+    MagMessageHandle mResetMsg;
+    MagMessageHandle mSetVolumeMsg;
+    MagMessageHandle mErrorNotifyMsg;
+    MagMessageHandle mComponentNotifyMsg;
+    
     State_t mState;
     State_t mFlushBackState; /*the initial state where flush action should be back after it is complete*/
     State_t mSeekBackState;  /*the initial state where seekTo action should be back after it is complete*/
@@ -110,6 +132,7 @@ private:
     MagEventHandle mCompletePrepareEvt;
     MagEventHandle mCompleteSeekEvt;
     MagEventHandle mCompleteFlushEvt;
+    MagEventHandle mErrorEvt;
     MagEventGroupHandle mEventGroup;
     MagEventSchedulerHandle mEventScheduler;
 
@@ -117,14 +140,18 @@ private:
 
     MagPlayer_Component_CP *mSource;
     MagPlayer_Demuxer_Base *mDemuxer;
-
+    MagMessageHandle       mDemuxerNotify;
+    
     TrackInfoTable_t *mTrackTable;
     
     static void onCompletePrepareEvtCB(void *priv);
     static void onCompleteSeekEvtCB(void *priv);
     static void onCompleteFlushEvtCB(void *priv);
+    static void onErrorEvtCB(void *priv);
     
     void initialize();
+    void cleanup();
+    
     _status_t getLooper();
     MagMessageHandle createMessage(ui32 what);
     static void onMessageReceived(const void *msg, void *priv);
@@ -140,7 +167,16 @@ private:
     void onFast(MagMessageHandle msg);
     void onReset(MagMessageHandle msg);
     void onError(MagMessageHandle msg);
+    void onSetVolume(MagMessageHandle msg);
     
     bool isValidFSState(State_t st);
+
+    _status_t buildAudioPipeline();
+    _status_t buildVideoPipeline();
+    
+    #ifdef MOCK_OMX_IL
+    MagPlayer_Mock_OMX *mVOmxComponent;
+    MagPlayer_Mock_OMX *mAOmxComponent;
+    #endif
 };
 #endif

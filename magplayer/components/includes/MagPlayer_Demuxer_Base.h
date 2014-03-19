@@ -79,6 +79,11 @@ private:
 
 class MagPlayer_Demuxer_Base{
 public:
+    enum {
+        kWhatReadFrame      = 'readf',
+        kWhatError          = 'error',
+    };
+    
     MagPlayer_Demuxer_Base();
     virtual ~MagPlayer_Demuxer_Base();
     
@@ -89,6 +94,7 @@ public:
     _status_t   readFrame(ui32 trackIndex, MediaBuffer_t **buffer);
 
     _status_t   getLooper();
+    MagMessageHandle createNotifyMsg();
     
     virtual _status_t   readFrameInternal(ui32 StreamID, MediaBuffer_t **buffer) = 0;
     virtual _status_t   start(MagPlayer_Component_CP *contentPipe, ui32 flags) = 0;
@@ -100,14 +106,14 @@ protected:
     
 private:
     enum{
-        MagDemuxerMsg_ReadFrame,
+        MagDemuxerMsg_PlayerNotify,
     };
 
-    void onReadFrame(MagMessageHandle msg);
+    void onPlayerNotify(MagMessageHandle msg);
 
     void             onMessageReceived(const MagMessageHandle msg, void *priv);
     MagMessageHandle createMessage(ui32 what);
-    _status_t        postMessage(MagMessageHandle msg, ui64 delay);
+    _status_t        getLooper();
     
     TrackInfoTable_t *mTrackList;
 

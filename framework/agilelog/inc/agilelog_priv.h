@@ -96,7 +96,7 @@ private:
     LogConfigFile_t mConfigFile;
     ConfigTable_t mConfigValue;
     XMLDocument mXMLParsedDoc;
-    HashTable   *mpModuleHashT;
+    HashTableHandle mpModuleHashT;
 
     fnWriteToLog mWriteToLogFunc;
 };

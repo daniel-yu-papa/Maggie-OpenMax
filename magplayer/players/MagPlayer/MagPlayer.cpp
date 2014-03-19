@@ -5,7 +5,7 @@ MagPlayer::MagPlayer(){
 }
 
 MagPlayer::~MagPlayer(){
-
+    cleanup();
 }
 
 void MagPlayer::onSourceNotify(MagMessageHandle msg){
@@ -23,33 +23,40 @@ void MagPlayer::onSourceNotify(MagMessageHandle msg){
         mDemuxer = new MagPlayer_Demuxer_Base();
         mState = ST_INITIALIZED;
     }else{
-        AGILE_LOGE("Failed! There is existed source(0x%x) and is still running...", mSource);
+        AGILE_LOGE("Failed! There is existed source(0x%x) and still running...", mSource);
         delete static_cast<MagPlayer_Component_CP *>value;
     }
 }
 
-_status_t MagPlayer::setDataSource(const char *url, const MagMiniDBHandle settings){
+_status_t MagPlayer::setDataSource(const char *url){
     getLooper();
 
-    MagMessageHandle msg = createMessage(MagMsg_SourceNotify);
-    if (msg != NULL){
-        postMessage(msg, 0);
+    if (mSourceNotifyMsg != NULL){
+        mSourceNotifyMsg->postMessage(mSourceNotifyMsg, 0);
+    }else{
+        AGILE_LOGE("the mSourceNotifyMsg is NULL");
+        return MAG_BAD_VALUE;
     }
+    return MAG_NO_ERROR;
 }
 
 _status_t MagPlayer::setDataSource(i32 fd, i64 offset, i64 length){
     getLooper();
 
-    MagMessageHandle msg = createMessage(MagMsg_SourceNotify);
-    if (msg != NULL){
-        postMessage(msg, 0);
+    if (mSourceNotifyMsg != NULL){
+        mSourceNotifyMsg->postMessage(mSourceNotifyMsg, 0);
+    }else{
+        AGILE_LOGE("the mSourceNotifyMsg is NULL");
+        return MAG_BAD_VALUE;
     }
+    return MAG_NO_ERROR;
 }
 
 _status_t MagPlayer::setDataSource(StreamBufferUser *buffer){
-    getLooper();
     MagPlayer_Component_CP *cp;
 
+    getLooper();
+    
     cp = new MagPlayer_Component_CP();
     if (cp != NULL){
         cp->Create(buffer);
@@ -57,11 +64,16 @@ _status_t MagPlayer::setDataSource(StreamBufferUser *buffer){
        AGILE_LOGE("failed to allocate the object: MagPlayer_Component_CP");
        return MAG_NO_MEMORY;
     }
-    MagMessageHandle msg = createMessage(MagMsg_SourceNotify);
-    if (msg != NULL){
-        msg->setPointer(msg, "source", static_cast<void *>(cp));
-        postMessage(msg, 0);
+
+    if (mSourceNotifyMsg != NULL){
+        mSourceNotifyMsg->setPointer(mSourceNotifyMsg, "source", static_cast<void *>(cp));
+        mSourceNotifyMsg->postMessage(mSourceNotifyMsg, 0);
+    }else{
+        delete cp;
+        AGILE_LOGE("the mSourceNotifyMsg is NULL");
+        return MAG_BAD_VALUE;
     }
+    return MAG_NO_ERROR;
 }
 
 void MagPlayer::onErrorNotify(MagMessageHandle msg){
@@ -82,8 +94,11 @@ void MagPlayer::onErrorNotify(MagMessageHandle msg){
     }
     
     mState = ST_ERROR;
-    if (mpDriver != NULL)
-        mpDriver->ErrorEvtListener(what, extra);
+
+    Mag_SetEvent(mErrorEvt);
+    
+    if ((mErrorFn != NULL) && (mErrorPriv != NULL))
+        mErrorFn(mErrorPriv, what, extra);
 }
 
 void MagPlayer::onPrepared(MagMessageHandle msg){
@@ -98,39 +113,83 @@ void MagPlayer::onPrepared(MagMessageHandle msg){
         ret = mDemuxer->start(mSource, 0);
 
         if (ret == MAG_NO_ERROR){
+            MagMessageHandle *msg;
+
+            mDemuxerNotify = mDemuxer->createNotifyMsg();
+            
+            mTrackTable = mDemuxer->getTrackInfoList();
+            if (mTrackTable->videoTrackNum > 0){
+                mDemuxer->setPlayingTrackID(0);
+                
+                msg = createMessage(MagMsg_ComponentNotify);
+                msg->setInt32(msg, "track-idx", 0);
+                /*construct the video pipeline*/
+#ifdef MOCK_OMX_IL
+                mVOmxComponent = MagPlayer_Mock_OMX("video");
+                mVOmxComponent->setMagPlayerNotifier(msg);
+#endif
+            }
+            if (mTrackTable->audioTrackNum > 0){
+                mDemuxer->setPlayingTrackID(mTrackTable->videoTrackNum);
+
+                msg = createMessage(MagMsg_ComponentNotify);
+                msg->setInt32(msg, "track-idx", mTrackTable->videoTrackNum);
+                /*construct the video pipeline*/
+#ifdef MOCK_OMX_IL
+                mAOmxComponent = MagPlayer_Mock_OMX("audio");
+                mAOmxComponent->setMagPlayerNotifier(msg);
+#endif
+            }
+            if (mTrackTable->subtitleTrackNum > 0){
+                mDemuxer->setPlayingTrackID(mTrackTable->videoTrackNum + mTrackTable->audioTrackNum);
+            }
+            
             Mag_SetEvent(mCompletePrepareEvt);
         }else{
-            MagMessageHandle msg = createMessage(MagMsg_ErrorNotify);
-            if (msg != NULL){
-                msg->setInt32(msg, "what", E_WHAT_DEMUXER);
-                msg->setInt32(msg, "extra", ret);
-                postMessage(msg, 0);
+            if (mErrorNotifyMsg != NULL){
+                mErrorNotifyMsg->setInt32(mErrorNotifyMsg, "what", E_WHAT_DEMUXER);
+                mErrorNotifyMsg->setInt32(mErrorNotifyMsg, "extra", ret);
+                mErrorNotifyMsg->postMessage(mErrorNotifyMsg, 0);
+            }else{
+                AGILE_LOGE("the mErrorNotifyMsg is NULL");
             }
         }
     }      
 }
 
-void MagPlayer::prepareAsync(){
-    MagMessageHandle msg = createMessage(MagMsg_Prepare);
-    if (msg != NULL){
-        postMessage(msg, 0);
+_status_t MagPlayer::prepareAsync(){
+    if (mPrepareMsg != NULL){
+        mPrepareMsg->postMessage(mPrepareMsg, 0);
+    }else{
+        AGILE_LOGE("the mPrepareMsg is NULL");
+        return MAG_BAD_VALUE;
+    }
+    return MAG_NO_ERROR;
+}
+
+_status_t MagPlayer::prepare(){
+    if (ST_INITIALIZED == mState){
+        prepareAsync();
+        AGILE_LOGD("before prepare waiting!");
+        Mag_WaitForEventGroup(mEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
+        AGILE_LOGD("after prepare waiting!");
     }
 }
 
 void MagPlayer::onStart(MagMessageHandle msg){
     if ((ST_PREPARED == mState) ||
         (ST_PLAYBACK_COMPLETED == mState)){
-        mTrackTable = mDemuxer->getTrackInfoList();
-        if (mTrackTable->videoTrackNum > 0){
-            mDemuxer->setPlayingTrackID(0);
-        }
-        if (mTrackTable->audioTrackNum > 0){
-            mDemuxer->setPlayingTrackID(mTrackTable->videoTrackNum);
-        }
-        if (mTrackTable->subtitleTrackNum > 0){
-            mDemuxer->setPlayingTrackID(mTrackTable->videoTrackNum + mTrackTable->audioTrackNum);
-        }
+#ifdef MOCK_OMX_IL
+        if (NULL != mVOmxComponent)
+            mVOmxComponent->start();
+
+        if (NULL != mAOmxComponent)
+            mAOmxComponent->start();
+#endif
+
         mState = ST_RUNNING;
+    }else if (ST_PREPARING == mState){
+        mPrepareCompleteMQ->put(mPrepareCompleteMQ, msg);
     }else if (ST_FLUSHING == mState){
         mFlushCompleteMQ->put(mFlushCompleteMQ, msg);
     }else if (ST_SEEKING == mState){
@@ -141,11 +200,14 @@ void MagPlayer::onStart(MagMessageHandle msg){
     }
 }
 
-void MagPlayer::start(){
-    MagMessageHandle msg = createMessage(MagMsg_Start);
-    if (msg != NULL){
-        postMessage(msg, 0);
+_status_t MagPlayer::start(){
+    if (mStartMsg != NULL){
+        mStartMsg->postMessage(mStartMsg, 0);
+    }else{
+        AGILE_LOGE("the mStartMsg is NULL");
+        return MAG_BAD_VALUE;
     }
+    return MAG_NO_ERROR;
 }
 
 void MagPlayer::onStop(MagMessageHandle msg){
@@ -154,6 +216,8 @@ void MagPlayer::onStop(MagMessageHandle msg){
         (ST_PLAYBACK_COMPLETED == mState)){
         /*todo*/
         mState = ST_STOPPED;
+    }else if (ST_PREPARING == mState){
+        mPrepareCompleteMQ->put(mPrepareCompleteMQ, msg);
     }else if (ST_FLUSHING == mState){
         mFlushCompleteMQ->put(mFlushCompleteMQ, msg);
     }else if (ST_SEEKING == mState){
@@ -168,17 +232,22 @@ void MagPlayer::onStop(MagMessageHandle msg){
     }
 }
 
-void MagPlayer::stop(){
-    MagMessageHandle msg = createMessage(MagMsg_Stop);
-    if (msg != NULL){
-        postMessage(msg, 0);
+_status_t MagPlayer::stop(){
+    if (mStopMsg != NULL){
+        mStopMsg->postMessage(mStopMsg, 0);
+    }else{
+        AGILE_LOGE("the mStopMsg is NULL");
+        return MAG_BAD_VALUE;
     }
+    return MAG_NO_ERROR;
 }
 
 void MagPlayer::onPause(MagMessageHandle msg){
     if (ST_RUNNING == mState){
         /*todo*/
         mState = ST_PAUSED;
+    }else if (ST_PREPARING == mState){
+        mPrepareCompleteMQ->put(mPrepareCompleteMQ, msg);
     }else if (ST_FLUSHING == mState){
         mFlushCompleteMQ->put(mFlushCompleteMQ, msg);
     }else if (ST_SEEKING == mState){
@@ -189,32 +258,14 @@ void MagPlayer::onPause(MagMessageHandle msg){
     }
 }
 
-void MagPlayer::pause(){
-    MagMessageHandle msg = createMessage(MagMsg_Pause);
-    if (msg != NULL){
-        postMessage(msg, 0);
-    }
-}
-
-void MagPlayer::onResume(MagMessageHandle msg){
-    if (ST_PAUSED == mState){
-        /*todo*/
-        mState = ST_RUNNING;
-    }else if (ST_FLUSHING == mState){
-        mFlushCompleteMQ->put(mFlushCompleteMQ, msg);
-    }else if (ST_SEEKING == mState){
-        mSeekCompleteMQ->put(mSeekCompleteMQ, msg);
+_status_t MagPlayer::pause(){
+    if (mPauseMsg != NULL){
+        mPauseMsg->postMessage(mPauseMsg, 0);
     }else{
-        AGILE_LOGE("MagPlayer is at wrong state:%d. QUIT!", mState);
-        return;
+        AGILE_LOGE("the mPauseMsg is NULL");
+        return MAG_BAD_VALUE;
     }
-}
-
-void MagPlayer::resume(){
-    MagMessageHandle msg = createMessage(MagMsg_Resume);
-    if (msg != NULL){
-        postMessage(msg, 0);
-    }
+    return MAG_NO_ERROR;
 }
 
 void MagPlayer::onFlush(MagMessageHandle msg){
@@ -225,8 +276,8 @@ void MagPlayer::onFlush(MagMessageHandle msg){
         /*todo*/
         
         Mag_SetEvent(mCompleteFlushEvt);
-    }else if (ST_FLUSHING == mState){
-        mFlushCompleteMQ->put(mFlushCompleteMQ, msg);
+    }else if (ST_PREPARING == mState){
+        mPrepareCompleteMQ->put(mPrepareCompleteMQ, msg);
     }else if (ST_SEEKING == mState){
         mSeekCompleteMQ->put(mSeekCompleteMQ, msg);
     }else{
@@ -235,11 +286,14 @@ void MagPlayer::onFlush(MagMessageHandle msg){
     }
 }
 
-void MagPlayer::flush(){
-    MagMessageHandle msg = createMessage(MagMsg_Flush);
-    if (msg != NULL){
-        postMessage(msg, 0);
+_status_t MagPlayer::flush(){
+    if (mFlushMsg != NULL){
+        mFlushMsg->postMessage(mFlushMsg, 0);
+    }else{
+        AGILE_LOGE("the mFlushMsg is NULL");
+        return MAG_BAD_VALUE;
     }
+    return MAG_NO_ERROR;
 }
 
 void MagPlayer::onSeek(MagMessageHandle msg){
@@ -250,21 +304,25 @@ void MagPlayer::onSeek(MagMessageHandle msg){
         /*todo*/
         
         Mag_SetEvent(mCompleteSeekEvt);
+    }else if (ST_PREPARING == mState){
+        mPrepareCompleteMQ->put(mPrepareCompleteMQ, msg);
     }else if (ST_FLUSHING == mState){
         mFlushCompleteMQ->put(mFlushCompleteMQ, msg);
-    }else if (ST_SEEKING == mState){
-        mSeekCompleteMQ->put(mSeekCompleteMQ, msg);
     }else{
         AGILE_LOGE("MagPlayer is at wrong state:%d. QUIT!", mState);
         return;
     }
 }
 
-void MagPlayer::seekTo(ui32 msec){
-    MagMessageHandle msg = createMessage(MagMsg_SeekTo);
-    if (msg != NULL){
-        postMessage(msg, 0);
+_status_t MagPlayer::seekTo(ui32 msec){
+    if (mSeekToMsg != NULL){
+        mSeekToMsg->setInt32(mFastMsg, "seek_to", msec);
+        mSeekToMsg->postMessage(mSeekToMsg, 0);
+    }else{
+        AGILE_LOGE("the mFlushMsg is NULL");
+        return MAG_BAD_VALUE;
     }
+    return MAG_NO_ERROR;
 }
 
 void MagPlayer::onFast(MagMessageHandle msg){
@@ -278,36 +336,52 @@ void MagPlayer::onFast(MagMessageHandle msg){
     }
 }
 
-void MagPlayer::fast(i32 speed){
-    MagMessageHandle msg = createMessage(MagMsg_Fast);
-    if (msg != NULL){
-        msg->setInt32(msg, "speed", speed);
-        postMessage(msg, 0);
+_status_t MagPlayer::fast(i32 speed){
+    if (mFastMsg != NULL){
+        mFastMsg->setInt32(mFastMsg, "speed", speed);
+        mFastMsg->postMessage(mFastMsg, 0);
+    }else{
+        AGILE_LOGE("the mFastMsg is NULL");
+        return MAG_BAD_VALUE;
     }
+    return MAG_NO_ERROR;
 }
 
 void MagPlayer::onReset(MagMessageHandle msg){
     /*todo*/
     mState = ST_IDLE;
-    if (NULL != mNotifyResetCompleteFn)
-        mNotifyResetCompleteFn(mResetCompletePriv);
 }
 
-void MagPlayer::resetAsync(){
-    MagMessageHandle msg = createMessage(MagMsg_Reset);
-    if (msg != NULL){
-        postMessage(msg, 0);
+_status_t MagPlayer::reset(){
+    if (mResetMsg != NULL){
+        mResetMsg->postMessage(mResetMsg, 0);
+    }else{
+        AGILE_LOGE("the mResetMsg is NULL");
+        return MAG_BAD_VALUE;
     }
+    return MAG_NO_ERROR;
 }
 
-void MagPlayer::setDriver(MagPlayerDriver *driver) {
-    mpDriver = driver;
+void MagPlayer::onSetVolume(MagMessageHandle msg){
+
 }
 
-void MagPlayer::setResetCompleteListener(fnNotifyResetComplete fn, void *priv){
+_status_t MagPlayer::setVolume(float leftVolume, float rightVolume){
+    if (mSetVolumeMsg != NULL){
+        mSetVolumeMsg->setFloat(mSetVolumeMsg, "left", leftVolume);
+        mSetVolumeMsg->setFloat(mSetVolumeMsg, "right", rightVolume);
+        mSetVolumeMsg->postMessage(mSetVolumeMsg, 0);
+    }else{
+        AGILE_LOGE("the mResetMsg is NULL");
+        return MAG_BAD_VALUE;
+    }
+    return MAG_NO_ERROR;
+}
+
+void MagPlayer::setSeekCompleteListener(fnNotifySeekComplete fn, void *priv){
     if (NULL != fn){
-        mNotifyResetCompleteFn = fn;
-        mResetCompletePriv = priv;
+        mNotifySeekCompleteFn = fn;
+        mSeekCompletePriv     = priv;
     }else{
         AGILE_LOGE("fn is NULL!");
     }
@@ -322,10 +396,19 @@ void MagPlayer::setPrepareCompleteListener(fnNotifyPrepareComplete fn, void *pri
     }
 }
 
-void MagPlayer::setFlushCompleteListener(fnNotifyPrepareComplete fn, void *priv){
+void MagPlayer::setFlushCompleteListener(fnNotifyFlushComplete fn, void *priv){
     if (NULL != fn){
         mNotifyFlushCompleteFn = fn;
         mFlushCompletePriv = priv;
+    }else{
+        AGILE_LOGE("fn is NULL!");
+    }
+}
+
+void MagPlayer::setInfoListener(fnNotifyInfo fn, void *priv){
+    if (NULL != fn){
+        mInfoFn   = fn;
+        mInfoPriv = priv;
     }else{
         AGILE_LOGE("fn is NULL!");
     }
@@ -464,12 +547,46 @@ _status_t MagPlayer::getParameters(const char *name, MagParamType_t type, void *
 bool MagPlayer::isValidFSState(State_t st){
     if ((ST_PREPARED == mState) ||
         (ST_RUNNING  == mState) ||
-        (ST_FASTING  == mState) ||
         (ST_PAUSED   == mState) ||
         (ST_PLAYBACK_COMPLETED == mState)){
         return true;
     }else{
         return false;
+    }
+}
+
+void MagPlayer::onComponentNotify(MagMessageHandle msg){
+    boolean ret;
+    i32 ivalue;
+    MagMessageHandle mvalue;
+    i32 what;
+
+    ret = msg->findInt32(msg, "what", &what);
+    if (!ret){
+        AGILE_LOGE("failed to find the what int32!");
+        return;
+    }
+
+    if (what == MagPlayer::kWhatFillThisBuffer){
+        ret = msg->findInt32(msg, "track-idx", &ivalue);
+        if (!ret){
+            AGILE_LOGE("failed to find the track-idx int32!");
+            return;
+        }
+
+        ret = msg->findMessage(msg, "reply", &mvalue);
+        if (!ret){
+            AGILE_LOGE("failed to find the reply message!");
+            return;
+        }
+        
+        if (NULL != mDemuxerNotify){
+            mDemuxerNotify->setInt32(mDemuxerNotify, "what", MagPlayer_Demuxer_Base::kWhatReadFrame);
+            mDemuxerNotify->setInt32(mDemuxerNotify, "track-idx", ivalue);
+            mDemuxerNotify->setMessage(mDemuxerNotify, "reply", mvalue);
+            mDemuxerNotify->postMessage(mDemuxerNotify, 0);
+        }
+            
     }
 }
 
@@ -497,10 +614,6 @@ void MagPlayer::onMessageReceived(const MagMessageHandle msg, void *priv){
             thiz->onPause(msg);
             break;
 
-        case MagMsg_Resume:
-            thiz->onResume(msg);
-            break;
-
         case MagMsg_Flush:
             thiz->onFlush(msg);
             break;
@@ -509,9 +622,26 @@ void MagPlayer::onMessageReceived(const MagMessageHandle msg, void *priv){
             thiz->onSeek(msg);
             break;
             
-        case MagMsg_Error:
+        case MagMsg_Fast:
+            thiz->onFast(msg);
+            break;
+            
+        case MagMsg_SetVolume:
+            thiz->onSetVolume(msg);
+            break;
+
+        case MagMsg_Reset:
+            thiz->onReset(msg);
+            break;
+            
+        case MagMsg_ErrorNotify:
             thiz->onError(msg);
             break;
+
+        case MagMsg_ComponentNotify:
+            thiz->onComponentNotify(msg);
+            break;
+            
         default:
             break;
     }
@@ -524,13 +654,13 @@ void MagPlayer::onCompletePrepareEvtCB(void *priv){
     do {
         mPrepareCompleteMQ->get(mPrepareCompleteMQ, &msg);
         if (NULL != msg){
-            postMessage(msg, 0);
+            msg->postMessage(msg, 0);
         }
     }while(msg);
     thiz->mState = ST_PREPARED;
 
-    if (mpDriver != NULL)
-        mpDriver->PrepareCompleteEvtListener();
+    if ((mNotifyPrepareCompleteFn != NULL) && (mPrepareCompletePriv != NULL))
+        mNotifyPrepareCompleteFn(mPrepareCompletePriv);
 }
 
 void MagPlayer::onCompleteSeekEvtCB(void *priv){
@@ -540,14 +670,16 @@ void MagPlayer::onCompleteSeekEvtCB(void *priv){
     do {
         mSeekCompleteMQ->get(mSeekCompleteMQ, &msg);
         if (NULL != msg){
-            postMessage(msg, 0);
+            msg->postMessage(msg, 0);
         }
     }while(msg);
 
     if (isValidFSState(thiz->mSeekBackState)){
         thiz->mState = thiz->mSeekBackState;
+        if ((mNotifySeekCompleteFn != NULL) && (mSeekCompletePriv != NULL))
+            mNotifySeekCompleteFn(mSeekCompletePriv);
     }else{
-        AGILE_LOGE("backstate:%d is not valid for seekTo operation. QUIT!", thiz->mSeekBackState);
+        AGILE_LOGE("backstate: state %d is not valid for seekTo operation. QUIT!", thiz->mSeekBackState);
     }
 }
 
@@ -558,7 +690,7 @@ void MagPlayer::onCompleteFlushEvtCB(void *priv){
     do {
         mFlushCompleteMQ->get(mFlushCompleteMQ, &msg);
         if (NULL != msg){
-            postMessage(msg, 0);
+            msg->postMessage(msg, 0);
         }
     }while(msg);
 
@@ -567,23 +699,27 @@ void MagPlayer::onCompleteFlushEvtCB(void *priv){
         if (ST_RUNNING == thiz->mState){
             start();
         }
-        if (mpDriver != NULL)
-            mpDriver->FlushCompleteEvtListener();
+        
+        if ((mNotifyFlushCompleteFn != NULL) && (mFlushCompletePriv != NULL))
+            mNotifyFlushCompleteFn(mFlushCompletePriv);
     }else{
         AGILE_LOGE("backstate:%d is not valid for Flush operation. QUIT!", thiz->mFlushBackState);
     }
+}
+
+void MagPlayer::onErrorEvtCB(void *priv){
+    MagPlayer thiz = (MagPlayer *)priv;
+
+    thiz->mState = ST_ERROR;
+    if ((mErrorFn != NULL) && (mErrorPriv != NULL))
+            mErrorFn(mErrorPriv);
 }
 
 void MagPlayer::initialize(){
     mState          = ST_IDLE;
     mFlushBackState = ST_IDLE;
     mSeekBackState  = ST_IDLE;
-    mLooper         = NULL;
-    mMsgHandler     = NULL;   
-    mTrackTable     = NULL;
     
-    mNotifyResetCompleteFn = NULL;
-
     mParametersDB = createMagMiniDB(PARAMETERS_DB_SIZE);
         
     mFlushCompleteMQ   = Mag_CreateMsgQueue();
@@ -593,42 +729,99 @@ void MagPlayer::initialize(){
     Mag_CreateMutex(&mStateLock);
 
     Mag_CreateEventGroup(&mEventGroup);
-    if (MAG_ErrNone == Mag_CreateEvent(&mCompletePrepareEvt, 0)){}
+    if (MAG_ErrNone == Mag_CreateEvent(&mCompletePrepareEvt, 0))
         Mag_AddEventGroup(mEventGroup, mCompletePrepareEvt);
 
-    if (MAG_ErrNone == Mag_CreateEvent(&mCompleteSeekEvt, 0)){}
+    if (MAG_ErrNone == Mag_CreateEvent(&mCompleteSeekEvt, 0))
         Mag_AddEventGroup(mEventGroup, mCompleteSeekEvt);
 
-    if (MAG_ErrNone == Mag_CreateEvent(&mCompleteFlushEvt, 0)){}
+    if (MAG_ErrNone == Mag_CreateEvent(&mCompleteFlushEvt, 0))
         Mag_AddEventGroup(mEventGroup, mCompleteFlushEvt);
+
+    if (MAG_ErrNone == Mag_CreateEvent(&mErrorEvt, 0))
+        Mag_AddEventGroup(mEventGroup, mErrorEvt);
     
     Mag_CreateEventScheduler(&mEventScheduler, MAG_EVT_SCHED_NORMAL);
 
     Mag_RegisterEventCallback(mEventScheduler, mCompletePrepareEvt, onCompletePrepareEvtCB, (void *)this);
     Mag_RegisterEventCallback(mEventScheduler, mCompleteSeekEvt, onCompleteSeekEvtCB, (void *)this);
     Mag_RegisterEventCallback(mEventScheduler, mCompleteFlushEvt, onCompleteFlushEvtCB, (void *)this);
+    Mag_RegisterEventCallback(mEventScheduler, mErrorEvt, onErrorEvtCB, (void *)this);
+
+    mSourceNotifyMsg    = createMessage(MagMsg_SourceNotify);
+    mPrepareMsg         = createMessage(MagMsg_Prepare);
+    mStartMsg           = createMessage(MagMsg_Start);
+    mStopMsg            = createMessage(MagMsg_Stop);
+    mPauseMsg           = createMessage(MagMsg_Pause);
+    mFlushMsg           = createMessage(MagMsg_Flush);
+    mSeekToMsg          = createMessage(MagMsg_SeekTo);
+    mFastMsg            = createMessage(MagMsg_Fast);
+    mResetMsg           = createMessage(MagMsg_Reset);
+    mSetVolumeMsg       = createMessage(MagMsg_SetVolume);
+    mErrorNotifyMsg     = createMessage(MagMsg_ErrorNotify);
+    mComponentNotifyMsg = createMessage(MagMsg_ComponentNotify);
 }
 
 MagMessageHandle MagPlayer::createMessage(ui32 what) {
-    MagMessageHandle msg = mag_mallocz(sizeof(MagMessage_t));
-    if (msg != NULL){
-        msg->mWhat   = what;
-        msg->mTarget = mMsgHandler->id(mMsgHandler);
+    getLooper();
+    
+    MagMessageHandle msg = createMagMessage(mLooper, what, mMsgHandler->id(mMsgHandler));
+    if (msg == NULL){
+        AGILE_LOGE("failed to create the message");
     }
     return msg;
 }
 
-_status_t MagPlayer::postMessage(MagMessageHandle msg, ui64 delay){
-    if ((NULL == mLooper) || (NULL == mMsgHandler)){
-        AGILE_LOGE("Looper is not running correctly(looper=0x%p, handler=0x%p)", mLooper, mMsgHandler);
-        return MAG_NO_INIT;
-    }
+void MagPlayer::cleanup(){
+    mState          = ST_IDLE;
+    mFlushBackState = ST_IDLE;
+    mSeekBackState  = ST_IDLE;
 
-    mLooper->postMessage(msg, delay);
-    return MAG_NO_ERROR;
+    destroyMagMiniDB(mParametersDB);
+        
+    Mag_DestroyMsgQueue(mFlushCompleteMQ);
+    Mag_DestroyMsgQueue(mSeekCompleteMQ);
+    Mag_DestroyMsgQueue(mPrepareCompleteMQ);
+
+    Mag_DestroyMutex(mStateLock);
+
+    Mag_DestroyEvent(mCompletePrepareEvt);
+    Mag_DestroyEvent(mCompleteSeekEvt);
+    Mag_DestroyEvent(mCompleteFlushEvt);
+    Mag_DestroyEvent(mErrorEvt);
+
+    Mag_DestroyEventGroup(mEventGroup);
+    Mag_DestroyEventScheduler(mEventScheduler);
+
+    destroyMagMessage(mSourceNotifyMsg);
+    destroyMagMessage(mPrepareMsg);
+    destroyMagMessage(mStartMsg);
+    destroyMagMessage(mStopMsg);
+    destroyMagMessage(mPauseMsg);
+    destroyMagMessage(mFlushMsg);
+    destroyMagMessage(mSeekToMsg);
+    destroyMagMessage(mFastMsg);
+    destroyMagMessage(mResetMsg);
+    destroyMagMessage(mSetVolumeMsg);
+    destroyMagMessage(mErrorNotifyMsg);
+    destroyMagMessage(mComponentNotifyMsg);
+}
+
+MagMessageHandle MagPlayer::createMessage(ui32 what) {
+    getLooper();
+    
+    MagMessageHandle msg = createMagMessage(mLooper, what, mMsgHandler->id(mMsgHandler));
+    if (msg == NULL){
+        AGILE_LOGE("failed to create the message");
+    }
+    return msg;
 }
 
 _status_t MagPlayer::getLooper(){
+    if ((NULL != mLooper) && (NULL != mMsgHandler)){
+        return MAG_NO_ERROR;
+    }
+    
     if (NULL == mLooper){
         mLooper = createLooper(LOOPER_NAME);
     }
@@ -639,6 +832,7 @@ _status_t MagPlayer::getLooper(){
 
             if (NULL != mMsgHandler){
                 mLooper->registerHandler(mLooper, mMsgHandler);
+                mLooper->start(mLooper);
             }else{
                 AGILE_LOGE("failed to create Handler");
                 return MAG_NO_INIT;
@@ -654,3 +848,11 @@ _status_t MagPlayer::getLooper(){
 void MagPlayer::setDisplayWindow(ui32 x, ui32 y, ui32 w, ui32 h){
     AGILE_LOGD("x = %d, y = %d, w = %d, h = %d", x, y, w, h);
 }
+
+_status_t MagPlayer::buildAudioPipeline(){
+
+}
+_status_t MagPlayer::buildVideoPipeline(){
+
+}
+

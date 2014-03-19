@@ -1,0 +1,27 @@
+LOCAL_PATH := $(call my-dir)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE_TAGS := optional
+
+LOCAL_C_INCLUDES := \
+    $(JNI_H_INCLUDE) \
+    $(ANDDROID_PLATFORM)/frameworks/base/include/media \
+    $(LOCAL_PATH)/include/vendor \
+    $(LOCAL_PATH)/include
+    
+LOCAL_SHARED_LIBRARIES := \
+    libandroid_runtime \
+    libnativehelper \
+    libcutils \
+    libutils \
+    libbinder \
+    libmedia\
+    libgui \
+    libCTC_MediaProcessor
+
+
+LOCAL_MODULE    := libTsPlayerJni
+LOCAL_SRC_FILES := src/CTC_MediaProcessor.cpp
+LOCAL_MODULE_PATH:= $(LOCAL_PATH)/lib
+
+include $(BUILD_SHARED_LIBRARY)

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MagPlayerDemo</string>
+    
+    <string-array name="video_codec_array">
+        <item>H.264</item>
+        <item>MPEG4</item>
+        <item>MPEG2</item>
+    </string-array>
+    
+    <string-array name="audio_codec_array">
+        <item>MPEG2</item>
+        <item>AAC</item>
+        <item>DD+</item>
+    </string-array>
+</resources>

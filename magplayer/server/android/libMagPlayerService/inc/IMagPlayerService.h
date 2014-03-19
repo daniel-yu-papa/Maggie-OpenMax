@@ -11,7 +11,6 @@
 
 #include "IMagPlayerClient.h"
 
-namespace android {
 
 class IMagPlayerService: public IInterface
 {
@@ -32,5 +31,4 @@ public:
                                     uint32_t flags = 0);
 };
 
-};
 #endif
