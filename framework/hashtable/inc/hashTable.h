@@ -4,9 +4,13 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*BEGIN: The Macros for hlist operations*/
 /*uintptr_t is an unsigned int that is guaranteed to be the same size as a pointer. in <stdint.h>*/
-#define ht_offsetof(TYPE, MEMBER) ( reinterpret_cast<uintptr_t> (&((TYPE *)0)->MEMBER) ) 
+#define ht_offsetof(TYPE, MEMBER) ( (uintptr_t) (&((TYPE *)0)->MEMBER) ) 
 
 #define container_of(ptr, type, member) ({			\
 	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
@@ -54,47 +58,64 @@ typedef struct linked_key_node{
     char nodeStr[64]; //the length of the key should be less than 64
 }LinkedKeyNode_t;
 
-class HashTable{
-public:
-    HashTable(int num);
-    ~HashTable();
 
-    void buildHashTable(void *item, const char *str);
-    void *getHashItem(const char *str);
-    void printHashTable(void);
-private:
-    unsigned int calcDJBHashValue(const char* str, unsigned int len);
+/*handle the hlist.*/
+inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
+{
+	struct hlist_node *first = h->first;
+	n->next = first;
+	if (first)
+		first->pprev = &n->next;
+	h->first = n;
+	n->pprev = &h->first;
+};
 
-    /*handle the hlist.*/
-    inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
-    {
-    	struct hlist_node *first = h->first;
-    	n->next = first;
-    	if (first)
-    		first->pprev = &n->next;
-    	h->first = n;
-    	n->pprev = &h->first;
-    };
+inline void hlist_del(struct hlist_node *n)
+{
+	struct hlist_node *next = n->next;
+	struct hlist_node **pprev = n->pprev;
+	*pprev = next;
+	if (next)
+		next->pprev = pprev;
+	n->next  = NULL;
+	n->pprev = NULL;
+};
 
-    inline void hlist_del(struct hlist_node *n)
-    {
-    	struct hlist_node *next = n->next;
-    	struct hlist_node **pprev = n->pprev;
-    	*pprev = next;
-    	if (next)
-    		next->pprev = pprev;
-    	n->next  = NULL;
-    	n->pprev = NULL;
-    };
+inline void INIT_HLIST_NODE(struct hlist_node *h)
+{
+	h->next = NULL;
+	h->pprev = NULL;
+};
 
-    inline void INIT_HLIST_NODE(struct hlist_node *h)
-    {
-    	h->next = NULL;
-    	h->pprev = NULL;
-    };
-    
+inline unsigned int calcDJBHashValue(const char* str, unsigned int len)
+{
+    unsigned int hash = 5381;
+    unsigned int i    = 0;
+
+    for(i = 0; i < len; str++, i++)
+    {   
+       hash = ((hash << 5) + hash) + (*str);
+    }   
+
+    return hash;
+}
+
+typedef struct str_hash_table{
     HashTable_t *mpTable;
     int mTableSize;
-};
+
+    void  (*addItem)(struct str_hash_table *ht, void *item, const char *str);
+    void* (*getItem)(struct str_hash_table *ht, const char *str);
+    void  (*print)(struct str_hash_table *ht);
+}StrHashTable_t;
+
+typedef StrHashTable_t* HashTableHandle;
+
+HashTableHandle  createMagStrHashTable(int num);
+void             destroyMagStrHashTable(HashTableHandle ht);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
