@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include "Mag_looper.h"
 
 static ui32 gLooperId = 0;
@@ -233,6 +234,7 @@ static _status_t MagLooper_waitOnAllDone(MagLooperHandle hLooper){
     while(!MagEventQueueEmpty(hLooper)){
         usleep(40000);
     }
+    return MAG_NO_ERROR;
 }
 
 MagLooperHandle createLooper(const char *pName){
@@ -241,7 +243,7 @@ MagLooperHandle createLooper(const char *pName){
 
     pLooper = (MagLooperHandle)mag_mallocz(sizeof(MagLooper_t));
     if (NULL != pLooper){
-        pLooper->mpName             = mag_strdup(pName);
+        pLooper->mpName             = (ui8 *)mag_strdup(pName);
         sprintf(threadName, "MLooper%s", pName);
         
         pLooper->mHandlerTreeRoot   = NULL;

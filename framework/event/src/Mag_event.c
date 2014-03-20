@@ -1,9 +1,5 @@
 #include <errno.h>
-#include <time.h>
-
 #include "Mag_event.h"
-#include "agilelog.h"
-#include "Mag_base.h"
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG

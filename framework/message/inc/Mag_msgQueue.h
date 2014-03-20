@@ -1,9 +1,6 @@
 #ifndef __MAG_MESSAGE_QUEUE_H__
 #define __MAG_MESSAGE_QUEUE_H__
 
-#include "Mag_pub_def.h"
-#include "Mag_pub_type.h"
-#include "Mag_base.h"
 #include "Mag_looper.h"
 
 #ifdef __cplusplus

@@ -246,7 +246,7 @@ MagMessageHandle createMagMessage(struct MagLooper *looper, ui32 what, ui32 targ
 }
 
 void             destroyMagMessage(MagMessageHandle msg){
-    i32 i;
+    ui32 i;
 
     if (msg == NULL)
         return;

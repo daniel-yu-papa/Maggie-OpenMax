@@ -5,9 +5,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
-#include "Mag_mem.h"
 #include "Mag_thread.h"
-#include "agilelog.h"
 
 static _status_t loopEntryWrapper(void *userData){
     MagThread_t *user =  (MagThread_t *)userData;

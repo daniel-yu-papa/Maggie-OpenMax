@@ -1,7 +1,6 @@
 #include "Mag_event.h"
 #include <pthread.h>
 #include <stdio.h>
-#include "agilelog.h"
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
@@ -15,7 +14,7 @@ MagEventHandle highPrioEvt[3];
 MagEventSchedulerHandle hEvtSched;
 
 static int all_count = 0;
-static unsigned int loops = 5;
+static unsigned int loops = 100000;
 void *inc_count(void *arg){
     int count = 1;
     int index = *((int *)arg);

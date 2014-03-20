@@ -10,7 +10,14 @@ CC          := gcc
 # Only support shared library.
 #LIB_NAME := lib$(MODULE).so
 
-LIB_INC_PATH := $(SOURCE_DIR)/inc $(SOURCE_DIR)/../inc $(SOURCE_DIR)/../memory/inc $(SOURCE_DIR)/../base/inc $(SOURCE_DIR)/../agilelog/inc $(SOURCE_DIR)/../agilelog/inc/pub $(SOURCE_DIR)/../hashtable
+LIB_INC_PATH := $(SOURCE_DIR)/inc \
+                $(SOURCE_DIR)/../inc \
+                $(SOURCE_DIR)/../inc/internal \
+                $(SOURCE_DIR)/../memory/inc \
+                $(SOURCE_DIR)/../base/inc \
+                $(SOURCE_DIR)/../agilelog/inc \
+                $(SOURCE_DIR)/../agilelog/inc/pub \
+                $(SOURCE_DIR)/../hashtable/inc
 
 LIB_SRCS := Mag_minidb.c \
             Mag_base.c \
@@ -41,14 +48,21 @@ CFLAGS += $(addprefix -I,$(LIB_INC_PATH))
 LIB_OBJS=$(patsubst %.c, $(OBJDIR)/%.o, $(LIB_SRCS))
 LIB_OBJS+=$(patsubst %.cpp, $(OBJDIR)/%.o, $(LIB_SRCS_CPP))
 
-LDFLAGS += -lpthread -L/home/yujun/code/Maggie-OpenMax/hardware/marvell/ct/framework/agilelog/build/bin -lagilelog
+LDFLAGS += -lpthread -L../../agilelog/build/bin -lagilelog
 LDFLAGS += -lrt
 
 .PHONY: all clean
 
 all: $(BINDIR)/minidbTest 
 
-VPATH = $(SOURCE_DIR)/src $(SOURCE_DIR)/../base/src $(SOURCE_DIR)/../memory/src $(SOURCE_DIR)/test $(SOURCE_DIR)/inc $(SOURCE_DIR)/../inc $(SOURCE_DIR)/../hashtable
+VPATH = $(SOURCE_DIR)/src \
+        $(SOURCE_DIR)/../base/src \
+        $(SOURCE_DIR)/../memory/src \
+        $(SOURCE_DIR)/test \
+        $(SOURCE_DIR)/inc \
+        $(SOURCE_DIR)/../inc \
+        $(SOURCE_DIR)/../inc/internal \
+        $(SOURCE_DIR)/../hashtable/src
 
 $(OBJDIR)/%.o: %.c  Mag_pub_def.h Mag_pub_type.h
 	@echo "[compiling.. $(notdir $<)]"

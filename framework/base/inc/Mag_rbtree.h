@@ -1,24 +1,35 @@
 #ifndef __MAG_RBTREE_H__
 #define __MAG_RBTREE_H__
 
+/*
+* https://www.cs.princeton.edu/~rs/talks/LLRB/LLRB.pdf
+* LLRB properties:
+* 1) No path from the root to the bottom contains two consecutive red links.
+* 2) The number of black links on every such path is the same.
+*/
+
 #include <stdlib.h>
 #include "agilelog.h"
 #include "Mag_pub_type.h"
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum{
     RBTREE_FALSE = 0,
     RBTREE_TRUE  = !RBTREE_FALSE,
 }RBTREE_BOOL;
 
-typedef enum{
-    NODE_RED = 0,
-    NODE_BLACK = 1,
-}NODE_COLOR_t;
 
 typedef struct rbtree_node_t{
     i64          key;
     void*        value;
-    NODE_COLOR_t color;
+    /*the color of the node represents the color of the upper link, which points to it's parent.
+       * the root node also has the upper link,which points to nothing.
+       */
+    RBTREE_BOOL  color;
     
     struct rbtree_node_t *left;
     struct rbtree_node_t *right;   
@@ -27,16 +38,10 @@ typedef struct rbtree_node_t{
 typedef RBTREE_NODE_t* RBTreeNodeHandle;
 
 static inline RBTREE_BOOL isRed(RBTreeNodeHandle x){
-    if (NULL == x) return RBTREE_FALSE;
-    if (x->color == NODE_RED) return RBTREE_TRUE;
-    return RBTREE_FALSE;
-}
-
-static inline void reverseColor(NODE_COLOR_t *color){
-    if (*color == NODE_RED)
-        *color = NODE_BLACK;
+    if (NULL != x)
+        return x->color;
     else
-        *color = NODE_RED;
+        return RBTREE_FALSE;
 }
 
 static inline RBTreeNodeHandle rotateLeft(RBTreeNodeHandle h){
@@ -44,9 +49,8 @@ static inline RBTreeNodeHandle rotateLeft(RBTreeNodeHandle h){
 
     h->right = x->left;
     x->left = h;
-
-    x->color = x->left->color;
-    x->left->color = NODE_RED;
+    x->color = h->color;
+    h->color = RBTREE_TRUE;
     return x;
 }
 
@@ -55,21 +59,19 @@ static inline RBTreeNodeHandle rotateRight(RBTreeNodeHandle h){
 
     h->left = x->right;
     x->right = h;
-
-    x->color = x->right->color;
-    x->right->color = NODE_RED;
+    x->color = h->color;
+    h->color = RBTREE_TRUE;
     return x;
 }
 
-static inline void colorFlip(RBTreeNodeHandle h){   
-    if ((NULL == h->left) ||
-        (NULL == h->right)){
-        AGILE_LOGE("Should not be here!! left(0x%x) right(0x%x)", h->left, h->right);
-        return;
-    }
-    reverseColor(&h->color);
-    reverseColor(&h->left->color);
-    reverseColor(&h->right->color);
+static inline void colorFlip(RBTreeNodeHandle h){  
+    h->color = (RBTREE_BOOL)!h->color;
+    
+    if (NULL != h->left)
+        h->left->color = (RBTREE_BOOL)!h->left->color;
+    
+    if (NULL != h->right)
+        h->right->color = (RBTREE_BOOL)!h->right->color;
 }
 
 /*the basic operations for delete action*/
@@ -82,7 +84,7 @@ static inline RBTreeNodeHandle fixup(RBTreeNodeHandle h){
         h = rotateLeft(h);
 
     /*rotate right for red-red pairs*/
-    if (isRed(h->left) && (NULL != h->left) && isRed(h->left->left))
+    if (isRed(h->left) && isRed(h->left->left))
         h = rotateRight(h);
 
     /*split 4-nodes*/
@@ -113,22 +115,23 @@ static inline RBTreeNodeHandle moveRedLeft(RBTreeNodeHandle h){
 
 static inline RBTreeNodeHandle min(RBTreeNodeHandle h)
 {
-    if (h->left == NULL) 
-        return h;
-    else 
-        min(h->left);
+    while (h->left != NULL)
+        h = h->left;
+
+    return h;
 }
 
 
-static inline RBTreeNodeHandle deleteMin(RBTreeNodeHandle h)
+static inline RBTreeNodeHandle deleteMin(RBTreeNodeHandle h, RBTreeNodeHandle *deleteNode)
 { 
-    if ((h == NULL) || (h->left == NULL))
-     return NULL;
-
+    if (h->left == NULL){
+        *deleteNode = h;
+        return NULL;
+    }
     if (!isRed(h->left) && !isRed(h->left->left))
-     h = moveRedLeft(h);
+        h = moveRedLeft(h);
 
-    h->left = deleteMin(h->left);
+    h->left = deleteMin(h->left, deleteNode);
 
     return fixup(h);
 }
@@ -141,5 +144,8 @@ int rbtree_dump(RBTreeNodeHandle root, i32 print_flag);
 
 int rbtree_debug_getRepeatNum(void);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif

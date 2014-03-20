@@ -1,9 +1,7 @@
 #ifndef _MAG_EVENT_H__
 #define _MAG_EVENT_H__
 
-#include "Mag_pub_def.h"
-#include "Mag_pub_type.h"
-#include "Mag_list.h"
+#include "Mag_pub_common.h"
 #include <pthread.h>
 #include <time.h>
 

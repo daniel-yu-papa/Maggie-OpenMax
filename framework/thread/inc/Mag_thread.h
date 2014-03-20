@@ -1,9 +1,6 @@
 #ifndef __MAG_THREAD_H__
 #define __MAG_THREAD_H__
 
-#include "Mag_pub_def.h"
-#include "Mag_pub_type.h"
-#include "Mag_base.h"
 #include "Mag_event.h"
 
 #ifdef __cplusplus

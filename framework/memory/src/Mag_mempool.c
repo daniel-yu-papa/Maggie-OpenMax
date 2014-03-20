@@ -1,7 +1,5 @@
-#include "Mag_mem.h"
 #include "Mag_mempool.h"
-#include "Mag_list.h"
-#include "agilelog.h"
+
 /*
 * the design of the memory pool is specially for OpenMax Port Buffer management.
 * 1) the memory block allocation and free are running at the same direction. For the factor of multimedia playing, the buffers are handled in the strict turn.
@@ -486,7 +484,7 @@ done:
 }
 
 MagErr_t magMemPoolReset(magMempoolHandle hMemPool){
-
+    return MAG_ErrNone;
 }
 
 void magMemPoolDestroy(magMempoolHandle hMemPool){

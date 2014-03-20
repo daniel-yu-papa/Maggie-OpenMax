@@ -3,7 +3,6 @@
 
 #include "hashTable.h"
 #include "agilelog.h"
-#include <stdio.h>
 
 static void StrHashTable_addItem(struct str_hash_table *ht, void *item, const char *str){
     unsigned int tableIndex = 0;

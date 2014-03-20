@@ -1,7 +1,4 @@
 #include "Mag_minidb.h"
-#include "hashTable.h"
-#include "Mag_mem.h"
-#include "agilelog.h"
 
 void MagMiniDB_setInt32(struct mag_minidb *db, const char *name, i32 value){
     MagMiniDBItemHandle hItem;

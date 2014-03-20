@@ -2,8 +2,7 @@
 #define __MAG_MEM_POOL_H__
 
 #include <pthread.h>
-#include "Mag_list.h"
-#include "Mag_pub_def.h"
+#include "Mag_pub_common.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,7 +19,7 @@ typedef struct{
 
 typedef struct magMempoolInternal_t{
     List_t node;
-    int memPoolSize;
+    unsigned int memPoolSize;
     unsigned char *pMemPoolBuf;
     List_t freeMBListHead;      /*the free MB nearest to the Mem Pool is always the first node in the list*/   
     List_t *activeMBNode;

@@ -2,6 +2,7 @@
 #define __MAG_LOOPER_H__
 
 #include "Mag_pub_common.h"
+#include "Mag_thread.h"
 
 #ifdef __cplusplus
 extern "C" {

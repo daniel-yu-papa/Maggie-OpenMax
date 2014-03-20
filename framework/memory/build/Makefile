@@ -10,8 +10,15 @@ CC          := gcc
 # Only support shared library.
 #LIB_NAME := lib$(MODULE).so
 
-LIB_INC_PATH := $(SOURCE_DIR)/inc $(SOURCE_DIR)/../inc $(SOURCE_DIR)/../base/inc $(SOURCE_DIR)/../agilelog/inc $(SOURCE_DIR)/../agilelog/inc/pub \
-                $(SOURCE_DIR)/../message/inc  $(SOURCE_DIR)/../event/inc
+LIB_INC_PATH := $(SOURCE_DIR)/inc \
+                $(SOURCE_DIR)/../inc \
+                $(SOURCE_DIR)/../inc/internal \
+                $(SOURCE_DIR)/../base/inc \
+                $(SOURCE_DIR)/../agilelog/inc \
+                $(SOURCE_DIR)/../agilelog/inc/pub \
+                $(SOURCE_DIR)/../hashtable/inc \
+                $(SOURCE_DIR)/../message/inc  \
+                $(SOURCE_DIR)/../event/inc
 
 LIB_SRCS := Mag_mem.c   \
             Mag_mempool.c \
@@ -42,14 +49,21 @@ CFLAGS += $(addprefix -I,$(LIB_INC_PATH))
 
 LIB_OBJS=$(patsubst %.c, $(OBJDIR)/%.o, $(LIB_SRCS))
 
-LDFLAGS += -lpthread -L/home/yujun/code/csa_1077_sdk/hardware/marvell/ct/framework/agilelog/build/bin -lagilelog
+LDFLAGS += -lpthread -L../../agilelog/build/bin -lagilelog
 LDFLAGS += -lrt
 
 .PHONY: all clean
 
 all: $(BINDIR)/mempool_test
 
-VPATH = $(SOURCE_DIR)/src $(SOURCE_DIR)/../message/src $(SOURCE_DIR)/../base/src $(SOURCE_DIR)/test $(SOURCE_DIR)/inc $(SOURCE_DIR)/../inc $(SOURCE_DIR)/../event/src
+VPATH = $(SOURCE_DIR)/src \
+        $(SOURCE_DIR)/../message/src \
+        $(SOURCE_DIR)/../base/src \
+        $(SOURCE_DIR)/test \
+        $(SOURCE_DIR)/inc \
+        $(SOURCE_DIR)/../inc \
+        $(SOURCE_DIR)/../inc/internal \
+        $(SOURCE_DIR)/../event/src
 
 $(OBJDIR)/%.o: %.c  Mag_pub_def.h
 	@echo "[compiling.. $(notdir $<)]"
@@ -57,7 +71,7 @@ $(OBJDIR)/%.o: %.c  Mag_pub_def.h
 	
 $(BINDIR)/mempool_test: $(LIB_OBJS)
 	@echo "[build mempool_test..]"
-	@$(CC) -o $@ $(LDFLAGS) $^
+	@$(CC) -o $@ $^ $(LDFLAGS)
 
 clean:
 	@echo "[clean.. $(MODULE)]"

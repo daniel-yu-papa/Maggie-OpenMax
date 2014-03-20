@@ -10,7 +10,14 @@ CC          := gcc
 # Only support shared library.
 #LIB_NAME := lib$(MODULE).so
 
-LIB_INC_PATH := $(SOURCE_DIR)/inc $(SOURCE_DIR)/../inc $(SOURCE_DIR)/../base/inc $(SOURCE_DIR)/../agilelog/inc $(SOURCE_DIR)/../agilelog/inc/pub
+LIB_INC_PATH := $(SOURCE_DIR)/inc \
+                $(SOURCE_DIR)/../inc \
+                $(SOURCE_DIR)/../inc/internal \
+                $(SOURCE_DIR)/../hashtable/inc \
+                $(SOURCE_DIR)/../memory/inc \
+                $(SOURCE_DIR)/../base/inc \
+                $(SOURCE_DIR)/../agilelog/inc \
+                $(SOURCE_DIR)/../agilelog/inc/pub
 
 LIB_SRCS := Mag_event.c \
             Mag_eventTest.c \
@@ -38,14 +45,19 @@ CFLAGS += $(addprefix -I,$(LIB_INC_PATH))
 
 LIB_OBJS=$(patsubst %.c, $(OBJDIR)/%.o, $(LIB_SRCS))
 
-LDFLAGS += -lpthread -L/home/yujun/code/csa_1077_sdk/hardware/marvell/ct/framework/agilelog/build/bin -lagilelog
+LDFLAGS += -lpthread -L../../agilelog/build/bin -lagilelog
 LDFLAGS += -lrt
 
 .PHONY: all clean
 
 all: $(BINDIR)/eventTest 
 
-VPATH = $(SOURCE_DIR)/src $(SOURCE_DIR)/../base/src $(SOURCE_DIR)/test $(SOURCE_DIR)/inc $(SOURCE_DIR)/../inc
+VPATH = $(SOURCE_DIR)/src \
+        $(SOURCE_DIR)/../base/src \
+        $(SOURCE_DIR)/test \
+        $(SOURCE_DIR)/inc \
+        $(SOURCE_DIR)/../inc \
+        $(SOURCE_DIR)/../inc/internal
 
 $(OBJDIR)/%.o: %.c  Mag_pub_def.h
 	@echo "[compiling.. $(notdir $<)]"
@@ -53,7 +65,7 @@ $(OBJDIR)/%.o: %.c  Mag_pub_def.h
 	
 $(BINDIR)/eventTest: $(LIB_OBJS)
 	@echo "[build testEvent..]"
-	@$(CC) -o $@ $(LDFLAGS) $^
+	@$(CC) -o $@ $^ $(LDFLAGS)
 
 clean:
 	@echo "[clean.. $(MODULE)]"

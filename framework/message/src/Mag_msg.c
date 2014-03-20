@@ -2,8 +2,6 @@
 #include <string.h>
 
 #include "Mag_msg.h"
-#include "agilelog.h"
-#include "Mag_base.h"
 
 MagErr_t Mag_MsgChannelCreate(MagMsgChannelHandle *handle){
     int rc;

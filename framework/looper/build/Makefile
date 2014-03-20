@@ -12,10 +12,12 @@ CC          := gcc
 
 LIB_INC_PATH := $(SOURCE_DIR)/inc \
                 $(SOURCE_DIR)/../inc \
+                $(SOURCE_DIR)/../inc/internal \
                 $(SOURCE_DIR)/../base/inc \
                 $(SOURCE_DIR)/../agilelog/inc \
                 $(SOURCE_DIR)/../agilelog/inc/pub \
                 $(SOURCE_DIR)/../event/inc \
+                $(SOURCE_DIR)/../hashtable/inc \
                 $(SOURCE_DIR)/../thread/inc \
                 $(SOURCE_DIR)/../memory/inc \
                 $(SOURCE_DIR)/../message/inc
@@ -54,7 +56,7 @@ CFLAGS += $(addprefix -I,$(LIB_INC_PATH))
 LIB_OBJS=$(patsubst %.c, $(OBJDIR)/%.o, $(LIB_SRCS))
 LIB_OBJS+=$(patsubst %.cpp, $(OBJDIR)/%.o, $(LIB_CXX_SRCS))
 
-LDFLAGS += -lpthread -L/home/yujun/code/csa_amp_1084_sdk/vendor/marvell/Maggie-OpenMax/framework/agilelog/build/bin -lagilelog
+LDFLAGS += -lpthread -L../../agilelog/build/bin -lagilelog
 LDFLAGS += -lrt
 
 .PHONY: all clean
@@ -70,7 +72,8 @@ VPATH = $(SOURCE_DIR)/src \
         $(SOURCE_DIR)/../message/src \
         $(SOURCE_DIR)/../memory/src \
         $(SOURCE_DIR)/inc \
-        $(SOURCE_DIR)/../inc
+        $(SOURCE_DIR)/../inc \
+        $(SOURCE_DIR)/../inc/internal 
 
 $(OBJDIR)/%.o: %.c  Mag_pub_def.h
 	@echo "[compiling.. $(notdir $<)]"

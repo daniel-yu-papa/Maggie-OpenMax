@@ -1,11 +1,7 @@
 #ifndef __MAG_MINIDB_H__
 #define __MAG_MINIDB_H__
 
-#include "Mag_pub_type.h"
-#include "Mag_pub_def.h"
-#include "Mag_list.h"
-#include "Mag_base.h"
-
+#include "Mag_pub_common.h"
 /*
 * the pointers that setPointer() and setString() use must be malloced, they would be freed while the mini db is destroyed. 
 */

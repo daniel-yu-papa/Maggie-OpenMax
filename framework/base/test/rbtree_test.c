@@ -5,7 +5,7 @@
 static int deleteNum = 0;
 int main()  
 {  
-    int i, count = 500000;  
+    int i, count = 100000;  
     key_t key;  
     RBTreeNodeHandle root = NULL, node = NULL;  
     int test_addr = 0;
@@ -19,7 +19,8 @@ int main()
         key = rand() % count;  
         test_addr = key;
 
-        root = rbtree_insert(root, key, (void *)&test_addr); 
+        //AGILE_LOGI("key = %d", key);
+        root = rbtree_insert(root, key, (void *)&test_addr);
         
         if (!(i % 188)){
             AGILE_LOGI("[i = %d] set search key %d", i, key);
@@ -59,9 +60,10 @@ int main()
             }  
             AGILE_LOGI("****** After delete: node number: %d", rbtree_dump(root, 0));
             //return 0;
-        }  
+        } 
+        //rbtree_dump(root, 1);
     }  
-   
+    
     return 0;  
 }  
 

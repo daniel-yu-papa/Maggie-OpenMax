@@ -10,7 +10,12 @@ CC          := gcc
 # Only support shared library.
 #LIB_NAME := lib$(MODULE).so
 
-LIB_INC_PATH := $(SOURCE_DIR)/inc $(SOURCE_DIR)/../inc $(SOURCE_DIR)/../memory/inc $(SOURCE_DIR)/../base/inc $(SOURCE_DIR)/../agilelog/inc $(SOURCE_DIR)/../agilelog/inc/pub
+LIB_INC_PATH := $(SOURCE_DIR)/inc \
+                $(SOURCE_DIR)/../inc \
+                $(SOURCE_DIR)/../inc/internal \
+                $(SOURCE_DIR)/../agilelog/inc \
+                $(SOURCE_DIR)/../agilelog/inc/pub \
+                $(SOURCE_DIR)/../memory/inc
 
 LIB_SRCS := rbtree_test.c \
             Mag_mem.c \
@@ -44,7 +49,12 @@ LDFLAGS += -L../../agilelog/build/bin -lagilelog
 
 all: $(BINDIR)/rbtreeTest
 
-VPATH = $(SOURCE_DIR)/src $(SOURCE_DIR)/../memory/src $(SOURCE_DIR)/test $(SOURCE_DIR)/inc $(SOURCE_DIR)/../inc
+VPATH = $(SOURCE_DIR)/src \
+        $(SOURCE_DIR)/test \
+        $(SOURCE_DIR)/inc \
+        $(SOURCE_DIR)/../inc \
+        $(SOURCE_DIR)/../inc/internal \
+        $(SOURCE_DIR)/../memory/src
 
 $(OBJDIR)/%.o: %.c  Mag_pub_def.h
 	@echo "[compiling.. $(notdir $<)]"

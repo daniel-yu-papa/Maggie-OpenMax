@@ -12,11 +12,11 @@ extern "C" {
 /*uintptr_t is an unsigned int that is guaranteed to be the same size as a pointer. in <stdint.h>*/
 #define ht_offsetof(TYPE, MEMBER) ( (uintptr_t) (&((TYPE *)0)->MEMBER) ) 
 
-#define container_of(ptr, type, member) ({			\
+#define hlist_container_of(ptr, type, member) ({			\
 	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
 	(type *)( (const char *)__mptr - ht_offsetof(type,member) );})
 
-#define hlist_entry(ptr, type, member) container_of(ptr,type,member)
+#define hlist_entry(ptr, type, member) hlist_container_of(ptr,type,member)
 
 /**
  * hlist_for_each_entry	- iterate over list of given type
@@ -60,7 +60,7 @@ typedef struct linked_key_node{
 
 
 /*handle the hlist.*/
-inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
+static inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h) 
 {
 	struct hlist_node *first = h->first;
 	n->next = first;
@@ -68,9 +68,9 @@ inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
 		first->pprev = &n->next;
 	h->first = n;
 	n->pprev = &h->first;
-};
+}
 
-inline void hlist_del(struct hlist_node *n)
+static inline void hlist_del(struct hlist_node *n)
 {
 	struct hlist_node *next = n->next;
 	struct hlist_node **pprev = n->pprev;
@@ -79,15 +79,15 @@ inline void hlist_del(struct hlist_node *n)
 		next->pprev = pprev;
 	n->next  = NULL;
 	n->pprev = NULL;
-};
+}
 
-inline void INIT_HLIST_NODE(struct hlist_node *h)
+static inline void INIT_HLIST_NODE(struct hlist_node *h)
 {
 	h->next = NULL;
 	h->pprev = NULL;
-};
+}
 
-inline unsigned int calcDJBHashValue(const char* str, unsigned int len)
+static inline unsigned int calcDJBHashValue(const char* str, unsigned int len)
 {
     unsigned int hash = 5381;
     unsigned int i    = 0;
