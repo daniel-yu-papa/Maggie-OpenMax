@@ -3,6 +3,12 @@
 #include <stdlib.h>
 #include "Mag_base.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magFramework-OOC"
+
+
 /**	Base Class.
  * Used for root Class in ooc. It must be a superclass for all classes.
  */

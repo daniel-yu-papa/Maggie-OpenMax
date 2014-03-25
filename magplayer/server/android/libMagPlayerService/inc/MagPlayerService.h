@@ -9,6 +9,11 @@
 #include <utils/String8.h>
 #include <utils/Vector.h>
 
+#include "MagFramework.h"
+#include "IMagPlayerService.h"
+#include "MagPlayerDriver.h"
+#include "IMagPlayerNotifier.h"
+
 using namespace android;
 
 class MagPlayerService : public BnMagPlayerService{
@@ -17,7 +22,7 @@ class MagPlayerService : public BnMagPlayerService{
 public:
     static  void                instantiate();
 
-    virtual sp<IMagPlayerClient>    create(pid_t pid, const sp<IMagPlayerClient>& client);
+    virtual sp<IMagPlayerClient>    create(pid_t pid, const sp<IMagPlayerNotifier>& client);
     void                            removeClient(wp<Client> client);
     
 private:
@@ -35,7 +40,7 @@ private:
         virtual _status_t        isPlaying(bool* state);
         virtual _status_t        seekTo(int msec);
         virtual _status_t        flush();
-        virtual _status_t        fast(int multiple);
+        virtual _status_t        fast(int speed);
         virtual _status_t        getCurrentPosition(int* msec);
         virtual _status_t        getDuration(int* msec);
         virtual _status_t        reset();
@@ -58,11 +63,11 @@ private:
                                 Client( const sp<MagPlayerService>& service,
                                         pid_t pid,
                                         int32_t connId,
-                                        const sp<IMagPlayerClient>& client,
+                                        const sp<IMagPlayerNotifier>& client,
                                         uid_t uid);
         virtual                 ~Client();
 
-        sp<MagPlayerDriver>     getPlayer() const { Mutex::Autolock lock(mLock); return mPlayer; }
+        MagPlayerDriver*        getPlayer() const { Mutex::Autolock lock(mLock); return mPlayer; }
 
 
         // Disconnect from the currently connected ANativeWindow.
@@ -71,7 +76,7 @@ private:
         mutable     Mutex                       mLock;
                     MagPlayerDriver             *mPlayer; /*initialized as NULL*/
                     sp<MagPlayerService>        mService;
-                    sp<IMagPlayerClient>        mClient;
+                    sp<IMagPlayerNotifier>      mClient;
                     pid_t                       mPid;
                     bool                        mLoop;
                     i32                         mConnId;

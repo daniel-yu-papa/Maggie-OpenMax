@@ -1,5 +1,11 @@
 #include "MagPlayerClient.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magPlayerClient"
+
+
 MagPlayerClient::MagPlayerClient():
                          mCurrentState(MAG_PLAYER_IDLE),
                          mpListener(NULL)
@@ -13,7 +19,7 @@ MagPlayerClient::~MagPlayerClient()
 
 void MagPlayerClient::disconnect()
 {
-    AGILE_LOGV("disconnect")
+    AGILE_LOGV("disconnect");
 
     sp<IMagPlayerClient> p;
     {
@@ -27,7 +33,7 @@ void MagPlayerClient::disconnect()
     }
 }
 
-_status_t MagPlayerClient::setListener(const MagPlayerListener* listener)
+_status_t MagPlayerClient::setListener(MagPlayerListener* listener)
 {
     AGILE_LOGV("setListener");
     Mutex::Autolock _l(mLock);

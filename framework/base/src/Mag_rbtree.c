@@ -3,6 +3,12 @@
 #include "Mag_rbtree.h"
 #include "Mag_mem.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magFramework-RBTree"
+
+
 static int gLoopNum = 0;
 static int gRepeatKeyNum = 0;
 

@@ -3,10 +3,11 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 LOCAL_MODULE_TAGS := optional
 
+include vendor/marvell/Maggie-OpenMax/framework/build/android/AndroidFramework.mk
+
 LOCAL_C_INCLUDES := \
     $(JNI_H_INCLUDE) \
-    $(ANDDROID_PLATFORM)/frameworks/base/include/media \
-    $(LOCAL_PATH)/include/vendor \
+    $(MAGPLAYER_FRAMEWORK_INC_PATH) \
     $(LOCAL_PATH)/include
     
 LOCAL_SHARED_LIBRARIES := \
@@ -17,11 +18,12 @@ LOCAL_SHARED_LIBRARIES := \
     libbinder \
     libmedia\
     libgui \
-    libCTC_MediaProcessor
+    libMagTsPlayer
 
 
 LOCAL_MODULE    := libTsPlayerJni
-LOCAL_SRC_FILES := src/CTC_MediaProcessor.cpp
-LOCAL_MODULE_PATH:= $(LOCAL_PATH)/lib
+
+LOCAL_SRC_FILES := src/tsplayer_jni.cpp
+LOCAL_MODULE_PATH:= $(LOCAL_PATH)/../java/libs/armeabi
 
 include $(BUILD_SHARED_LIBRARY)

@@ -1,4 +1,5 @@
 #include "MagPlayerDriver.h"
+#include "MagPlayerClient.h"
 
 static const MagParametersTable_t sParamTable[] = {
     /*key: 1  */{kMediaType,        MagParamTypeInt32},
@@ -52,8 +53,10 @@ _status_t MagPlayerDriver::setDataSource(const sp<IStreamBuffer> &source){
     if (mpPlayer ==  NULL){
         return MAG_NO_INIT;
     }
+    AGILE_LOGV("Enter!");
     
     ret = getParameter(idsMediaType, &param);
+    AGILE_LOGV("22222!");
     if (ret == MAG_NO_ERROR){
         i32 mt = param.readInt32();
         if (mt == MediaTypeTS){
@@ -140,6 +143,15 @@ _status_t MagPlayerDriver::seekTo(int msec){
     }
 }
 
+_status_t MagPlayerDriver::fast(int speed){
+    if (MPD_ST_INITIALIZED == mState){
+        return mpPlayer->fast(speed);
+    }else{
+        AGILE_LOGE("the state[%d] is wrong", mState);
+        return MAG_INVALID_OPERATION;
+    }
+}
+
 _status_t MagPlayerDriver::flush(){
     if (MPD_ST_INITIALIZED == mState){
         return mpPlayer->flush();
@@ -182,16 +194,19 @@ _status_t MagPlayerDriver::setParameter(int key, const Parcel &request){
     if (MPD_ST_INITIALIZED != mState)
         return MAG_INVALID_OPERATION;
     
-    switch(key){
+    switch(static_cast<enum parameter_key_t>(key)){
         case idsMediaType:
         case idsVideo_Codec:
         case idsAudio_Codec:
+            {
             i32 value = request.readInt32();
             mpPlayer->setParameters(sParamTable[key].name, sParamTable[key].type, static_cast<void *>(&value));
+            }
             break;
-
+            
         case idsVideo_TS_pidlist:
         case idsAudio_TS_pidlist:
+            {
             /*the parcel format: number pid#1 codec#1 pid#2 codec#2 pid#3 codec#3 ....*/
             TrackInfo_t *track;
             char keyValue[64];
@@ -226,8 +241,9 @@ _status_t MagPlayerDriver::setParameter(int key, const Parcel &request){
                 }
             }  
             mSetTrackIndex = i;
+            }
             break;
-        
+
         default:
             ret = MAG_BAD_VALUE;
             AGILE_LOGE("unsupported parameter key: %d", key);
@@ -243,13 +259,13 @@ _status_t MagPlayerDriver::getParameter(int key, Parcel *reply){
     if (MPD_ST_INITIALIZED != mState)
         return MAG_INVALID_OPERATION;
     
-    switch(key){
+    switch(static_cast<enum parameter_key_t>(key)){
         case idsMediaType:
         case idsVideo_Codec:
         case idsAudio_Codec:
             ret = mpPlayer->getParameters(sParamTable[key].name, sParamTable[key].type, &value);
             if (ret == MAG_NO_ERROR)
-                reply->writeInt32(static_cast<i32>(*value));
+                reply->writeInt32(*(static_cast<i32 *>(value)));
             break;
 
         case idsVideo_TS_pidlist:
@@ -281,7 +297,12 @@ _status_t MagPlayerDriver::invoke(const Parcel &request, Parcel *reply){
             h = request.readInt32();
             mpPlayer->setDisplayWindow(x, y, w, h);
             break;
-    };
+    }
+    return MAG_NO_ERROR;
+}
+
+_status_t MagPlayerDriver::setVolume(float leftVolume, float rightVolume){
+    return MAG_NO_ERROR;
 }
 
 void MagPlayerDriver::PrepareCompleteEvtListener(void *priv){
@@ -303,9 +324,9 @@ void MagPlayerDriver::SeekCompleteEvtListener(void *priv){
 }
 
 void MagPlayerDriver::ErrorEvtListener(void *priv, i32 what, i32 extra){
-    mState = MPD_ST_ERROR;
     if (priv != NULL){
         MagPlayerDriver *obj = static_cast<MagPlayerDriver *>(priv);
+        obj->mState = MPD_ST_ERROR;
         obj->sendEvent(MEDIA_ERROR, what, extra);
     }else{
         AGILE_LOGE("priv is NULL, quit!");

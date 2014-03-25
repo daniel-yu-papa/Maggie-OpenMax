@@ -5,8 +5,6 @@
 
 #include "IMagPlayerService.h"
 
-namespace android {
-
 enum {
     CREATE = IBinder::FIRST_CALL_TRANSACTION,
 };
@@ -14,15 +12,15 @@ enum {
 class BpMagPlayerService: public BpInterface<IMagPlayerService>
 {
 public:
-    BpMediaPlayerService(const sp<IBinder>& impl)
+    BpMagPlayerService(const sp<IBinder>& impl)
         : BpInterface<IMagPlayerService>(impl)
     {
     }
 
     virtual sp<IMagPlayerClient> create(
-            pid_t pid, const sp<IMagPlayerClient>& client) {
+            pid_t pid, const sp<IMagPlayerNotifier>& client) {
         Parcel data, reply;
-        data.writeInterfaceToken(IMagPlayerClient::getInterfaceDescriptor());
+        data.writeInterfaceToken(IMagPlayerService::getInterfaceDescriptor());
         data.writeInt32(pid);
         data.writeStrongBinder(client->asBinder());
 
@@ -40,8 +38,8 @@ status_t BnMagPlayerService::onTransact(
         case CREATE: {
             CHECK_INTERFACE(IMagPlayerService, data, reply);
             pid_t pid = data.readInt32();
-            sp<IMagPlayerService> client =
-                interface_cast<IMagPlayerService>(data.readStrongBinder());
+            sp<IMagPlayerNotifier> client =
+                interface_cast<IMagPlayerNotifier>(data.readStrongBinder());
             sp<IMagPlayerClient> player = create(pid, client);
             reply->writeStrongBinder(player->asBinder());
             return NO_ERROR;
@@ -50,6 +48,4 @@ status_t BnMagPlayerService::onTransact(
             return BBinder::onTransact(code, data, reply, flags);
     }
 }
-
-};
 

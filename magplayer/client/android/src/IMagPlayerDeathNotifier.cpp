@@ -2,23 +2,28 @@
 #include <binder/IPCThreadState.h>
 #include "IMagPlayerDeathNotifier.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magPlayerClient"
+
 // client singleton for binder interface to services
 Mutex IMagPlayerDeathNotifier::sServiceLock;
-sp<IMediaPlayerService> IMagPlayerDeathNotifier::sMediaPlayerService;
+sp<IMagPlayerService> IMagPlayerDeathNotifier::sMagPlayerService;
 sp<IMagPlayerDeathNotifier::DeathNotifier> IMagPlayerDeathNotifier::sDeathNotifier;
 SortedVector< wp<IMagPlayerDeathNotifier> > IMagPlayerDeathNotifier::sObitRecipients;
 
 // establish binder interface to MediaPlayerService
-/*static*/const sp<IMediaPlayerService>&
+/*static*/const sp<IMagPlayerService>&
 IMagPlayerDeathNotifier::getMagPlayerService()
 {
     AGILE_LOGV("getMediaPlayerService");
     Mutex::Autolock _l(sServiceLock);
-    if (sMediaPlayerService == 0) {
+    if (sMagPlayerService == 0) {
         sp<IServiceManager> sm = defaultServiceManager();
         sp<IBinder> binder;
         do {
-            binder = sm->getService(String16("maggie.player"));
+            binder = sm->getService(String16("mag.player"));
             if (binder != 0) {
                 break;
             }
@@ -30,13 +35,13 @@ IMagPlayerDeathNotifier::getMagPlayerService()
         sDeathNotifier = new DeathNotifier();
     }
     binder->linkToDeath(sDeathNotifier);
-    sMediaPlayerService = interface_cast<IMediaPlayerService>(binder);
+    sMagPlayerService = interface_cast<IMagPlayerService>(binder);
     }
     
-    if (sMediaPlayerService == 0)
+    if (sMagPlayerService == 0)
         AGILE_LOGE("no maggie player service!?");
     
-    return sMediaPlayerService;
+    return sMagPlayerService;
 }
 
 /*static*/ void
@@ -63,7 +68,7 @@ IMagPlayerDeathNotifier::DeathNotifier::binderDied(const wp<IBinder>& who) {
     SortedVector< wp<IMagPlayerDeathNotifier> > list;
     {
         Mutex::Autolock _l(sServiceLock);
-        sMediaPlayerService.clear();
+        sMagPlayerService.clear();
         list = sObitRecipients;
     }
 
@@ -84,8 +89,8 @@ IMagPlayerDeathNotifier::DeathNotifier::~DeathNotifier()
     AGILE_LOGV("DeathNotifier::~DeathNotifier");
     Mutex::Autolock _l(sServiceLock);
     sObitRecipients.clear();
-    if (sMediaPlayerService != 0) {
-        sMediaPlayerService->asBinder()->unlinkToDeath(this);
+    if (sMagPlayerService != 0) {
+        sMagPlayerService->asBinder()->unlinkToDeath(this);
     }
 }
 

@@ -165,8 +165,8 @@ public class MagPlayerDemo extends TabActivity
                    Log.i(TAG, "init: vpid=" + vpid + ", vcodec=" + vcodec + ", apid=" + apid + ", acodec=" + acodec + ", url=" + playFileUri.getPath());
                    Log.i(TAG, "tunning param: number of ts packets-" + numTsPackets + "  write cycle-" + wCycle +"ms");
                    
-                   nativeTsPlayer_Init(vpid, vcodec, apid, acodec, numTsPackets, wCycle, playFileUri.getPath());
-                   nativeTsPlayer_Play();
+                   nativeInit(vpid, vcodec, apid, acodec, numTsPackets, wCycle, playFileUri.getPath());
+                   nativePlay();
                 }
             }
         });
@@ -175,7 +175,7 @@ public class MagPlayerDemo extends TabActivity
         tsplayer_stop.setOnClickListener(new Button.OnClickListener(){
             public void onClick(View v)
             {
-               nativeTsPlayer_Stop();
+               nativeStop();
             }
         });
         
@@ -199,7 +199,7 @@ public class MagPlayerDemo extends TabActivity
     @Override
     public void onPause(){
         super.onPause();
-        nativeTsPlayer_Destroy();
+        nativeDestroy();
     }
     
     protected void onActivityResult(int requestCode, int resultCode, Intent data) { 
@@ -228,11 +228,11 @@ public class MagPlayerDemo extends TabActivity
     }  
     
     static {
-        System.loadLibrary("tsplayer_jni");
+        System.loadLibrary("TsPlayerJni");
     }
-    
-    private static native void nativeTsPlayer_Init(int videoPID, int videoCodec, int audioPID, int audioCodec, int numTSPackets, int wCycle, String url);
-    private static native void nativeTsPlayer_Play(); 
-    private static native void nativeTsPlayer_Stop(); 
-    private static native void nativeTsPlayer_Destroy();
+
+    private static native void nativeInit(int videoPID, int videoCodec, int audioPID, int audioCodec, int numTSPackets, int wCycle, String url);
+    private static native void nativePlay(); 
+    private static native void nativeStop(); 
+    private static native void nativeDestroy();
 }

@@ -146,7 +146,6 @@ Error_t AgileLog::parseModuleConfigElement(XMLElement *eleIn){
             mConfigValue.pModules[count].debugLevel = DEBUG_LEVEL_VERBOSE;
         }
         mpModuleHashT->addItem(mpModuleHashT, (void *)&mConfigValue.pModules[count], mConfigValue.pModules[count].moduleName);
-        
         ++count;
 	}
     return NO_ERROR;

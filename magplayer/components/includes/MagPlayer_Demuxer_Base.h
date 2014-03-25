@@ -3,6 +3,7 @@
 
 #include "Parameters.h"
 #include "MediaBuffer.h"
+#include "MagPlayer_ContentPipe.h"
 
 /*parameter keys*/
 #define kDemuxer_Video_Track_Number       "demuxer.video.track.num"          /*Int32*/
@@ -31,7 +32,7 @@ typedef struct{
     enum TrackStatus_t status;
     
     ui32 index;                   /*the incremental index of all tracks in the stream in align with the structure TrackInfoTable_t*/
-    ui8  *name;                   /*the description information acquired from the stream*/
+    char *name;                   /*the description information acquired from the stream*/
     ui32 streamID;                /*the stream id used in low-level demuxer*/
     ui32 codec;                   /*codec id*/
     ui32 pid;                     /*pid for ts*/
@@ -53,7 +54,7 @@ typedef struct{
 
 class Stream_Track{
 public:
-    Stream_Track(TrackInfo_t *info);
+    Stream_Track(TrackInfo_t *info, ui32 buffer_pool_size);
     ~Stream_Track();
     
     TrackInfo_t *getInfo();
@@ -67,7 +68,7 @@ public:
     _status_t     reset();
     
 private:
-    _status_t putMediaBuffer(MediaBuffer_t *mb);
+    _status_t putMediaBuffer(List_t *list_head, MediaBuffer_t *mb);
         
     TrackInfo_t *mInfo;
     ui32 mBufferPoolSize;
@@ -80,8 +81,8 @@ private:
 class MagPlayer_Demuxer_Base{
 public:
     enum {
-        kWhatReadFrame      = 'readf',
-        kWhatError          = 'error',
+        kWhatReadFrame      = 'redf',
+        kWhatError          = 'erro',
     };
     
     MagPlayer_Demuxer_Base();
@@ -92,8 +93,6 @@ public:
     _status_t   setPlayingTrackID(ui32 index);
     ui32        getPlayingTracksID(ui32 **index);
     _status_t   readFrame(ui32 trackIndex, MediaBuffer_t **buffer);
-
-    _status_t   getLooper();
     MagMessageHandle createNotifyMsg();
     
     virtual _status_t   readFrameInternal(ui32 StreamID, MediaBuffer_t **buffer) = 0;
@@ -111,7 +110,7 @@ private:
 
     void onPlayerNotify(MagMessageHandle msg);
 
-    void             onMessageReceived(const MagMessageHandle msg, void *priv);
+    static void      onMessageReceived(const MagMessageHandle msg, void *priv);
     MagMessageHandle createMessage(ui32 what);
     _status_t        getLooper();
     

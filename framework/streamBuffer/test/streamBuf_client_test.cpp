@@ -1,7 +1,5 @@
 #include "StreamBufferDef.h"
 #include "Mag_thread.h"
-#include "agilelog.h"
-#include "Mag_pub_type.h"
 
 #include "IStreamBufTest.h"
 

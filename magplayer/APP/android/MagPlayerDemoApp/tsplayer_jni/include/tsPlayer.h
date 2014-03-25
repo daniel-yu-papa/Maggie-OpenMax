@@ -1,12 +1,9 @@
-#ifndef __TSPLAYER_DRIVER_H__
-#define __TSPLAYER_DRIVER_H__
+#ifndef __TSPLAYER_H__
+#define __TSPLAYER_H__
 
-#include "Mag_pub_def.h"
-#include "Mag_pub_type.h"
-#include "MagSingleton.h"
+#include <gui/Surface.h>
 
-#include "MagPlayerClient.h"
-#include "streamBuffer.h"
+#include "MagFramework.h"
 
 typedef enum {
     VFORMAT_UNKNOWN = -1,
@@ -80,6 +77,7 @@ typedef enum
 
 typedef void (*IPTV_PLAYER_EVT_CB)(IPTV_PLAYER_EVT_e evt, void *handler);
 
+
 class CTC_MediaProcessor{
 public:
 	CTC_MediaProcessor(){}
@@ -137,84 +135,6 @@ public:
 	virtual void leaveChannel() = 0;
 
     virtual void playerback_register_evt_cb(IPTV_PLAYER_EVT_CB pfunc, void *handler) = 0;    
-};
-
-
-
-class TsPlayer : public CTC_MediaProcessor, public MagSingleton<TsPlayer>{
-    friend class MagSingleton<TsPlayer>;
-	TsPlayer();
-	virtual ~TsPlayer();
-public:
-	virtual int  GetPlayMode();
-	virtual int  SetVideoWindow(int x,int y,int width,int height);
-	virtual int  VideoShow(void);
-	virtual int  VideoHide(void);
-	virtual void InitVideo(PVIDEO_PARA_T pVideoPara);
-	virtual void InitAudio(PAUDIO_PARA_T pAudioPara);
-	virtual bool StartPlay();
-	virtual int  WriteData(unsigned char* pBuffer, unsigned int nSize);
-	virtual bool Pause();
-	virtual bool Resume();
-	virtual bool Fast();
-	virtual bool StopFast();
-	virtual bool Stop();
-    virtual bool Seek();
-	virtual bool SetVolume(int volume);
-	virtual int  GetVolume();
-	virtual bool SetRatio(int nRatio);
-	virtual int  GetAudioBalance();
-	virtual bool SetAudioBalance(int nAudioBalance);
-	virtual void GetVideoPixels(int& width, int& height);
-
-	virtual bool IsSoftFit();
-	virtual void SetEPGSize(int w, int h);
-
-	virtual void SetSurface(Surface* pSurface);
-
-	virtual void SwitchAudioTrack(int pid);
-	virtual void SwitchSubtitle(int pid);
-	virtual void SetProperty(int nType, int nSub, int nValue);
-	virtual long GetCurrentPlayTime();
-	virtual void leaveChannel();
-	virtual void playerback_register_evt_cb(IPTV_PLAYER_EVT_CB pfunc, void *hander);
-    
-protected:
-	int		m_bLeaveChannel;
-    
-private:
-
-    enum State_t{
-        TSP_IDLE = 0,
-        TSP_INITIALIZED,
-        TSP_PREPARING,
-        TSP_PREPARED,
-        TSP_FLUSHING,
-        TSP_RUNNING,
-        TSP_FASTING,
-        TSP_PAUSED,
-        TSP_STOPPED,
-        TSP_ERROR,
-    };
-
-    State_t mState;
-    State_t mSeekBackState;
-    
-    MagPlayerClient_t mPlayer;
-    streamBuf_t       mStreamBuf;
-    
-    ui32 convertVideoCodecType(vformat_t vcodec);
-    ui32 convertAudioCodecType(aformat_t acodec);
-
-    MagEventGroupHandle mPrepareEvtGroup;
-    MagEventHandle      mPrepareDoneEvt;
-    MagEventHandle      mPrepareErrorEvt;
-    void Prepare();
-    static void PrepareCompleteEvtListener(void *priv);
-    static void FlushCompleteEvtListener(void *priv);
-    static void ErrorEvtListener(void *priv, i32 what, i32 extra);
-
-    void initialize();
 };
 
 CTC_MediaProcessor* GetMediaProcessor();

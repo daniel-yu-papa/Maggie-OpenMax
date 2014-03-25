@@ -4,8 +4,9 @@
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
-#endif 
+#endif          
 #define MODULE_TAG "MAG_EVENT_TEST"
+
 
 int  thread_ids[4] = {0,1,2,3};
 MagEventGroupHandle evtGrp;

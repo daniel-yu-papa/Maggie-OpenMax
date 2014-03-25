@@ -5,9 +5,7 @@
 #include <binder/IMemory.h>
 #include <binder/MemoryDealer.h>
 
-#include "Mag_list.h"
-#include "Mag_pub_type.h"
-
+#include "Mag_pub_common.h"
 
 typedef struct{
     List_t node;

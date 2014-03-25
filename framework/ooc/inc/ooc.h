@@ -122,7 +122,7 @@ struct ClassTable
 	const size_t		itab_size;			/* the number of implemented Interfaces */
 	
 
-	void				(* init) ( Class this );        				/* class initializer */
+	void				(* init) ( Class thiz );        				/* class initializer */
 	void				(* ctor) (Object self, const void * params );	/* constructor */
 	void				(* dtor) (Object self, Vtable vtab);			/* destructor */
 };

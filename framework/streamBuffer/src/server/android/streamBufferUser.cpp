@@ -2,6 +2,12 @@
 
 #include <binder/Parcel.h>
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magFramework-StreamBuffer"
+
+
 enum {
     ON_BUFFER_FILLED = IBinder::FIRST_CALL_TRANSACTION,
     ISSUE_COMMAND,

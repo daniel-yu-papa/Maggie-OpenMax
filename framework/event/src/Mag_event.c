@@ -3,8 +3,9 @@
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
-#endif 
-#define MODULE_TAG "MAG_EVENT_MODULE"
+#endif          
+#define MODULE_TAG "magFramework-Event"
+
 
 #ifdef MAG_DEBUG
 static i32 evtNumTotal = 0;

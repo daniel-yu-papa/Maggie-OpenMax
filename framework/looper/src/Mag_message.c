@@ -1,5 +1,10 @@
 #include "Mag_looper.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magFramework-Looper"
+
 static void freeItem(MagItem_t *item){
     switch(item->mType){
         case TypeString:

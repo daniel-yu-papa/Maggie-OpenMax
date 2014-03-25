@@ -23,8 +23,6 @@
 #include <binder/IServiceManager.h>
 
 #include "StreamBufferDef.h"
-#include "agilelog.h"
-#include "Mag_pub_type.h"
 #include "IStreamBufTest.h"
 
 using namespace android;

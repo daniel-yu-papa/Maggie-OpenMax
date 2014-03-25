@@ -1,5 +1,15 @@
-#include "MagPlayerService.h"
+#include <sys/stat.h>
 
+#include <binder/IServiceManager.h>
+#include <binder/IPCThreadState.h>
+
+#include "MagPlayerService.h"
+#include "IMagPlayerNotifier.h"
+
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magPlayerService"
 
 void MagPlayerService::instantiate() {
     defaultServiceManager()->addService(String16("mag.player"), new MagPlayerService());
@@ -16,7 +26,7 @@ MagPlayerService::~MagPlayerService()
     AGILE_LOGV("MagPlayerService destroyed");
 }
 
-sp<IMagPlayerClient> MagPlayerService::create(pid_t pid, const sp<IMagPlayerClient>& client)
+sp<IMagPlayerClient> MagPlayerService::create(pid_t pid, const sp<IMagPlayerNotifier>& client)
 {
     i32 connId = android_atomic_inc(&mNextConnId);
 
@@ -46,7 +56,7 @@ void MagPlayerService::removeClient(wp<Client> client)
 /*************************************/
 MagPlayerService::Client::Client(
         const sp<MagPlayerService>& service, pid_t pid,
-        i32 connId, const sp<IMagPlayerClient>& client,
+        i32 connId, const sp<IMagPlayerNotifier>& client,
         uid_t uid)
 {
     AGILE_LOGV("Client(%d) constructor", connId);
@@ -56,6 +66,7 @@ MagPlayerService::Client::Client(
     mClient = client;
     mLoop = false;
     mUID = uid;
+    mPlayer = NULL;
 }
 
 MagPlayerService::Client::~Client()
@@ -73,7 +84,6 @@ void MagPlayerService::Client::disconnect()
     mClient.clear();
 
     if (NULL != mPlayer){
-        mPlayer->setNotifyCallback(0, 0);
         delete mPlayer;
         mPlayer = NULL;
     }
@@ -89,9 +99,7 @@ MagPlayerDriver* MagPlayerService::Client::createPlayer()
     if (p == NULL) {
         p = new MagPlayerDriver(this, notify);
 
-        if (p != NULL) {
-            p->setUID(mUID);
-        }else{
+        if (p == NULL) {
             AGILE_LOGE("Failed to create MagPlayerDriver!!!");
         }
     }
@@ -120,7 +128,7 @@ _status_t MagPlayerService::Client::setDataSource(const char *url)
     return status;
 }
 
-_status_t MagPlayerService::Client::setDataSource(int fd, int64_t offset, int64_t length)
+_status_t MagPlayerService::Client::setDataSource(i32 fd, i64 offset, i64 length)
 {
     AGILE_LOGV("setDataSource fd=%d, offset=%lld, length=%lld", fd, offset, length);
     struct stat sb;
@@ -162,6 +170,8 @@ _status_t MagPlayerService::Client::setDataSource(int fd, int64_t offset, int64_
 }
 
 _status_t MagPlayerService::Client::setDataSource(const sp<IStreamBuffer> &source) {
+    AGILE_LOGV("setDataSource(stream buffer)");
+    
     _status_t status;
     MagPlayerDriver *p = createPlayer();
     if (p == NULL){
@@ -279,6 +289,13 @@ _status_t MagPlayerService::Client::seekTo(int msec)
     return p->seekTo(msec);
 }
 
+_status_t MagPlayerService::Client::fast(int speed){
+    AGILE_LOGV("[%d] fast(%d)", mConnId, speed);
+    MagPlayerDriver *p = getPlayer();
+    if (p == 0) return MAG_UNKNOWN_ERROR;
+    return p->fast(speed);
+}
+
 _status_t MagPlayerService::Client::flush()
 {
     AGILE_LOGV("[%d] flush()", mConnId);
@@ -325,7 +342,7 @@ void MagPlayerService::Client::notify(
         return;
     }
 
-    sp<IMagPlayerClient> c;
+    sp<IMagPlayerNotifier> c;
     {
         Mutex::Autolock l(client->mLock);
         c = client->mClient;

@@ -1,8 +1,9 @@
 #include "StreamBufferDef.h"
-#include "Mag_mem.h"
-#include "Mag_event.h"
-#include "Mag_thread.h"
-#include "agilelog.h"
+
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magFramework-StreamBuffer"
 
 StreamBuffer::StreamBuffer(){
     mBufferNum = 0;

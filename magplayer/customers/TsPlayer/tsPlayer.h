@@ -1,12 +1,11 @@
-#ifndef __TSPLAYER_DRIVER_H__
-#define __TSPLAYER_DRIVER_H__
+#ifndef __TSPLAYER_H__
+#define __TSPLAYER_H__
 
-#include "Mag_pub_def.h"
-#include "Mag_pub_type.h"
-#include "MagSingleton.h"
+#include <gui/Surface.h>
 
+#include "MagFramework.h"
+#include "Singleton.h"
 #include "MagPlayerClient.h"
-#include "streamBuffer.h"
 
 typedef enum {
     VFORMAT_UNKNOWN = -1,
@@ -188,22 +187,7 @@ protected:
 	int		m_bLeaveChannel;
     
 private:
-
-    enum State_t{
-        TSP_IDLE = 0,
-        TSP_INITIALIZED,
-        TSP_PREPARING,
-        TSP_PREPARED,
-        TSP_FLUSHING,
-        TSP_RUNNING,
-        TSP_FASTING,
-        TSP_PAUSED,
-        TSP_STOPPED,
-        TSP_ERROR,
-    };
-
-    State_t mState;
-    State_t mSeekBackState;
+    bool mbInitialized;
     
     MagPlayerClient_t mPlayer;
     streamBuf_t       mStreamBuf;
@@ -212,14 +196,6 @@ private:
     
     ui32 convertVideoCodecType(vformat_t vcodec);
     ui32 convertAudioCodecType(aformat_t acodec);
-
-    MagEventGroupHandle mPrepareEvtGroup;
-    MagEventHandle      mPrepareDoneEvt;
-    MagEventHandle      mPrepareErrorEvt;
-    void Prepare();
-    static void PrepareCompleteEvtListener(void *priv);
-    static void FlushCompleteEvtListener(void *priv);
-    static void ErrorEvtListener(void *priv, i32 what, i32 extra);
 
     void initialize();
 };

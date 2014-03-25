@@ -1,6 +1,12 @@
 #include <unistd.h>
 #include "Mag_looper.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magFramework-Looper"
+
+
 static ui32 gLooperId = 0;
 
 static i64 getNowMs() {

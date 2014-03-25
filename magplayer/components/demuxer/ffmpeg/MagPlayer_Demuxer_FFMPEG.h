@@ -9,6 +9,9 @@ extern "C" {
 #include "libavformat/internal.h"
 }
 
+#include "MagPlayer_Demuxer_Base.h"
+#include "MagPlayer_ContentPipe.h"
+
 #define TS_NOPROBE_NEW_PID_MASK      (0x8000)
 #define TS_NOPROBE_REMOVE_PID_MASK   (0x10000)
 
@@ -46,7 +49,10 @@ private:
     i32        mTotalTrackNum;
     
     AVIOContext     *ffmpeg_utiles_CreateAVIO();
-    AVFormatContext *ffmpeg_utiles_CreateAVFormat();
+    AVFormatContext *ffmpeg_utiles_CreateAVFormat(AVInputFormat *inputFormat, 
+                                                           AVIOContext *context, 
+                                                           bool seekable, 
+                                                           bool probe);
     void            ffmpeg_utiles_SetOption(const char *opt, const char *arg);
     
     i32 AVIO_Read (ui8 *buf, int buf_size);

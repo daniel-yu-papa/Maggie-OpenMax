@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE agilelog SYSTEM "agilelog.dtd">
+
+<agilelog version="1.0">
+    <!-- Global configuration applied to whole project -->
+	<global_config>
+		<!-- output: file, logcat, stdout, socket -->
+		<output>logcat</output>
+
+        <!-- debug level: fatal, error, warning, info, debug, verbose-->
+        <!-- it could be overrided by module debugging level -->
+        <debug level = "verbose"/>
+
+        <!-- add the timestamp for each log item or NOT. value: true OR false-->
+        <timestamp on = "true"/>
+	</global_config>
+
+    <module_config>
+    	<module name = "magFrameworkBase">
+    		<debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+
+    	<module name = "magFramework-StreamBuffer">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "magFramework-Thread">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "magFramework-Base">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "magFramework-RBTree">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "magFramework-MiniDB">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "magFramework-Event">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "magFramework-Hashtable">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "magFramework-Looper">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "magFramework-Memory">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "magFramework-OOC">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "magPlayer">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "magPlayerClient">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "magPlayerService">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "magPlayerContentPipe">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "magPlayerDemuxer">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "magPlayerDemuxer">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "magPlayerMockOMXIL">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "magPlayerServer">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+    </module_config>
+</agilelog>

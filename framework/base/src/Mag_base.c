@@ -4,6 +4,12 @@
 #include "Mag_base.h"
 #include "agilelog.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magFramework-Base"
+
+
 void Mag_AssertFailed(const char *expr, const char *file, unsigned int line){
     AGILE_LOGE("!!! Assert '%s' Failed at %s:%d (err code: %s)\n", expr, file, line, strerror(errno));
 #ifdef MAG_DEBUG
@@ -61,7 +67,7 @@ MagErr_t Mag_AcquireMutex(MagMutexHandle handler){
     if (0 == rc){
         return MAG_ErrNone;
     }else{
-        AGILE_LOGE("faile to lock the mutex(0x%lx)", (unsigned long)handler);
+        AGILE_LOGE("failed to lock the mutex(0x%lx)", (unsigned long)handler);
         return MAG_Failure;
     }
 }

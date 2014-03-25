@@ -1,5 +1,15 @@
 #include "MagPlayer_Demuxer_FFMPEG.h"
 
+#include "OMX_Video.h"
+#include "OMX_Audio.h"
+#include "OMX_AudioExt.h"
+
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magPlayerDemuxer"
+
+
 #define DUMMY_FILE "dummy_file"
 
 static const ui32 kAVIOBufferSize = (32 * 1024);
@@ -21,7 +31,7 @@ MagPlayer_Demuxer_FFMPEG::~MagPlayer_Demuxer_FFMPEG(){
 }
 
 i32 MagPlayer_Demuxer_FFMPEG::AVIO_Read (ui8 *buf, int buf_size){
-    int size = buf_size;
+    ui32 size = (ui32)buf_size;
     
     if (NULL != mDataSource){
         if (MPCP_OK == mDataSource->Read(buf, &size)){
@@ -108,7 +118,7 @@ i64 MagPlayer_Demuxer_FFMPEG::AVIO_Static_Seek (void *opaque, i64 offset, i32 wh
         return 0;
     }
     
-    return static_cast<MagPlayer_Demuxer_FFMPEG *>(opaque)->AVIO_Seek(buf, buf_size);
+    return static_cast<MagPlayer_Demuxer_FFMPEG *>(opaque)->AVIO_Seek(offset, whence);
 }
 
 AVIOContext *MagPlayer_Demuxer_FFMPEG::ffmpeg_utiles_CreateAVIO(){
@@ -155,27 +165,27 @@ AVFormatContext *MagPlayer_Demuxer_FFMPEG::ffmpeg_utiles_CreateAVFormat(AVInputF
     }
     
     format->pb = context;
-    context->pb->seekable = seekable;
+    context->seekable = seekable;
 
     if (probe){
         i32 res;
         
         res = avformat_open_input(
-            &context,
+            &format,
             DUMMY_FILE,  /* need to pass a filename*/
             inputFormat,   /* probe the container format*/
             NULL);         /* no special parameters*/
         
         if (res < 0) {
             AGILE_LOGE("Failed to open the input stream.");
-            av_free(context);
+            av_free(format);
             return NULL;
         }
 
-        res = avformat_find_stream_info(context, NULL);
+        res = avformat_find_stream_info(format, NULL);
         if (res < 0) {
             AGILE_LOGE("Failed to find stream information.");
-            avformat_close_input(&context);
+            avformat_close_input(&format);
             return NULL;
         }
     }
@@ -197,7 +207,7 @@ void MagPlayer_Demuxer_FFMPEG::ffmpeg_utiles_SetOption(const char *opt, const ch
 enum CodecID MagPlayer_Demuxer_FFMPEG::convertCodec_OMXToFFMPEG(ui32 omxCodec){
     enum CodecID codec;
     
-    switch(static_cast<OMX_VIDEO_CODINGTYPE>(omxCodec)){
+    switch(omxCodec){
         case OMX_VIDEO_CodingAVC:
             codec = AV_CODEC_ID_H264;
             break;
@@ -258,7 +268,7 @@ _status_t  MagPlayer_Demuxer_FFMPEG::create_track(TrackInfo_t *track){
 }
 
 bool MagPlayer_Demuxer_FFMPEG::ts_noprobe_decide_adding(enum CodecID codec, ui32 pid){
-    i32 i;
+    ui32 i;
     
     for (i = 0; i < mpAVFormat->nb_streams; i++){
         if (NULL != mpAVFormat->streams[i]){
@@ -429,13 +439,13 @@ _status_t  MagPlayer_Demuxer_FFMPEG::ts_noprobe_start(){
     ts_noprobe_add_streams();
 
     if (!mInitialized){
-        av_demuxer_open(mAVFormat);
+        av_demuxer_open(mpAVFormat);
     }else{
         avformat_mpegts_add_pid(mpAVFormat);
     }
     mInitialized = true;
     
-    av_dump_format(mAVFormat, 0, DUMMY_FILE, 0);
+    av_dump_format(mpAVFormat, 0, DUMMY_FILE, 0);
     
 opt_fail:
     if (&mpFormatOpts) {
@@ -473,17 +483,18 @@ _status_t  MagPlayer_Demuxer_FFMPEG::ts_noprobe_stop(){
 }
 
 _status_t  MagPlayer_Demuxer_FFMPEG::probe_start(){
-
+    return MAG_NO_ERROR;
 }
 
 _status_t  MagPlayer_Demuxer_FFMPEG::probe_stop(){
-
+    return MAG_NO_ERROR;
 }
 
-_status_t  MagPlayer_Demuxer_FFMPEG::start(MagPlayer_Component_CP *contentPipe, ui32 flags):
-                                     mDataSource(contentPipe){
-    char value[32];
+_status_t  MagPlayer_Demuxer_FFMPEG::start(MagPlayer_Component_CP *contentPipe, ui32 flags){
+    char *value;
     boolean ret;
+
+    mDataSource = contentPipe;
     
     if (NULL == mParamDB){
         AGILE_LOGE("the Demuxer is not initialized. Quit!");
@@ -508,7 +519,7 @@ _status_t  MagPlayer_Demuxer_FFMPEG::start(MagPlayer_Component_CP *contentPipe, 
 }
 
 _status_t  MagPlayer_Demuxer_FFMPEG::stop(){
-    char value[32];
+    char *value;
     boolean ret;
     
     if (NULL == mParamDB){
@@ -534,7 +545,7 @@ _status_t  MagPlayer_Demuxer_FFMPEG::stop(){
 }
 
 void MagPlayer_Demuxer_FFMPEG::setMediaBufferFields(MediaBuffer_t *mb, AVPacket *packet){
-    if ((NULL == mb) || (NULL = packet))
+    if ((NULL == mb) || (NULL == packet))
         return;
 
     mb->buffer      = packet->data;
@@ -593,7 +604,7 @@ _status_t   MagPlayer_Demuxer_FFMPEG::readFrameInternal(ui32 StreamID, MediaBuff
         mb = track->dequeueFrame();
 
         if (NULL == mb){
-            ret = readMore(StreamID);
+            ret = readMore(track, StreamID);
             if (MAG_NO_ERROR == ret){
                 mb = track->dequeueFrame();
             }

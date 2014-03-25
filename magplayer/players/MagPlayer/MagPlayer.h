@@ -1,7 +1,12 @@
 #ifndef __MAG_PLAYER_H__
 #define __MAG_PLAYER_H__
 
-#include "Mag_base.h"
+#include "MagFramework.h"
+#include "Parameters.h"
+#include "MagPlayer_ContentPipe.h"
+#include "MagPlayer_DataSource.h"
+#include "MagPlayer_Demuxer_FFMPEG.h"
+#include "MagPlayer_Mock_OMXIL.h"
 
 #define MOCK_OMX_IL
 
@@ -15,7 +20,7 @@ typedef enum{
 }ErrorWhatCode_t;
 
 
-typedef void (*fnNotifyInfo)(void *priv);
+typedef void (*fnNotifyInfo)(void *priv, i32 what, i32 extra);
 typedef void (*fnNotifySeekComplete)(void *priv);
 typedef void (*fnNotifyPrepareComplete)(void *priv);
 typedef void (*fnNotifyFlushComplete)(void *priv);
@@ -25,7 +30,7 @@ class MagPlayer {
 public:
     enum {
         kWhatFillThisBuffer      = 'filb',
-        kWhatError               = 'error',
+        kWhatError               = 'erro',
     };
     
     MagPlayer();
@@ -41,7 +46,7 @@ public:
     _status_t        stop();
     _status_t        pause();
     bool             isPlaying();
-    _status_t        seekTo(int msec);
+    _status_t        seekTo(i32 msec);
     _status_t        flush();
     _status_t        fast(int speed);
     _status_t        getCurrentPosition(int* msec);
@@ -154,8 +159,8 @@ private:
     
     _status_t getLooper();
     MagMessageHandle createMessage(ui32 what);
-    static void onMessageReceived(const void *msg, void *priv);
-    
+    static void onMessageReceived(const MagMessageHandle msg, void *priv);
+
     void onSourceNotify(MagMessageHandle msg);
     void onPrepared(MagMessageHandle msg);
     void onStart(MagMessageHandle msg);
@@ -166,8 +171,9 @@ private:
     void onSeek(MagMessageHandle msg);
     void onFast(MagMessageHandle msg);
     void onReset(MagMessageHandle msg);
-    void onError(MagMessageHandle msg);
+    void onErrorNotify(MagMessageHandle msg);
     void onSetVolume(MagMessageHandle msg);
+    void onComponentNotify(MagMessageHandle msg);
     
     bool isValidFSState(State_t st);
 

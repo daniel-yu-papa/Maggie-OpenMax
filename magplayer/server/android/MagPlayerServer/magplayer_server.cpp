@@ -15,8 +15,6 @@
 ** limitations under the License.
 */
 
-#define LOG_TAG "magplayerserver"
-//#define LOG_NDEBUG 0
 
 #include <binder/IPCThreadState.h>
 #include <binder/ProcessState.h>
@@ -24,7 +22,13 @@
 
 // from LOCAL_C_INCLUDES
 #include "MagPlayerService.h"
-#include "agilelog.h"
+#include "MagFramework.h"
+
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magPlayerServer"
+
 
 using namespace android;
 

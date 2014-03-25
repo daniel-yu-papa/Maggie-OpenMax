@@ -1,5 +1,11 @@
 #include "Mag_minidb.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magFramework-MiniDB"
+
+
 void MagMiniDB_setInt32(struct mag_minidb *db, const char *name, i32 value){
     MagMiniDBItemHandle hItem;
 
@@ -7,12 +13,12 @@ void MagMiniDB_setInt32(struct mag_minidb *db, const char *name, i32 value){
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
     if (NULL != hItem){
         hItem->u.int32Value = value;
-        hItem->mType = TypeInt32;
+        hItem->mType = MagMiniDB_TypeInt32;
     }else{
         hItem = (MagMiniDBItemHandle)mag_malloc(sizeof(MagMiniDBItem_t));
         if (NULL != hItem){
             hItem->u.int32Value = value;
-            hItem->mType = TypeInt32;
+            hItem->mType = MagMiniDB_TypeInt32;
             hItem->mName = mag_strdup(name);
             INIT_LIST(&hItem->node);
             list_add(&hItem->node, &db->mItemListHead);
@@ -29,12 +35,12 @@ void MagMiniDB_setInt64(struct mag_minidb *db, const char *name, i64 value){
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
     if (NULL != hItem){
         hItem->u.int64Value = value;
-        hItem->mType = TypeInt64;
+        hItem->mType = MagMiniDB_TypeInt64;
     }else{
         hItem = (MagMiniDBItemHandle)mag_malloc(sizeof(MagMiniDBItem_t));
         if (NULL != hItem){
             hItem->u.int64Value = value;
-            hItem->mType = TypeInt64;
+            hItem->mType = MagMiniDB_TypeInt64;
             hItem->mName = mag_strdup(name);
             INIT_LIST(&hItem->node);
             list_add(&hItem->node, &db->mItemListHead);
@@ -51,12 +57,12 @@ void MagMiniDB_setUInt32(struct mag_minidb *db, const char *name, ui32 value){
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
     if (NULL != hItem){
         hItem->u.uint32Value = value;
-        hItem->mType = TypeUInt32;
+        hItem->mType = MagMiniDB_TypeUInt32;
     }else{
         hItem = (MagMiniDBItemHandle)mag_malloc(sizeof(MagMiniDBItem_t));
         if (NULL != hItem){
             hItem->u.uint32Value = value;
-            hItem->mType = TypeUInt32;
+            hItem->mType = MagMiniDB_TypeUInt32;
             hItem->mName = mag_strdup(name);
             INIT_LIST(&hItem->node);
             list_add(&hItem->node, &db->mItemListHead);
@@ -73,12 +79,12 @@ void MagMiniDB_setFloat(struct mag_minidb *db, const char *name, fp32 value){
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
     if (NULL != hItem){
         hItem->u.floatValue = value;
-        hItem->mType = TypeFloat;
+        hItem->mType = MagMiniDB_TypeFloat;
     }else{
         hItem = (MagMiniDBItemHandle)mag_malloc(sizeof(MagMiniDBItem_t));
         if (NULL != hItem){
             hItem->u.floatValue = value;
-            hItem->mType = TypeFloat;
+            hItem->mType = MagMiniDB_TypeFloat;
             hItem->mName = mag_strdup(name);
             INIT_LIST(&hItem->node);
             list_add(&hItem->node, &db->mItemListHead);
@@ -95,12 +101,12 @@ void MagMiniDB_setDouble(struct mag_minidb *db, const char *name, fp64 value){
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
     if (NULL != hItem){
         hItem->u.doubleValue = value;
-        hItem->mType = TypeDouble;
+        hItem->mType = MagMiniDB_TypeDouble;
     }else{
         hItem = (MagMiniDBItemHandle)mag_malloc(sizeof(MagMiniDBItem_t));
         if (NULL != hItem){
             hItem->u.doubleValue = value;
-            hItem->mType = TypeDouble;
+            hItem->mType = MagMiniDB_TypeDouble;
             hItem->mName = mag_strdup(name);
             INIT_LIST(&hItem->node);
             list_add(&hItem->node, &db->mItemListHead);
@@ -117,12 +123,12 @@ void MagMiniDB_setPointer(struct mag_minidb *db, const char *name, void *value){
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
     if (NULL != hItem){
         hItem->u.ptrValue = value;
-        hItem->mType = TypePointer;
+        hItem->mType = MagMiniDB_TypePointer;
     }else{
         hItem = (MagMiniDBItemHandle)mag_malloc(sizeof(MagMiniDBItem_t));
         if (NULL != hItem){
             hItem->u.ptrValue = value;
-            hItem->mType = TypePointer;
+            hItem->mType = MagMiniDB_TypePointer;
             hItem->mName = mag_strdup(name);
             INIT_LIST(&hItem->node);
             list_add(&hItem->node, &db->mItemListHead);
@@ -140,12 +146,12 @@ void MagMiniDB_setString(struct mag_minidb *db, const char *name, const char *s)
     if (NULL != hItem){
         mag_free(hItem->u.stringValue);
         hItem->u.stringValue = mag_strdup(s);
-        hItem->mType = TypeString;
+        hItem->mType = MagMiniDB_TypeString;
     }else{
         hItem = (MagMiniDBItemHandle)mag_malloc(sizeof(MagMiniDBItem_t));
         if (NULL != hItem){
             hItem->u.stringValue = mag_strdup(s);
-            hItem->mType = TypeString;
+            hItem->mType = MagMiniDB_TypeString;
             hItem->mName = mag_strdup(name);
             INIT_LIST(&hItem->node);
             list_add(&hItem->node, &db->mItemListHead);
@@ -162,7 +168,7 @@ boolean MagMiniDB_findInt32(struct mag_minidb *db, const char *name, i32 *value)
     Mag_AcquireMutex(db->mLock);
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
     if (NULL != hItem){
-        if (hItem->mType == TypeInt32){
+        if (hItem->mType == MagMiniDB_TypeInt32){
             *value = hItem->u.int32Value;
             ret = MAG_TRUE;
         }else{
@@ -184,7 +190,7 @@ boolean MagMiniDB_findInt64(struct mag_minidb *db, const char *name, i64 *value)
     Mag_AcquireMutex(db->mLock);
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
     if (NULL != hItem){
-        if (hItem->mType == TypeInt64){
+        if (hItem->mType == MagMiniDB_TypeInt64){
             *value = hItem->u.int64Value;
             ret = MAG_TRUE;
         }else{
@@ -206,7 +212,7 @@ boolean MagMiniDB_findUInt32(struct mag_minidb *db, const char *name, _size_t *v
     Mag_AcquireMutex(db->mLock);
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
     if (NULL != hItem){
-        if (hItem->mType == TypeUInt32){
+        if (hItem->mType == MagMiniDB_TypeUInt32){
             *value = hItem->u.uint32Value;
             ret = MAG_TRUE;
         }else{
@@ -228,7 +234,7 @@ boolean MagMiniDB_findFloat(struct mag_minidb *db, const char *name, fp32 *value
     Mag_AcquireMutex(db->mLock);
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
     if (NULL != hItem){
-        if (hItem->mType == TypeFloat){
+        if (hItem->mType == MagMiniDB_TypeFloat){
             *value = hItem->u.floatValue;
             ret = MAG_TRUE;
         }else{
@@ -250,7 +256,7 @@ boolean MagMiniDB_findDouble(struct mag_minidb *db, const char *name, fp64 *valu
     Mag_AcquireMutex(db->mLock);
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
     if (NULL != hItem){
-        if (hItem->mType == TypeDouble){
+        if (hItem->mType == MagMiniDB_TypeDouble){
             *value = hItem->u.doubleValue;
             ret = MAG_TRUE;
         }else{
@@ -272,7 +278,7 @@ boolean MagMiniDB_findPointer(struct mag_minidb *db, const char *name, void **va
     Mag_AcquireMutex(db->mLock);
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
     if (NULL != hItem){
-        if (hItem->mType == TypePointer){
+        if (hItem->mType == MagMiniDB_TypePointer){
             *value = hItem->u.ptrValue;
             ret = MAG_TRUE;
         }else{
@@ -294,7 +300,7 @@ boolean MagMiniDB_findString(struct mag_minidb *db, const char *name, char **s){
     Mag_AcquireMutex(db->mLock);
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
     if (NULL != hItem){
-        if (hItem->mType == TypeString){
+        if (hItem->mType == MagMiniDB_TypeString){
             *s = hItem->u.stringValue;
             ret = MAG_TRUE;
         }else{
@@ -316,9 +322,9 @@ void    MagMiniDB_deleteItem(struct mag_minidb *db, const char *name){
     Mag_AcquireMutex(db->mLock);
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
     if (NULL != hItem){
-        if (hItem->mType == TypeString)
+        if (hItem->mType == MagMiniDB_TypeString)
             mag_free(hItem->u.stringValue);
-        if (hItem->mType == TypePointer)
+        if (hItem->mType == MagMiniDB_TypePointer)
             mag_free(hItem->u.ptrValue);
         
         list_del(&hItem->node);
@@ -372,9 +378,9 @@ void destroyMagMiniDB(MagMiniDBHandle db){
 
     while (tmpNode != &db->mItemListHead){
         hItem = (MagMiniDBItemHandle)list_entry(tmpNode, MagMiniDBItem_t, node);
-        if (hItem->mType == TypeString)
+        if (hItem->mType == MagMiniDB_TypeString)
             mag_free(hItem->u.stringValue);
-        if (hItem->mType == TypePointer)
+        if (hItem->mType == MagMiniDB_TypePointer)
             mag_free(hItem->u.ptrValue);
         
         list_del(&hItem->node);

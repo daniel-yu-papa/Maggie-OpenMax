@@ -1,5 +1,10 @@
 #include "MagPlayer_ContentPipe.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magPlayerContentPipe"
+
 MagPlayer_Component_CP::MagPlayer_Component_CP(){
     mStreamBuffer = NULL;
     mSourceType   = MPCP_INVALID;
@@ -36,7 +41,7 @@ MPCP_RESULTTYPE MagPlayer_Component_CP::GetCurrentPosition( MPCP_OUT MPCP_POSITI
     return MPCP_OK;
 }
 
-MPCP_RESULTTYPE MPCP_RESULTTYPE MagPlayer_Component_CP::GetSize( MPCP_OUT MPCP_POSITIONINFOTYPE* pSize ){
+MPCP_RESULTTYPE MagPlayer_Component_CP::GetSize( MPCP_OUT MPCP_POSITIONTYPE* pSize ){
     return MPCP_OK;
 }
 

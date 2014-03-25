@@ -3,6 +3,12 @@
 
 #include "Mag_msg.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magFramework-Message"
+
+
 MagErr_t Mag_MsgChannelCreate(MagMsgChannelHandle *handle){
     int rc;
     
@@ -135,6 +141,7 @@ static void *Mag_MsgChannelProcessEntry(void *arg){
             }
         }
     }
+    return NULL;
 }
 
 MagErr_t Mag_MsgChannelReceiverAttach(MagMsgChannelHandle handle, fnMsgChanReceiver func, void *priv_data){
@@ -162,6 +169,7 @@ MagErr_t Mag_MsgChannelReceiverAttach(MagMsgChannelHandle handle, fnMsgChanRecei
 err_thread:  
     rc = pthread_mutex_unlock(&handle->lock);
     MAG_ASSERT(0 == rc);
+    return MAG_ErrNone;
 }
 
 static Mag_Message_t *getMsgNode(MagMsgChannelHandle handle){

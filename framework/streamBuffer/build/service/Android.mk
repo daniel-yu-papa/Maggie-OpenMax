@@ -24,12 +24,14 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_C_INCLUDES := \
     $(LOCAL_PATH)/inc \
+    $(LOCAL_PATH)/../inc/internal \
     $(LOCAL_PATH)/test \
     $(LOCAL_PATH)/inc/android \
     $(LOCAL_PATH)/../event/inc \
     $(LOCAL_PATH)/../thread/inc \
     $(LOCAL_PATH)/../base/inc \
     $(LOCAL_PATH)/../memory/inc \
+    $(LOCAL_PATH)/../hashtable/inc \
     $(LOCAL_PATH)/../inc \
     $(LOCAL_PATH)/../agilelog/inc \
     $(LOCAL_PATH)/../agilelog/inc/pub

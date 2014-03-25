@@ -1,5 +1,11 @@
 #include "Mag_mempool.h"
 
+
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magFramework-Memory"
+
 /*
 * the design of the memory pool is specially for OpenMax Port Buffer management.
 * 1) the memory block allocation and free are running at the same direction. For the factor of multimedia playing, the buffers are handled in the strict turn.

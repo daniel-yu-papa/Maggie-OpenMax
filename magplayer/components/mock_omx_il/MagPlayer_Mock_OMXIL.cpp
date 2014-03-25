@@ -1,8 +1,15 @@
 #include "MagPlayer_Mock_OMXIL.h"
+#include "MagPlayer.h"
+
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magPlayerMockOMXIL"
+
 
 #define ES_DUMP_FILE_NAME "/data/data/magplayer_%s.es"
 
-MagPlayer_Mock_OMX::MagPlayer_Mock_OMX(char *type):
+MagPlayer_Mock_OMX::MagPlayer_Mock_OMX(const char *type):
                                       mMagPlayerNotifier(NULL){ 
     mType = mag_strdup(type);
 }
@@ -48,7 +55,7 @@ void MagPlayer_Mock_OMX::onEmptyThisBuffer(MagMessageHandle msg){
         return;
     }  
 
-    buf = static_cast<MediaBuffer_t *>value;
+    buf = static_cast<MediaBuffer_t *>(value);
     proceedMediaBuffer(buf);
 
     postFillThisBuffer();
@@ -65,7 +72,7 @@ void MagPlayer_Mock_OMX::postFillThisBuffer(){
 }
 
 void MagPlayer_Mock_OMX::onMessageReceived(const MagMessageHandle msg, void *priv){
-    MagPlayer_Mock_OMX thiz = (MagPlayer_Mock_OMX *)priv;
+    MagPlayer_Mock_OMX *thiz = (MagPlayer_Mock_OMX *)priv;
     
     switch (msg->what(msg)) {
         case MagMockOMX_EmptyThisBuffer:

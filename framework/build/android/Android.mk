@@ -36,6 +36,10 @@ OOC_MODULE_INC         := $(FRAMEWORK_TOP_FULL_PATH)/ooc/inc
 THREAD_MODULE_FILES    := $(FRAMEWORK_TOP_PATH)/thread/src/Mag_thread.c
 THREAD_MODULE_INC      := $(FRAMEWORK_TOP_FULL_PATH)/thread/inc
 
+MESSAGE_MODULE_FILES   := $(FRAMEWORK_TOP_PATH)/message/src/Mag_msgQueue.c \
+                          $(FRAMEWORK_TOP_PATH)/message/src/Mag_msg.c
+MESSAGE_MODULE_INC     := $(FRAMEWORK_TOP_FULL_PATH)/message/inc
+
 COMMON_INC             := $(FRAMEWORK_TOP_FULL_PATH)/inc/internal
 AGILELOG_INC           := $(FRAMEWORK_TOP_FULL_PATH)/agilelog/inc/pub \
                           $(FRAMEWORK_TOP_FULL_PATH)/agilelog/inc
@@ -46,7 +50,8 @@ LOCAL_SRC_FILES := $(BASE_MODULE_FILES)        \
                    $(LOOPER_MODULE_FILES)      \
                    $(MEMORY_MODULE_FILES)      \
                    $(OOC_MODULE_FILES)         \
-                   $(THREAD_MODULE_FILES)
+                   $(THREAD_MODULE_FILES)      \
+                   $(MESSAGE_MODULE_FILES)
                    
 
 LOCAL_C_INCLUDES := $(COMMON_INC)           \
@@ -58,7 +63,8 @@ LOCAL_C_INCLUDES := $(COMMON_INC)           \
                     $(LOOPER_MODULE_INC)    \
                     $(MEMORY_MODULE_INC)    \
                     $(OOC_MODULE_INC)       \
-                    $(THREAD_MODULE_INC)
+                    $(THREAD_MODULE_INC)    \
+                    $(MESSAGE_MODULE_INC)
 
 LOCAL_CFLAGS += -DANDROID -DANDROID_NDK
 
@@ -67,6 +73,6 @@ LOCAL_CFLAGS += -DANDROID -DANDROID_NDK
 LOCAL_SHARED_LIBRARIES := \
 			libagilelog
 
-LOCAL_MODULE_PATH:= $(LOCAL_PATH)/lib
+LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/magplayer
 
 include $(BUILD_SHARED_LIBRARY)

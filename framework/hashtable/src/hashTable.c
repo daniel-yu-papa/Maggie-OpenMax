@@ -2,7 +2,13 @@
 #include <string.h>
 
 #include "hashTable.h"
-#include "agilelog.h"
+//#include "agilelog.h"
+
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magFramework-Hashtable"
+
 
 static void StrHashTable_addItem(struct str_hash_table *ht, void *item, const char *str){
     unsigned int tableIndex = 0;
@@ -28,19 +34,19 @@ static void *StrHashTable_getItem(struct str_hash_table *ht, const char *str){
     tableIndex = calcDJBHashValue(str, strlen(str)) % ht->mTableSize;
 
     if (NULL == ht->mpTable[tableIndex].head.first){
-        AGILE_LOGE("the string[%s] has not been added into the Table!!", str);
+        //printf("the string[%s] has not been added into the Table!!\n", str);
         return NULL;
     }else{
         /*several nodes has the same hash key so traverse the link*/
         hlist_for_each_entry(tnode, pos, &ht->mpTable[tableIndex].head, node){
             if(!strcmp(str, tnode->nodeStr)){
-                AGILE_LOGD("get the node (%s)", tnode->nodeStr);
+                //printf("get the node (%s)\n", tnode->nodeStr);
                 return tnode->nodeValue;
             }
         }
     }
     
-    AGILE_LOGE("failed to get the node (%s)", str);
+    printf("failed to get the node (%s)\n", str);
     return NULL;
 }
 
@@ -54,23 +60,23 @@ static void StrHashTable_print(struct str_hash_table *ht){
     LinkedKeyNode_t *tnode = NULL;
     struct hlist_node *pos;
     
-    AGILE_LOGD("------Hash Table------");
+    printf("------Hash Table------\n");
     
     for(i = 0; i < ht->mTableSize; i++){
         memset(buf, 0, AGILELOG_PRINT_BUFFER_SIZE);
         if (NULL == ht->mpTable[i].head.first){
-            AGILE_LOGD("%d - [NODE: NULL]", i);
+            printf("%d - [NODE: NULL]\n", i);
         }else{
             sprintf(buf, "%d - ", i);
             hlist_for_each_entry(tnode, pos, &ht->mpTable[i].head, node){
                 sprintf(tmpBuf, "[NODE: %s] ->", tnode->nodeStr);
                 strcat(buf, tmpBuf);
             }
-            AGILE_LOGD("%s END", buf);
+            printf("%s END\n", buf);
         }
     }
 
-    AGILE_LOGD("----- Table END  ------");
+    printf("----- Table END  ------\n");
 }
 
 HashTableHandle  createMagStrHashTable(int num){
@@ -103,7 +109,7 @@ void             destroyMagStrHashTable(HashTableHandle ht){
         while(NULL != ht->mpTable[i].head.first){
             hlist_for_each_entry_to_tail(tnode, pos, prev, &ht->mpTable[i].head, node){
             }
-            AGILE_LOGD("remove node (%s)", tnode->nodeStr);
+            printf("remove node (%s)\n", tnode->nodeStr);
             hlist_del(prev);
             free((void *)tnode);
         }

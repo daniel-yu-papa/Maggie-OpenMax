@@ -1,12 +1,15 @@
 #ifndef __MAGPLAYER_MOCK_OMXIL_H__
 #define __MAGPLAYER_MOCK_OMXIL_H__
 
-#include "Mag_looper.h"
 #include <stdio.h>
+
+#include "MagFramework.h"
+#include "MediaBuffer.h"
+
 
 class MagPlayer_Mock_OMX{
 public:
-    MagPlayer_Mock_OMX(char *type);
+    MagPlayer_Mock_OMX(const char *type);
     ~MagPlayer_Mock_OMX();
 
     void setMagPlayerNotifier(MagMessageHandle notifyMsg);
@@ -31,7 +34,8 @@ private:
     
     _status_t getLooper();
     MagMessageHandle createMessage(ui32 what);
-    static void onMessageReceived(const void *msg, void *priv);
+    void proceedMediaBuffer(MediaBuffer_t *buf);
+    static void onMessageReceived(const MagMessageHandle msg, void *priv);
 };
 
 #endif

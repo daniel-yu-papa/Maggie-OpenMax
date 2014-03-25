@@ -1,6 +1,8 @@
 #ifndef __PARAMETERS_H__
 #define __PARAMETERS_H__
 
+#include "MagFramework.h"
+
 typedef enum{
     MagParamTypeInt32,
     MagParamTypeInt64,
@@ -33,7 +35,7 @@ typedef struct{
 }MagTsPIDList_t;
 
 typedef struct{
-    ui8            name[64];
+    char           name[64];
     MagParamType_t type;
 }MagParametersTable_t;
 
@@ -47,7 +49,7 @@ typedef struct{
 
 #define kVideo_Display         "video.display"         /*Pointer: MagVideoDisplay_t*/
 
-enum{
+enum parameter_key_t{
     idsMediaType        = 1,
     idsVideo_Codec      = 2,
     idsAudio_Codec      = 3,

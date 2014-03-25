@@ -20,8 +20,6 @@
 
 #include <binder/Parcel.h>
 
-#include <media/IStreamSource.h>
-
 #include <gui/ISurfaceTexture.h>
 #include <utils/String8.h>
 
@@ -260,14 +258,7 @@ _status_t BnMagPlayerClient::onTransact(
         case SET_DATA_SOURCE_URL: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
             const char* url = data.readCString();
-            KeyedVector<String8, String8> headers;
-            int32_t numHeaders = data.readInt32();
-            for (int i = 0; i < numHeaders; ++i) {
-                String8 key = data.readString8();
-                String8 value = data.readString8();
-                headers.add(key, value);
-            }
-            reply->writeInt32(setDataSource(url, numHeaders > 0 ? &headers : NULL));
+            reply->writeInt32(setDataSource(url));
             return MAG_NO_ERROR;
         } break;
         case SET_DATA_SOURCE_FD: {
@@ -280,7 +271,7 @@ _status_t BnMagPlayerClient::onTransact(
         }
         case SET_DATA_SOURCE_STREAM: {
             CHECK_INTERFACE(IMagPlayerClient, data, reply);
-            sp<IStreamSource> source =
+            sp<IStreamBuffer> source =
                 interface_cast<IStreamBuffer>(data.readStrongBinder());
             reply->writeInt32(setDataSource(source));
             return MAG_NO_ERROR;

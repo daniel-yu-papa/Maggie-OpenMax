@@ -1,6 +1,13 @@
 #include "MagPlayer_Demuxer_Base.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magPlayerDemuxer"
+
 #define MAX_PARAM_DB_ITEMS_NUMBER  64
+
+#define LOOPER_NAME "MagPlayerDemuxerLooper"
 
 _status_t releaseMediaBuffer(MediaBuffer_t *mb){
     Stream_Track *strack = static_cast<Stream_Track *>(mb->track_obj);
@@ -26,12 +33,12 @@ _status_t Stream_Track::start(){
         mBufPoolHandle = magMemPoolCreate(mBufferPoolSize);
         if (mBufPoolHandle != NULL){
             AGILE_LOGI("The buffer pool 0x%x is created!", mBufPoolHandle);
-            return MAG_NO_ERROR;
         }else{
             AGILE_LOGE("Failed to create the buffer pool!");
             return MAG_NO_MEMORY;
         }
     }
+    return MAG_NO_ERROR;
 }
 
 TrackInfo_t* Stream_Track::getInfo(){
@@ -65,7 +72,7 @@ _status_t     Stream_Track::enqueueFrame(MediaBuffer_t *mb){
                 memcpy(buf, mb->buffer, mb->buffer_size);
                 mb->buffer = buf;
                 Mag_AcquireMutex(mMutex);
-                putMediaBuffer(mMBufBusyListHead, mb);
+                putMediaBuffer(&mMBufBusyListHead, mb);
                 Mag_ReleaseMutex(mMutex);
                 return MAG_NO_ERROR;
             }
@@ -79,7 +86,7 @@ _status_t     Stream_Track::releaseFrame(MediaBuffer_t *mb){
         magMemPoolPutBuffer(mBufPoolHandle, mb->buffer);
 
         Mag_AcquireMutex(mMutex);
-        putMediaBuffer(mMBufFreeListHead, mb);
+        putMediaBuffer(&mMBufFreeListHead, mb);
         Mag_ReleaseMutex(mMutex);
         return MAG_NO_ERROR;
     }else{
@@ -96,7 +103,7 @@ MediaBuffer_t *Stream_Track::getMediaBuffer(){
         item = (MediaBuffer_t *)list_entry(next, MediaBuffer_t, node);
         list_del(next);
     }else{
-        item = mag_mallocz(sizeof(MediaBuffer_t));
+        item = (MediaBuffer_t *)mag_mallocz(sizeof(MediaBuffer_t));
         if (NULL != item){
             INIT_LIST(&item->node);
             item->track_obj = static_cast<void *>(this);
@@ -126,6 +133,8 @@ _status_t Stream_Track::reset(){
             releaseFrame(item);
         }
     }while(item != NULL);
+
+    return MAG_NO_ERROR;
 }
 
 MagPlayer_Demuxer_Base::MagPlayer_Demuxer_Base():
@@ -152,28 +161,38 @@ void MagPlayer_Demuxer_Base::setParameters(const char *name, MagParamType_t type
     if (NULL != mParamDB){
         switch (type){
             case MagParamTypeInt32:
-                i32 v = static_cast<i32>(*value);
+                {
+                i32 v = *(static_cast<i32 *>(value));
                 mParamDB->setInt32(mParamDB, name, v);
+                }
                 break;
 
             case MagParamTypeInt64:
-                i64 v = static_cast<i64>(*value);
+                {
+                i64 v = *(static_cast<i64 *>(value));
                 mParamDB->setInt64(mParamDB, name, v);
+                }
                 break;
 
             case MagParamTypeUInt32:
-                ui32 v = static_cast<_size_t>(*value);
-                mParamDB->setSize(mParamDB, name, v);
+                {
+                ui32 v = *(static_cast<ui32 *>(value));
+                mParamDB->setUInt32(mParamDB, name, v);
+                }
                 break;
 
             case MagParamTypeFloat:
-                fp32 v = static_cast<fp32>(*value);
+                {
+                fp32 v = *(static_cast<fp32 *>(value));
                 mParamDB->setFloat(mParamDB, name, v);
+                }
                 break;
 
             case MagParamTypeDouble:
-                fp64 v = static_cast<fp64>(*value);
+                {
+                fp64 v = *(static_cast<fp64 *>(value));
                 mParamDB->setDouble(mParamDB, name, v);
+                }
                 break;
 
             case MagParamTypePointer:
@@ -181,8 +200,10 @@ void MagPlayer_Demuxer_Base::setParameters(const char *name, MagParamType_t type
                 break;
 
             case MagParamTypeString:
+                {
                 char *v = static_cast<char *>(value);
                 mParamDB->setString(mParamDB, name, v);
+                }
                 break;
 
             default:
@@ -245,7 +266,7 @@ TrackInfoTable_t *MagPlayer_Demuxer_Base::getTrackInfoList(){
     AGILE_LOGI("total track number is %d", totalTrackNum);
     
     if (totalTrackNum > 0){
-        mTrackList->trackTableList = mag_mallocz(totalTrackNum * sizeof(TrackInfo_t *));
+        mTrackList->trackTableList = (TrackInfo_t *)mag_mallocz(totalTrackNum * sizeof(TrackInfo_t *));
         if (NULL == mTrackList->trackTableList){
             AGILE_LOGE("Failed to create mTrackList->trackTableList!");
             mag_free(mTrackList);
@@ -257,19 +278,23 @@ TrackInfoTable_t *MagPlayer_Demuxer_Base::getTrackInfoList(){
             i32 v=0;
             i32 a=0;
             i32 s=0;
+            TrackInfo_t *ti;
             
             sprintf(buf, kDemuxer_Track_Info, i);
             ret = mParamDB->findPointer(mParamDB, buf, &value);
             if (ret == MAG_TRUE){
                 track = static_cast<TrackInfo_t *>(value);
                 if (track->type == TRACK_VIDEO){
-                    mTrackList->trackTableList + v = track;
+                    ti = mTrackList->trackTableList + v;
+                    ti = track;
                     v++;
                 }else if (track->type == TRACK_AUDIO){
-                    mTrackList->trackTableList + vnumber + a = track;
+                    ti = mTrackList->trackTableList + vnumber + a;
+                    ti = track;
                     a++;
                 }else if (track->type == TRACK_SUBTITLE){
-                    mTrackList->trackTableList + vnumber + anumber + s = track;
+                    ti = mTrackList->trackTableList + vnumber + anumber + s;
+                    ti = track;
                     s++;
                 }else{
                     AGILE_LOGE("unknown track type: %d", track->type);
@@ -290,7 +315,7 @@ _status_t  MagPlayer_Demuxer_Base::setPlayingTrackID(ui32 index){
     
     if (!mIsStarted){
         AGILE_LOGE("The demuxer has NOT been started! Quit!");
-        return NULL;
+        return MAG_INVALID_OPERATION;
     }
 
     if (mTrackList == NULL){
@@ -312,7 +337,7 @@ ui32       MagPlayer_Demuxer_Base::getPlayingTracksID(ui32 **index){
     
     if (!mIsStarted){
         AGILE_LOGE("The demuxer has NOT been started! Quit!");
-        return NULL;
+        return 0;
     }
 
     if (mTrackList == NULL){
@@ -323,7 +348,7 @@ ui32       MagPlayer_Demuxer_Base::getPlayingTracksID(ui32 **index){
     for (i = 0; i < total; i++){
         ti = mTrackList->trackTableList + i;
         if (ti->status == TRACK_PLAY){
-            *(index + j) = ti->index;
+            *(index + j) = &ti->index;
             j++;
         }
     }
@@ -441,3 +466,4 @@ _status_t MagPlayer_Demuxer_Base::getLooper(){
     return MAG_NO_ERROR;
 }
 
+#undef LOOPER_NAME

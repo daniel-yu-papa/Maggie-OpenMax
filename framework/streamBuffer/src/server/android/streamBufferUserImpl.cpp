@@ -1,6 +1,9 @@
 #include "StreamBufferDef.h"
-#include "Mag_mem.h"
-#include "agilelog.h"
+
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magFramework-StreamBuffer"
 
 StreamBufferUser::StreamBufferUser(const sp<IStreamBuffer> &buffer, _size_t bufSize, _size_t bufNum):
                   mEOS(false){

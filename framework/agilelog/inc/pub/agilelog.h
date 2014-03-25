@@ -65,11 +65,12 @@ inline char *CPPFuncName(const char *prettyFunction, const char *func){
     Agile_printLog(AGILE_##priority, module, __FUNCTION_NAME__, __LINE__, __VA_ARGS__)
 #endif
 
+#if 0
 #define MODULE_TAG_D(tag) \
     "#ifdef MODULE_TAG"  \
     "#undef MODULE_TAG"  \
     "#endif"             \
     "#define MODULE_TAG ##tag"
-
+#endif
 
 #endif

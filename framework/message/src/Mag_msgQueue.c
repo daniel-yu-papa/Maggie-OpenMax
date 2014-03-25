@@ -1,5 +1,11 @@
 #include "Mag_msgQueue.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magFramework-Message"
+
+
 static Mag_MsgQueueNode_t *getFreeMsg(Mag_MsgQueueHandle h){
     List_t *tmpNode;
     Mag_MsgQueueNode_t *pMsg = NULL;
@@ -29,7 +35,7 @@ void MagMsgQueue_get(Mag_MsgQueueHandle h, MagMessageHandle *msg){
         msg = NULL;
     }else{
         pMsg = (Mag_MsgQueueNode_t *)list_entry(tmpNode, Mag_MsgQueueNode_t, node); 
-        msg = pMsg->msg;
+        *msg = pMsg->msg;
         list_del(tmpNode);
         list_add(tmpNode, &h->mFreeHead);
     }
@@ -46,7 +52,7 @@ void MagMsgQueue_put(Mag_MsgQueueHandle h, MagMessageHandle msg){
     
     node = getFreeMsg(h);
     node->msg = msg;
-    list_add_tail(node, h->mQueueHead);
+    list_add_tail(&node->node, &h->mQueueHead);
 
     Mag_ReleaseMutex(h->mLock);
 }

@@ -11,13 +11,13 @@ extern "C" {
 #endif
 
 enum MagMiniDBItemType {
-    TypeInt32,
-    TypeInt64,
-    TypeUInt32,
-    TypeFloat,
-    TypeDouble,
-    TypePointer,
-    TypeString,
+    MagMiniDB_TypeInt32,
+    MagMiniDB_TypeInt64,
+    MagMiniDB_TypeUInt32,
+    MagMiniDB_TypeFloat,
+    MagMiniDB_TypeDouble,
+    MagMiniDB_TypePointer,
+    MagMiniDB_TypeString,
 };
 
 typedef struct mag_minidb_item{
@@ -54,7 +54,7 @@ typedef struct mag_minidb{
 
     boolean (*findInt32)(struct mag_minidb *db, const char *name, i32 *value);
     boolean (*findInt64)(struct mag_minidb *db, const char *name, i64 *value);
-    boolean (*findUInt32)(struct mag_minidb *db, const char *name, _size_t *value);
+    boolean (*findUInt32)(struct mag_minidb *db, const char *name, ui32 *value);
     boolean (*findFloat)(struct mag_minidb *db, const char *name, fp32 *value);
     boolean (*findDouble)(struct mag_minidb *db, const char *name, fp64 *value);
     boolean (*findPointer)(struct mag_minidb *db, const char *name, void **value);

@@ -7,22 +7,20 @@
  * @attention
 */
 
-#include "tsPlayer.h"
 #include <utils/threads.h>
-
-using namespace android;
-
 #include "android/log.h"
 #include "jni.h"
 #include "stdio.h"
 #include <string.h>
+#include "tsPlayer.h"
 
-#define  LOG_TAG    "CTC_MediaProcessor"
+#define  LOG_TAG    "magplayerdemo"
+
+using namespace android;
+
 #define  LOGI(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
 #define  LOGE(...)  __android_log_print(ANDROID_LOG_ERROR,LOG_TAG,__VA_ARGS__)
 
-#define  BUFF_SIZE (40*188)
-#define  FEED_DATA_CYCLE (40 * 1000) //40ms
 
 class ReadFileThread :public Thread
 {
@@ -32,23 +30,22 @@ public:
 
         virtual bool  threadLoop();
 
-        bool Start(const char *source);
+        bool Start(CTC_MediaProcessor *p, const char *fileName);
         void Stop();
 
 private:
         bool mRunning;
         FILE *mFile;
-        CTC_MediaProcessor *mPlayer;
-        char* mBuffer;
+        unsigned char* mBuffer;
         int mNumTsPackets;
         int mWCycle;
+        CTC_MediaProcessor *mPlayer;
 };
 
 ReadFileThread::ReadFileThread(int numTsPacket, int wCycle):
-                mNumTsPackets(numTsPacket),
-                mWCycle(wCycle),
                 mRunning(false),
-                mFile(NULL){
+                mNumTsPackets(numTsPacket),
+                mWCycle(wCycle){
 
 }
 
@@ -61,7 +58,7 @@ bool ReadFileThread::threadLoop()
     int rd_result = 0;
     if (mRunning){
         if (NULL != mFile){
-    		rd_result = fread(mBuffer, (numTsPacket*188), 1, mFile);
+    		rd_result = fread(mBuffer, (mNumTsPackets*188), 1, mFile);
     		if (rd_result <= 0)	
 			{
 				LOGE("read the end of file");
@@ -69,15 +66,17 @@ bool ReadFileThread::threadLoop()
 			}
     		
     		int wd_result = mPlayer->WriteData(mBuffer, rd_result);
-    		usleep(wCycle*1000);
+    		usleep(mWCycle*1000);
 	    }
     }
+    return true;
 }
 
 bool ReadFileThread::Start(CTC_MediaProcessor *p, const char *fileName)
 {
     mFile = fopen(fileName, "rb+");
     if (NULL != mFile){
+        LOGI("open the file: %s", fileName);
         if (run("readFileThread", ANDROID_PRIORITY_NORMAL) != 0){
             LOGE("failed to run readFileThread");
             return false;
@@ -89,11 +88,11 @@ bool ReadFileThread::Start(CTC_MediaProcessor *p, const char *fileName)
     
     mPlayer  = p;
     mRunning = true;
-    mBuffer = (char* )malloc(BUFF_SIZE);
-    return ture;
+    mBuffer = (unsigned char *)malloc(mNumTsPackets*188);
+    return true;
 }
 
-void CExeThread::Stop()
+void ReadFileThread::Stop()
 {
     mRunning = false;
     //requestExitAndWait();
@@ -109,8 +108,9 @@ int isPause = 0;
 char gFileName[128];
 ReadFileThread *gThread;
 
-void Java_com_magplayer_MagPlayerDemo_nativeTsPlayer_Init(JNIEnv* env, jobject thiz, jint vpid, jint vcodec, jint apid, jint acodec, jint numTSPackets, jint wCycle, jstring url)
+void Java_com_magplayer_MagPlayerDemo_nativeInit(JNIEnv* env, jobject thiz, jint vpid, jint vcodec, jint apid, jint acodec, jint numTSPackets, jint wCycle, jstring url)
 {
+    LOGI("Enter Java_com_magplayer_MagPlayerDemo_nativeInit");
 	VIDEO_PARA_T  videoPara;
 	videoPara.pid = vpid;
 	if (vcodec == 0){
@@ -138,7 +138,7 @@ void Java_com_magplayer_MagPlayerDemo_nativeTsPlayer_Init(JNIEnv* env, jobject t
 	}
 	
 	strcpy(gFileName, (*env).GetStringUTFChars(url, NULL));
-	LOGI("tsplayer file name is %s", fileName);
+	LOGI("tsplayer file name is %s", gFileName);
 	
 	gThread = new ReadFileThread(numTSPackets, wCycle);
 	ctc_MediaProcessor = GetMediaProcessor();
@@ -150,20 +150,25 @@ void Java_com_magplayer_MagPlayerDemo_nativeTsPlayer_Init(JNIEnv* env, jobject t
 }
 
 
-void Java_com_magplayer_MagPlayerDemo_nativeTsPlayer_Play(JNIEnv* env, jobject thiz)
+void Java_com_magplayer_MagPlayerDemo_nativePlay(JNIEnv* env, jobject thiz)
 {
+    LOGI("Enter Java_com_magplayer_MagPlayerDemo_nativePlay");
     gThread->Start(ctc_MediaProcessor, gFileName);
 	jboolean result = ctc_MediaProcessor->StartPlay();
 }
 
-void Java_com_magplayer_MagPlayerDemo_nativeTsPlayer_Stop(JNIEnv* env, jobject thiz)
+void Java_com_magplayer_MagPlayerDemo_nativeStop(JNIEnv* env, jobject thiz)
 {
+    LOGI("Enter Java_com_magplayer_MagPlayerDemo_nativeStop");
+
     gThread->Stop();
 	jboolean result = ctc_MediaProcessor->Stop();
 }
 
-void Java_com_magplayer_MagPlayerDemo_nativeTsPlayer_Destroy(JNIEnv* env, jobject thiz)
+void Java_com_magplayer_MagPlayerDemo_nativeDestroy(JNIEnv* env, jobject thiz)
 {
+    LOGI("Enter Java_com_magplayer_MagPlayerDemo_nativeDestroy");
+
 	delete ctc_MediaProcessor;
 	ctc_MediaProcessor = NULL;
 }

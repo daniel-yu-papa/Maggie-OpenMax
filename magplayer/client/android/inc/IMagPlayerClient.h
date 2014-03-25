@@ -5,14 +5,11 @@
 #include <utils/RefBase.h>
 #include <binder/IInterface.h>
 #include <binder/Parcel.h>
+#include <gui/ISurfaceTexture.h>
 
-#include "streamBuffer.h"
+#include "MagFramework.h"
 
 using namespace android;
-
-class Parcel;
-class Surface;
-class ISurfaceTexture;
 
 class IMagPlayerClient: public IInterface
 {

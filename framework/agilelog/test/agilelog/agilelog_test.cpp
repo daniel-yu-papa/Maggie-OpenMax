@@ -72,7 +72,7 @@ int main(){
     AGILE_LOG_FATAL("fatal log: %s - %d", str, i);
 
     int num = 0;
-    loadComponentRecursive(dir, loadComponentLib, (void *)&num);
+    //loadComponentRecursive(dir, loadComponentLib, (void *)&num);
     AGILE_LOGI("%d files are found", num);
     return 0;
 }

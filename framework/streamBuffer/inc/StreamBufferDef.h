@@ -1,7 +1,10 @@
+#ifndef __STREAM_BUFFER_DEFINITION_H__
+#define __STREAM_BUFFER_DEFINITION_H__
+
 #include "streamBuffer.h"
 #include "Mag_event.h"
-#include "Mag_base.h"
-#include "Mag_pub_def.h"
+#include "Mag_thread.h"
+
 /*
 * w == r: buffer is empty
 * w - r == 1 OR r -w == 1: buffer is full
@@ -76,3 +79,5 @@ private:
 
     bool mEOS;
 };
+
+#endif

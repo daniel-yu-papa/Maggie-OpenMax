@@ -3,16 +3,16 @@
 
 
 #include <utils/threads.h>
-#include <media/IMediaPlayerService.h>
+#include "IMagPlayerService.h"
 #include <utils/SortedVector.h>
 
-namespace android {
+using namespace android;
 
 class IMagPlayerDeathNotifier: virtual public RefBase
 {
 public:
-    IMagDeathNotifier() { addObitRecipient(this); }
-    virtual ~IMagDeathNotifier() { removeObitRecipient(this); }
+    IMagPlayerDeathNotifier() { addObitRecipient(this); }
+    virtual ~IMagPlayerDeathNotifier() { removeObitRecipient(this); }
 
     virtual void died() = 0;
     static const sp<IMagPlayerService>& getMagPlayerService();
@@ -36,12 +36,9 @@ private:
     friend class DeathNotifier;
 
     static  Mutex                                   sServiceLock;
-    static  sp<IMagPlayerService>                 sMediaPlayerService;
+    static  sp<IMagPlayerService>                   sMagPlayerService;
     static  sp<DeathNotifier>                       sDeathNotifier;
     static  SortedVector< wp<IMagPlayerDeathNotifier> > sObitRecipients;
 };
 
-}; // namespace android
-
-#endif // ANDROID_IMEDIADEATHNOTIFIER_H
 #endif

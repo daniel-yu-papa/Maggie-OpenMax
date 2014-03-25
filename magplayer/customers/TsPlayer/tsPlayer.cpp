@@ -1,5 +1,15 @@
-#include "tsPlayerDriver.h"
+#include "tsPlayer.h"
 #include "platform.h"
+#include "Parameters.h"
+#include "OMX_Video.h"
+#include "OMX_Audio.h"
+#include "OMX_AudioExt.h"
+
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "MagTsPlayer"
+
 
 MAG_SINGLETON_STATIC_INSTANCE(TsPlayer)
 
@@ -29,38 +39,29 @@ void TsPlayer::initialize(){
             AGILE_LOG_FATAL("failed to create StreamBuffer object!");
             return;
         }
-
+        mPlayer->setDataSource(mStreamBuf);
+        
         Parcel data;
         data.writeInt32(MediaTypeTS);
-        mPlayer->setParameters(idsMediaType, data);
-
-        mPlayer->setDataSource(mStreamBuf);
-        mState = TSP_INITIALIZED;
-        
-        Mag_CreateEventGroup(&mPrepareEvtGroup);
-        if (MAG_ErrNone == Mag_CreateEvent(&mPrepareDoneEvt, 0))
-            Mag_AddEventGroup(mPrepareEvtGroup, mPrepareDoneEvt);
-        if (MAG_ErrNone == Mag_CreateEvent(&mPrepareErrorEvt, 0))
-            Mag_AddEventGroup(mPrepareEvtGroup, mPrepareErrorEvt);
+        mPlayer->setParameter(idsMediaType, data);
     }else{
         AGILE_LOG_FATAL("failed to create MagPlayerClient object!");
+        return;
     }
 
     mpListener = new TsPlayerListener();
     if (mpListener != NULL)
         mPlayer->setListener(mpListener);
+
+    mbInitialized = true;
 }
 
 TsPlayer::TsPlayer():
-    mState(TSP_IDLE){
+          mbInitialized(false){
     initialize();
 }
 
 TsPlayer::~TsPlayer(){
-    Mag_DestroyEvent(mPrepareDoneEvt);
-    Mag_DestroyEvent(mPrepareErrorEvt);
-    Mag_DestroyEventGroup(mPrepareEvtGroup);
-    delete mPlayer;
 }
 
 
@@ -72,11 +73,6 @@ int  TsPlayer::SetVideoWindow(int x,int y,int width,int height){
     Parcel request;
     Parcel reply;
 
-    if ((mState == TSP_IDLE) ||
-        (mState == TSP_ERROR)){
-        return 1;
-    }
-    
     request.writeInt32(MAG_INVOKE_ID_SET_WINDOW_SIZE);
     request.writeInt32(x);
     request.writeInt32(y);
@@ -141,14 +137,18 @@ ui32 TsPlayer::convertAudioCodecType(aformat_t acodec){
 
 void TsPlayer::InitVideo(PVIDEO_PARA_T pVideoPara){
     Parcel request;
-
-    if (mState == TSP_INITIALIZED){
-        request.writeInt32(1);
-        request.writeInt32(pVideoPara.pid);
-        request.writeInt32(convertVideoCodecType(pVideoPara->vFmt));
-        
-        mPlayer->setParameters(idsVideo_TS_pidlist, request);
+    
+    AGILE_LOGV("enter");   
+    if (!mbInitialized){
+        AGILE_LOGE("the player is not initialized, quit!");
+        return;
     }
+    
+    request.writeInt32(1);
+    request.writeInt32(pVideoPara->pid);
+    request.writeInt32(convertVideoCodecType(pVideoPara->vFmt));
+    
+    mPlayer->setParameter(idsVideo_TS_pidlist, request);
 }
 
 void TsPlayer::InitAudio(PAUDIO_PARA_T pAudioPara){
@@ -157,146 +157,160 @@ void TsPlayer::InitAudio(PAUDIO_PARA_T pAudioPara){
     ui32 i = 0;
     ui32 num = 0;
 
-    if (mState == TSP_INITIALIZED){
-        while(pAudioPara[i].pid){
-            ++i;
-        }
-
-        num = i;
-
-        if (num > 32){
-            AGILE_LOGE("the number(%d) exceeds 32 and set to 32", num);
-            num = 32;
-        }else{
-            AGILE_LOGD("total number is %d", num);
-        }
-        
-        request.writeInt32(num);
-
-        for (i = 0; i < num; i++){
-            request.writeInt32(pAudioPara[i].pid);
-            request.writeInt32(convertAudioCodecType(pAudioPara[i].aFmt));
-        }
-        mPlayer->setParameters(idsAudio_TS_pidlist, request);
+    AGILE_LOGV("enter");   
+    if (!mbInitialized){
+        AGILE_LOGE("the player is not initialized, quit!");
+        return;
     }
+    
+    while(pAudioPara[i].pid){
+        ++i;
+    }
+
+    num = i;
+
+    if (num > 32){
+        AGILE_LOGE("the number(%d) exceeds 32 and set to 32", num);
+        num = 32;
+    }else{
+        AGILE_LOGD("total number is %d", num);
+    }
+    
+    request.writeInt32(num);
+
+    for (i = 0; i < num; i++){
+        request.writeInt32(pAudioPara[i].pid);
+        request.writeInt32(convertAudioCodecType(pAudioPara[i].aFmt));
+    }
+    mPlayer->setParameter(idsAudio_TS_pidlist, request);
 }
 
 bool TsPlayer::StartPlay(){
-    if (mState == TSP_INITIALIZED){
-        mPlayer->setPrepareCompleteListener(PrepareCompleteEvtListener, static_cast<void *>(this));
-        Prepare();
-    }
-    
-    if (TSP_PREPARED == mState){
-        mState = TSP_RUNNING;
-        mPlayer->start();
-        return true;
-    }else{
-        AGILE_LOGE("the state[%d] is wrong", mState);
+    _status_t ret;
+
+    AGILE_LOGV("enter");   
+    if (!mbInitialized){
+        AGILE_LOGE("the player is not initialized, quit!");
         return false;
     }
-
-    return false;
+    
+    ret = mPlayer->prepare();
+    if (ret == MAG_NO_ERROR){
+        mPlayer->start();
+    }else{
+        AGILE_LOGE("failed to do the preparation, ret = 0x%x", ret);
+        return false;
+    }    
+    return true;
 }
 
 int  TsPlayer::WriteData(unsigned char* pBuffer, unsigned int nSize){
-    if ((TSP_RUNNING == mState) ||
-        (TSP_FASTING == mState))
-        mStreamBuf->WriteData(pBuffer, nSize, true);
+    int w = 0;
+    AGILE_LOGV("enter");   
+    if (!mbInitialized){
+        AGILE_LOGE("the player is not initialized, quit!");
+        return 0;
+    }
+    
+    StreamBuffer *sb = static_cast<StreamBuffer *>(GET_POINTER(mStreamBuf));
+    
+    w = sb->WriteData(pBuffer, nSize, true);
 
-    return 0;
+    return w;
 }
 
 bool TsPlayer::Pause(){
-    if (TSP_RUNNING == mState){
-        mState = TSP_PAUSED;
-        mPlayer->pause();
-        return true;
-    }else{
-        AGILE_LOGE("the state[%d] is wrong", mState);
+    AGILE_LOGV("enter");   
+    if (!mbInitialized){
+        AGILE_LOGE("the player is not initialized, quit!");
         return false;
     }
+    
+    mPlayer->pause();
+    return true;
 }
 
 bool TsPlayer::Resume(){
-    if (TSP_PAUSED == mState){
-        mState = TSP_RUNNING;
-        mPlayer->resume();
-        return true;
-    }else{
-        AGILE_LOGE("the state[%d] is wrong", mState);
+    AGILE_LOGV("enter");   
+    if (!mbInitialized){
+        AGILE_LOGE("the player is not initialized, quit!");
         return false;
     }
+
+    mPlayer->start();
+    return true;
 }
 
 bool TsPlayer::Fast(){
-    if ((TSP_PREPARED == mState) ||
-        (TSP_RUNNING  == mState)){
-        mState = TSP_FASTING;
-        mPlayer->fast();
-        return true;
-    }else{
-        AGILE_LOGE("the state[%d] is wrong", mState);
+    AGILE_LOGV("enter");   
+    if (!mbInitialized){
+        AGILE_LOGE("the player is not initialized, quit!");
         return false;
     }
+    
+    mPlayer->fast(-1);
+    return true;
 }
 
 bool TsPlayer::StopFast(){
-    if (TSP_FASTING == mState){
-        mState = TSP_RUNNING;
-        mPlayer->stop();
-        mPlayer->start();
-        return true;
-    }else{
-        AGILE_LOGE("the state[%d] is wrong", mState);
+    AGILE_LOGV("enter");   
+    if (!mbInitialized){
+        AGILE_LOGE("the player is not initialized, quit!");
         return false;
     }
+    
+    mPlayer->stop();
+    mPlayer->start();
+    return true;
 }
 
 bool TsPlayer::Stop(){
-    if (TSP_RUNNING == mState){
-        mState = TSP_STOPPED;
-        mPlayer->stop();
-        return true;
-    }else{
-        AGILE_LOGE("the state[%d] is wrong", mState);
+    AGILE_LOGV("enter");   
+    if (!mbInitialized){
+        AGILE_LOGE("the player is not initialized, quit!");
         return false;
     }
+    
+    mPlayer->stop();
+    return true;
 }
 
 bool TsPlayer::Seek(){
-    if ((TSP_RUNNING == mState) ||
-        (TSP_PREPARED == mState) ||
-        (TSP_PAUSED == mState){
-        mPlayer->setFlushCompleteListener(FlushCompleteEvtListener);
-        mSeekBackState = mState;
-        mState = TSP_FLUSHING;
-        mPlayer->flush();
-        return true;
-    }else{
-        AGILE_LOGE("the state[%d] is wrong", mState);
+    AGILE_LOGV("enter");   
+    if (!mbInitialized){
+        AGILE_LOGE("the player is not initialized, quit!");
         return false;
     }
+    
+    mPlayer->flush();
+    return true;
 }
 
 bool TsPlayer::SetVolume(int volume){
-
+    AGILE_LOGV("enter");   
+    if (!mbInitialized){
+        AGILE_LOGE("the player is not initialized, quit!");
+        return false;
+    }
+    
+    mPlayer->setVolume(volume, volume);
+    return true;
 }
 
 int  TsPlayer::GetVolume(){
-
+    return 0;
 }
 
 bool TsPlayer::SetRatio(int nRatio){
-
+    return true;
 }
 
 int  TsPlayer::GetAudioBalance(){
-
+    return 0;
 }
 
 bool TsPlayer::SetAudioBalance(int nAudioBalance){
-
+    return true;
 }
 
 void TsPlayer::GetVideoPixels(int& width, int& height){
@@ -304,7 +318,7 @@ void TsPlayer::GetVideoPixels(int& width, int& height){
 }
 
 bool TsPlayer::IsSoftFit(){
-
+    return true;
 }
 
 void TsPlayer::SetEPGSize(int w, int h){
@@ -328,45 +342,15 @@ void TsPlayer::SetProperty(int nType, int nSub, int nValue){
 }
 
 long TsPlayer::GetCurrentPlayTime(){
-
+    return 0;
 }
 
 void TsPlayer::leaveChannel(){
 
 }
 
-void TsPlayer::Prepare(){
-    MagErr_t ret;
-
-    mPlayer->prepareAsync();
-    mState = TSP_PREPARING;
-    Mag_WaitForEventGroup(mPrepareEvtGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
-    AGILE_LOGD("exit!");
-}
-
 void TsPlayer::playerback_register_evt_cb(IPTV_PLAYER_EVT_CB pfunc, void *hander){
 
-}
-
-void TsPlayer::PrepareCompleteEvtListener(void *priv){
-    TsPlayer *inst = static_cast<TsPlayer *>(priv);
-
-    inst->mState = TSP_PREPARED;
-    Mag_SetEvent(inst->mPrepareDoneEvt);
-}
-
-void TsPlayer::ErrorEvtListener(void *priv, i32 what, i32 extra){
-    TsPlayer *inst = static_cast<TsPlayer *>(priv);
-    if (TSP_PREPARING == inst->mState){
-        inst->mState = TSP_ERROR;
-        Mag_SetEvent(inst->mPrepareErrorEvt);
-    }
-}
-
-void TsPlayer::FlushCompleteEvtListener(void *priv){
-    TsPlayer *inst = static_cast<TsPlayer *>(priv);
-
-    inst->mState = inst->mSeekBackState;
 }
 
 void TsPlayerListener::notify(int msg, int ext1, int ext2){

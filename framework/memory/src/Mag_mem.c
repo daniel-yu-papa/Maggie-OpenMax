@@ -2,6 +2,12 @@
 #include <string.h>
 #include "Mag_mem.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "magFramework-Memory"
+
+
 static size_t max_alloc_size= INT_MAX;
 
 void *mag_malloc(size_t size){
