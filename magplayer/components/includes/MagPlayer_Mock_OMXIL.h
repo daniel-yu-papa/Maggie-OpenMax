@@ -20,9 +20,9 @@ public:
     };
     
 private:
+    MagMessageHandle mMagPlayerNotifier;
     MagLooperHandle  mLooper;
     MagHandlerHandle mMsgHandler;
-    MagMessageHandle mMagPlayerNotifier;
 
     MagMessageHandle mEmptyThisBufferMsg;
 

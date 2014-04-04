@@ -4,6 +4,9 @@
 #include "OMX_Audio.h"
 #include "OMX_AudioExt.h"
 
+#include "libavutil/log.h"
+
+
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
@@ -23,11 +26,26 @@ MagPlayer_Demuxer_FFMPEG::MagPlayer_Demuxer_FFMPEG():
                              mInitialized(false),
                              mTotalTrackNum(0),
                              mStreamIDRoot(NULL){
+    av_log_set_callback(PrintLog_Callback);
 
+    av_register_all();
 }
 
 MagPlayer_Demuxer_FFMPEG::~MagPlayer_Demuxer_FFMPEG(){
+    av_log_set_callback(NULL);
+}
 
+void MagPlayer_Demuxer_FFMPEG::PrintLog_Callback(void* ptr, int level, const char* fmt, va_list vl){
+    static int print_prefix = 1;
+    char line[1024];
+    
+    //if (level > AV_LOG_ERROR)
+    if (level > AV_LOG_INFO)
+        return;
+    
+    av_log_format_line(ptr, level, fmt, vl, line, sizeof(line), &print_prefix);
+
+    AGILE_LOGD("[ffmpeg library]: %s", line);
 }
 
 i32 MagPlayer_Demuxer_FFMPEG::AVIO_Read (ui8 *buf, int buf_size){
@@ -304,6 +322,9 @@ _status_t  MagPlayer_Demuxer_FFMPEG::ts_noprobe_add_streams(){
     AVCodec *avcodec;
     AVStream *avstream;
     AVCodecContext *avcontext;
+
+    bool isStreamAdded     = false;
+    bool areStreamsExisted = false;
     
     if (NULL == mParamDB){
         AGILE_LOGE("the Demuxer is not initialized. Quit!");
@@ -325,7 +346,10 @@ _status_t  MagPlayer_Demuxer_FFMPEG::ts_noprobe_add_streams(){
         mTotalTrackNum = mTotalTrackNum + number;
     }
     AGILE_LOGI("total track number is %d", mTotalTrackNum);
-    
+
+    if (mpAVFormat->nb_streams > 0){
+        areStreamsExisted = true; 
+    }
     
     for (i = 0; i < mTotalTrackNum; i++){
         sprintf(keyName, kDemuxer_Track_Info, i);
@@ -334,6 +358,7 @@ _status_t  MagPlayer_Demuxer_FFMPEG::ts_noprobe_add_streams(){
             track = static_cast<TrackInfo_t *>(value);
             codec = convertCodec_OMXToFFMPEG(track->codec);
             if (ts_noprobe_decide_adding(codec, track->pid)){
+                isStreamAdded = true;
                 avcodec = avcodec_find_decoder(codec);
                 if (!avcodec) {        
                     AGILE_LOGE("Failed to create video codec[type %d]", codec);        
@@ -350,7 +375,8 @@ _status_t  MagPlayer_Demuxer_FFMPEG::ts_noprobe_add_streams(){
                 if (track->pid > 0){
                     avstream->id    = track->pid;
                     track->streamID = avstream->index;
-                    avstream->id |= TS_NOPROBE_NEW_PID_MASK;
+                    if (areStreamsExisted)
+                        avstream->id |= TS_NOPROBE_NEW_PID_MASK;
                     AGILE_LOGD("add stream pid = 0x%x", avstream->id);
                     create_track(track);
                 }else{
@@ -373,6 +399,9 @@ _status_t  MagPlayer_Demuxer_FFMPEG::ts_noprobe_add_streams(){
         }
     }
 
+    if ((isStreamAdded) && (areStreamsExisted))
+        avformat_mpegts_add_pid(mpAVFormat);
+    
     return MAG_NO_ERROR;
 }
 
@@ -419,7 +448,7 @@ _status_t  MagPlayer_Demuxer_FFMPEG::ts_noprobe_start(){
         /* allocate private data */
         if (mpAVFormat->iformat->priv_data_size > 0) {
             if (!(mpAVFormat->priv_data = av_mallocz(mpAVFormat->iformat->priv_data_size))) {
-                AGILE_LOGE("no memory for mAVFormat->priv_data allocation(size = %d)", 
+                AGILE_LOGE("no memory for mpAVFormat->priv_data allocation(size = %d)", 
                            mpAVFormat->iformat->priv_data_size);
                 ret = MAG_NO_MEMORY;
                 goto failure;
@@ -440,9 +469,8 @@ _status_t  MagPlayer_Demuxer_FFMPEG::ts_noprobe_start(){
 
     if (!mInitialized){
         av_demuxer_open(mpAVFormat);
-    }else{
-        avformat_mpegts_add_pid(mpAVFormat);
     }
+    
     mInitialized = true;
     
     av_dump_format(mpAVFormat, 0, DUMMY_FILE, 0);
@@ -482,6 +510,40 @@ _status_t  MagPlayer_Demuxer_FFMPEG::ts_noprobe_stop(){
     return MAG_NO_ERROR;
 }
 
+void  MagPlayer_Demuxer_FFMPEG::copy_noprobe_params(MagMiniDBHandle playerParams){
+    i32  number;
+    i32  total_tracks = 0;
+    i32  i;
+    char keyValue[64];
+    void *pointer;
+    _status_t ret = MAG_NO_ERROR;
+    
+    if (playerParams->findInt32(playerParams, kDemuxer_Video_Track_Number, &number)){
+        AGILE_LOGV("video track number: %d", number);
+        setParameters(kDemuxer_Video_Track_Number, MagParamTypeInt32, static_cast<void *>(&number));
+        ++total_tracks;
+    }else{
+        AGILE_LOGE("failed to get the %s parameter!", kDemuxer_Video_Track_Number);
+    }
+
+    if (playerParams->findInt32(playerParams, kDemuxer_Audio_Track_Number, &number)){
+        AGILE_LOGV("audio track number: %d", number);
+        setParameters(kDemuxer_Audio_Track_Number, MagParamTypeInt32, static_cast<void *>(&number));
+        ++total_tracks;
+    }else{
+        AGILE_LOGE("failed to get the %s parameter!", kDemuxer_Audio_Track_Number);
+    }
+
+    for(i = 0; i < total_tracks; i++){
+        sprintf(keyValue, kDemuxer_Track_Info, i);
+        if (playerParams->findPointer(playerParams, keyValue, &pointer)){
+            setParameters(keyValue, MagParamTypePointer, pointer);
+        }else{
+            AGILE_LOGE("failed to get the %s track info!", keyValue);
+        }
+    }
+}
+
 _status_t  MagPlayer_Demuxer_FFMPEG::probe_start(){
     return MAG_NO_ERROR;
 }
@@ -490,10 +552,11 @@ _status_t  MagPlayer_Demuxer_FFMPEG::probe_stop(){
     return MAG_NO_ERROR;
 }
 
-_status_t  MagPlayer_Demuxer_FFMPEG::start(MagPlayer_Component_CP *contentPipe, ui32 flags){
+_status_t  MagPlayer_Demuxer_FFMPEG::start(MagPlayer_Component_CP *contentPipe, MagMiniDBHandle paramDB){
     char *value;
     boolean ret;
-
+    _status_t rc = MAG_NO_ERROR;
+    
     mDataSource = contentPipe;
     
     if (NULL == mParamDB){
@@ -509,7 +572,11 @@ _status_t  MagPlayer_Demuxer_FFMPEG::start(MagPlayer_Component_CP *contentPipe, 
 
             if (ret == MAG_TRUE){
                 if (!strcmp(value, "no")){
-                    return ts_noprobe_start();
+                    copy_noprobe_params(paramDB);
+                    rc = ts_noprobe_start();
+                    if (rc == MAG_NO_ERROR)
+                        mIsStarted = MAG_TRUE;
+                    return rc;
                 }
             }
         }

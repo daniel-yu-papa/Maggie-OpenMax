@@ -20,7 +20,7 @@ static MagLooperEvent_t *getFreeEvent(MagLooperHandle hLooper){
     tmpNode = hLooper->mFreeEvtQueue.next;
 
     if(tmpNode == &hLooper->mFreeEvtQueue){
-        AGILE_LOGV("no nodes in the free list. malloc one");
+        AGILE_LOGV("[0x%x][free nodes = %d]no nodes in the free list. malloc one", hLooper, hLooper->mFreeNodeNum);
         pEvent = mag_mallocz(sizeof(MagLooperEvent_t));
         if (pEvent != NULL){
             INIT_LIST(&pEvent->node);
@@ -28,24 +28,45 @@ static MagLooperEvent_t *getFreeEvent(MagLooperHandle hLooper){
         }
     }else{
         list_del(tmpNode);
-        pEvent = (MagLooperEvent_t *)list_entry(tmpNode, MagLooperEvent_t, node);    
+        pEvent = (MagLooperEvent_t *)list_entry(tmpNode, MagLooperEvent_t, node); 
+        hLooper->mFreeNodeNum--;
     }
     return pEvent;
 }
 
-static struct mag_message *getNoDelayMessage(MagLooperHandle hLooper){
+static void putFreeEvent(MagLooperHandle hLooper, MagLooperEvent_t *pEvent){
+    MagMessageHandle msg;
+    i32 i;
+    msg = pEvent->mMessage;
+
+    for (i = 0; i < msg->mNumItems; i++){
+        if(msg->mItems[i].mType == TypeString){
+            mag_free(msg->mItems[i].u.stringValue);
+        }
+    }
+    
+    Mag_AcquireMutex(hLooper->mLock);
+    list_add(&pEvent->node, &hLooper->mFreeEvtQueue);
+    hLooper->mFreeNodeNum++;
+    AGILE_LOGV("[0x%x]free node number: %d", hLooper, hLooper->mFreeNodeNum);
+    Mag_ReleaseMutex(hLooper->mLock);
+}
+
+static MagLooperEvent_t *getNoDelayMessage(MagLooperHandle hLooper){
     List_t *tmpNode;
     MagLooperEvent_t *pEvent = NULL;
     
     tmpNode = hLooper->mNoDelayEvtQueue.next;
 
     if(tmpNode == &hLooper->mNoDelayEvtQueue){
+        AGILE_LOGV("mNoDelayEvtQueue is empty!");
         return NULL;
     }else{
         list_del(tmpNode);
-        pEvent = (MagLooperEvent_t *)list_entry(tmpNode, MagLooperEvent_t, node);   
-        list_add(tmpNode, &hLooper->mFreeEvtQueue);
-        return pEvent->mMessage;
+        pEvent = (MagLooperEvent_t *)list_entry(tmpNode, MagLooperEvent_t, node);  
+        if (NULL == pEvent)
+            AGILE_LOGV("pEvent is NULL!");
+        return pEvent;
     }
 }
 
@@ -53,22 +74,35 @@ static MagHandlerHandle getHandler(MagLooperHandle hLooper, ui32 id){
     return (MagHandlerHandle)rbtree_get(hLooper->mHandlerTreeRoot, id);
 }
 
-static boolean deliverMessage(MagLooperHandle hLooper, struct mag_message *msg){
+static boolean deliverMessage(MagLooperHandle hLooper, MagLooperEvent_t *evt){
     MagHandlerHandle h;
-    
-    if (NULL == msg)
-        return MAG_FALSE;
+    ui32 i;
+    MagMessageHandle msg;
+    boolean ret = MAG_FALSE;
 
+    if (NULL == evt){
+        AGILE_LOGE("evt is NULL!");
+        return MAG_FALSE;
+    }
+    
+    msg = evt->mMessage;
+    if (NULL == msg){
+        AGILE_LOGE("evt[0x%x]'s message is NULL. Should not be here!!", evt);
+        mag_free(evt);
+        return MAG_FALSE;
+    }
+    
     h = getHandler(hLooper, msg->mTarget);
 
     if (NULL == h){
         AGILE_LOGE("failed to get Message handler with id(%u)", msg->mTarget);
-        return MAG_FALSE;
     }else{
         h->mMsgProcessor(msg, h->priv);
+        ret = MAG_TRUE;
     }
 
-    return MAG_TRUE;
+    putFreeEvent(hLooper, evt);
+    return ret;
 }
 
 static boolean MagEventQueueEmpty(MagLooperHandle hLooper){
@@ -113,21 +147,23 @@ static boolean LooperThreadReadyToRun(void *priv){
 
 static boolean LooperThreadEntry(void *priv){
     MagLooperHandle looper = (MagLooperHandle)priv;
-    MagMessage_t *msg = NULL;
+    MagLooperEvent_t *msg = NULL;
     
     if (NULL == priv)
         return MAG_FALSE;
 
     if (MagEventQueueEmpty(looper)){
+        AGILE_LOGD("[0x%x] before waiting[evt grp: 0x%x]",looper, looper->mMQPushEvtGroup);
         Mag_WaitForEventGroup(looper->mMQPushEvtGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
+        AGILE_LOGD("[0x%x] after waiting[evt grp: 0x%x]",looper, looper->mMQPushEvtGroup);
     }
-    
+
     Mag_AcquireMutex(looper->mLock);
     if (NULL != looper->mDelayEvtTreeRoot){
         i64 nowMS = getNowMs();
         void *value;
         rbtree_getMinValue(looper->mDelayEvtTreeRoot, &looper->mDelayEvtWhenMS, &value);
-        //AGILE_LOGD("min value: %lld", looper->mDelayEvtWhenMS);
+        AGILE_LOGD("min value: %lld", looper->mDelayEvtWhenMS);
         if (looper->mDelayEvtWhenMS > nowMS){
             msg = getNoDelayMessage(looper);
             Mag_ReleaseMutex(looper->mLock);
@@ -143,17 +179,19 @@ static boolean LooperThreadEntry(void *priv){
             rbtree_delete(&looper->mDelayEvtTreeRoot, looper->mDelayEvtWhenMS);
             
             MagLooperEvent_t *evt = (MagLooperEvent_t *)value;
-            msg = (MagMessage_t *)evt->mMessage;
-            list_add(&evt->node, &looper->mFreeEvtQueue);
             Mag_ReleaseMutex(looper->mLock);
             
-            deliverMessage(looper, msg);
+            deliverMessage(looper, evt);
         }
     }else{
         msg = getNoDelayMessage(looper);
         Mag_ReleaseMutex(looper->mLock);
-        
-        deliverMessage(looper, msg);
+
+        if (NULL != msg){
+            deliverMessage(looper, msg);
+        }else{
+            AGILE_LOGD("[0x%x]No Delay Message Queue is Empty!", looper);
+        }
     }
     return MAG_TRUE;
 }
@@ -197,15 +235,26 @@ static _status_t MagLooper_stop(MagLooperHandle hLooper){
     return MAG_NO_ERROR;
 }
 
+static void internal_copyMessage(MagMessage_t *to, MagMessage_t *from){
+    ui32 i;
+    
+    memcpy(to, from, sizeof(MagMessage_t));
+    for (i = 0; i < from->mNumItems; i++){
+        if(from->mItems[i].mType == TypeString){
+            to->mItems[i].u.stringValue = mag_strdup(from->mItems[i].u.stringValue);
+        }
+    }
+}
+
 static void MagLooper_postMessage(MagLooperHandle hLooper, MagMessage_t *msg, i64 delayMs){
     MagLooperEvent_t *evt;
     boolean postEvt = MAG_FALSE;
-    
+
     Mag_AcquireMutex(hLooper->mLock);
     
     evt = getFreeEvent(hLooper);
     if (evt != NULL){
-        memcpy(evt->mMessage, msg, sizeof(MagMessage_t));
+        internal_copyMessage(evt->mMessage, msg);
         if (delayMs > 0){
             evt->mWhenMs = getNowMs() + delayMs;
             if (hLooper->mDelayEvtTreeRoot == NULL)
@@ -221,15 +270,17 @@ static void MagLooper_postMessage(MagLooperHandle hLooper, MagMessage_t *msg, i6
             if (&hLooper->mNoDelayEvtQueue == hLooper->mNoDelayEvtQueue.next)
                 postEvt = MAG_TRUE;
             list_add_tail(&evt->node, &hLooper->mNoDelayEvtQueue);
+            AGILE_LOGV("[0x%x]add msg(what=%d) to NoDelayQueue[postEvt=%d]", hLooper, msg->mWhat, postEvt);
         }
+    }
+
+    if (postEvt){
+        Mag_SetEvent(hLooper->mMQEmptyPushEvt);
+        AGILE_LOGV("[0x%x]: set event = 0x%x", hLooper, hLooper->mMQEmptyPushEvt);
     }
     
     Mag_ReleaseMutex(hLooper->mLock);
-    
-    if (postEvt){
-        Mag_SetEvent(hLooper->mMQEmptyPushEvt);
-    }
-    AGILE_LOGD("post msg: target %d", msg->mTarget);
+    //AGILE_LOGV("post msg: target %d(postEvt:%d)", msg->mTarget, postEvt);
 }
 
 static ui32 MagLooper_getHandlerID(MagLooperHandle hLooper){
@@ -249,8 +300,9 @@ MagLooperHandle createLooper(const char *pName){
 
     pLooper = (MagLooperHandle)mag_mallocz(sizeof(MagLooper_t));
     if (NULL != pLooper){
+        ++gLooperId;
         pLooper->mpName             = (ui8 *)mag_strdup(pName);
-        sprintf(threadName, "MLooper%s", pName);
+        sprintf(threadName, "MLooper%s_%d", pName, gLooperId);
         
         pLooper->mHandlerTreeRoot   = NULL;
         pLooper->mDelayEvtTreeRoot  = NULL;
@@ -270,7 +322,9 @@ MagLooperHandle createLooper(const char *pName){
         if (MAG_ErrNone == Mag_CreateEvent(&pLooper->mMQEmptyPushEvt, 0)){}
             Mag_AddEventGroup(pLooper->mMQPushEvtGroup, pLooper->mMQEmptyPushEvt);
 
-        pLooper->mLooperID = ++gLooperId;
+        AGILE_LOGD("[0x%x]event: 0x%x, event grp: 0x%x", pLooper, pLooper->mMQEmptyPushEvt, pLooper->mMQPushEvtGroup);
+        
+        pLooper->mLooperID = gLooperId;
         
         pLooper->registerHandler   = MagLooper_registerHandler;
         pLooper->unregisterHandler = MagLooper_unregisterHandler;
@@ -288,6 +342,7 @@ MagLooperHandle createLooper(const char *pName){
                 INIT_LIST(&pEvent->node);
                 pEvent->mMessage = (struct mag_message *)mag_mallocz(sizeof(struct mag_message));
                 list_add(&pEvent->node, &pLooper->mFreeEvtQueue);
+                pLooper->mFreeNodeNum++;
             }
         }
     }else{

@@ -10,8 +10,11 @@
 #define ES_DUMP_FILE_NAME "/data/data/magplayer_%s.es"
 
 MagPlayer_Mock_OMX::MagPlayer_Mock_OMX(const char *type):
-                                      mMagPlayerNotifier(NULL){ 
+                                      mMagPlayerNotifier(NULL),
+                                      mLooper(NULL),
+                                      mMsgHandler(NULL){ 
     mType = mag_strdup(type);
+    AGILE_LOGV("Constructor. type = %s", mType);
 }
 
 MagPlayer_Mock_OMX::~MagPlayer_Mock_OMX(){
@@ -25,10 +28,10 @@ void MagPlayer_Mock_OMX::start(){
     sprintf(filename, ES_DUMP_FILE_NAME, mType);
     mDumpFile = fopen(filename, "wb+");
     if (NULL == mDumpFile){
-        AGILE_LOGE("failed to open the file: %s", ES_DUMP_FILE_NAME);
+        AGILE_LOGE("failed to open the file: %s", filename);
+    }else{
+        AGILE_LOGD("Create the file: %s -- OK!", filename);
     }
-    
-    mLooper->start(mLooper);
     
     postFillThisBuffer();
 }
@@ -101,6 +104,7 @@ _status_t MagPlayer_Mock_OMX::getLooper(){
     
     if (NULL == mLooper){
         mLooper = createLooper(LOOPER_NAME);
+        AGILE_LOGV("looper handler: 0x%x", mLooper);
     }
     
     if (NULL != mLooper){
@@ -109,6 +113,7 @@ _status_t MagPlayer_Mock_OMX::getLooper(){
 
             if (NULL != mMsgHandler){
                 mLooper->registerHandler(mLooper, mMsgHandler);
+                mLooper->start(mLooper);
             }else{
                 AGILE_LOGE("failed to create Handler");
                 return MAG_NO_INIT;

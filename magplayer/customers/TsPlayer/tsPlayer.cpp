@@ -30,8 +30,9 @@ int GetMediaProcessorVersion()
 }
 
 void TsPlayer::initialize(){
-    mPlayer = new MagPlayerClient();
+    _status_t ret;
 
+    mPlayer = new MagPlayerClient();
     if (NULL != GET_POINTER(mPlayer)){
         mStreamBuf = new StreamBuffer();
 
@@ -39,11 +40,15 @@ void TsPlayer::initialize(){
             AGILE_LOG_FATAL("failed to create StreamBuffer object!");
             return;
         }
-        mPlayer->setDataSource(mStreamBuf);
-        
-        Parcel data;
-        data.writeInt32(MediaTypeTS);
-        mPlayer->setParameter(idsMediaType, data);
+        StreamBuffer *sb = static_cast<StreamBuffer *>(GET_POINTER(mStreamBuf));
+        sb->setType(IStreamBuffer::TS);
+        ret = mPlayer->setDataSource(mStreamBuf);
+        if (ret != MAG_NO_ERROR){
+            AGILE_LOGE("failed to do setDataSource(ret = 0x%x)", ret);
+            return;
+        }else{
+            AGILE_LOGV("To do setDataSource successfully!");
+        }
     }else{
         AGILE_LOG_FATAL("failed to create MagPlayerClient object!");
         return;
@@ -54,6 +59,11 @@ void TsPlayer::initialize(){
         mPlayer->setListener(mpListener);
 
     mbInitialized = true;
+    mbError       = false;
+}
+
+void TsPlayer::destroy(){
+
 }
 
 TsPlayer::TsPlayer():
@@ -137,16 +147,16 @@ ui32 TsPlayer::convertAudioCodecType(aformat_t acodec){
 
 void TsPlayer::InitVideo(PVIDEO_PARA_T pVideoPara){
     Parcel request;
-    
-    AGILE_LOGV("enter");   
+      
     if (!mbInitialized){
-        AGILE_LOGE("the player is not initialized, quit!");
+        AGILE_LOGE("The player is not initialized. Quit!");
         return;
     }
     
     request.writeInt32(1);
     request.writeInt32(pVideoPara->pid);
     request.writeInt32(convertVideoCodecType(pVideoPara->vFmt));
+    AGILE_LOGV("video track: pid = %d, codec = %d", pVideoPara->pid, pVideoPara->vFmt);
     
     mPlayer->setParameter(idsVideo_TS_pidlist, request);
 }
@@ -156,10 +166,9 @@ void TsPlayer::InitAudio(PAUDIO_PARA_T pAudioPara){
     
     ui32 i = 0;
     ui32 num = 0;
-
-    AGILE_LOGV("enter");   
+  
     if (!mbInitialized){
-        AGILE_LOGE("the player is not initialized, quit!");
+        AGILE_LOGE("The player is not initialized. Quit!");
         return;
     }
     
@@ -181,6 +190,7 @@ void TsPlayer::InitAudio(PAUDIO_PARA_T pAudioPara){
     for (i = 0; i < num; i++){
         request.writeInt32(pAudioPara[i].pid);
         request.writeInt32(convertAudioCodecType(pAudioPara[i].aFmt));
+        AGILE_LOGV("audio track: pid = %d, codec = %d", pAudioPara[i].pid, pAudioPara[i].aFmt);
     }
     mPlayer->setParameter(idsAudio_TS_pidlist, request);
 }
@@ -199,6 +209,8 @@ bool TsPlayer::StartPlay(){
         mPlayer->start();
     }else{
         AGILE_LOGE("failed to do the preparation, ret = 0x%x", ret);
+        mbError = true;
+        destroy();
         return false;
     }    
     return true;
@@ -206,16 +218,22 @@ bool TsPlayer::StartPlay(){
 
 int  TsPlayer::WriteData(unsigned char* pBuffer, unsigned int nSize){
     int w = 0;
-    AGILE_LOGV("enter");   
+    
+    AGILE_LOGV("Enter: write size - %d", nSize);   
     if (!mbInitialized){
         AGILE_LOGE("the player is not initialized, quit!");
         return 0;
     }
-    
+
+    if (mbError){
+        AGILE_LOGE("it is in error state, quit!");
+        return 0;
+    }
+        
     StreamBuffer *sb = static_cast<StreamBuffer *>(GET_POINTER(mStreamBuf));
     
     w = sb->WriteData(pBuffer, nSize, true);
-
+    AGILE_LOGV("write size: %d", w);
     return w;
 }
 
@@ -224,6 +242,11 @@ bool TsPlayer::Pause(){
     if (!mbInitialized){
         AGILE_LOGE("the player is not initialized, quit!");
         return false;
+    }
+
+    if (mbError){
+        AGILE_LOGE("it is in error state, quit!");
+        return 0;
     }
     
     mPlayer->pause();
@@ -237,6 +260,11 @@ bool TsPlayer::Resume(){
         return false;
     }
 
+    if (mbError){
+        AGILE_LOGE("it is in error state, quit!");
+        return 0;
+    }
+    
     mPlayer->start();
     return true;
 }
@@ -246,6 +274,11 @@ bool TsPlayer::Fast(){
     if (!mbInitialized){
         AGILE_LOGE("the player is not initialized, quit!");
         return false;
+    }
+
+    if (mbError){
+        AGILE_LOGE("it is in error state, quit!");
+        return 0;
     }
     
     mPlayer->fast(-1);
@@ -257,6 +290,11 @@ bool TsPlayer::StopFast(){
     if (!mbInitialized){
         AGILE_LOGE("the player is not initialized, quit!");
         return false;
+    }
+
+    if (mbError){
+        AGILE_LOGE("it is in error state, quit!");
+        return 0;
     }
     
     mPlayer->stop();
@@ -270,6 +308,11 @@ bool TsPlayer::Stop(){
         AGILE_LOGE("the player is not initialized, quit!");
         return false;
     }
+
+    if (mbError){
+        AGILE_LOGE("it is in error state, quit!");
+        return 0;
+    }
     
     mPlayer->stop();
     return true;
@@ -281,6 +324,11 @@ bool TsPlayer::Seek(){
         AGILE_LOGE("the player is not initialized, quit!");
         return false;
     }
+
+    if (mbError){
+        AGILE_LOGE("it is in error state, quit!");
+        return 0;
+    }
     
     mPlayer->flush();
     return true;
@@ -291,6 +339,11 @@ bool TsPlayer::SetVolume(int volume){
     if (!mbInitialized){
         AGILE_LOGE("the player is not initialized, quit!");
         return false;
+    }
+
+    if (mbError){
+        AGILE_LOGE("it is in error state, quit!");
+        return 0;
     }
     
     mPlayer->setVolume(volume, volume);

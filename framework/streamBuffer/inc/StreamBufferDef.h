@@ -22,7 +22,9 @@ struct StreamBuffer : public StreamBuffer_Server{
     virtual void setUser(const sp<IStreamBufferUser> &user);
     virtual void setBuffers(List_t *bufListHead);
     virtual void onBufferEmpty(_size_t index, _size_t size);
-    
+    virtual Type  getType(void);
+
+    void    setType(Type t);
     _size_t WriteData(void *data, _size_t size, bool block);
 
     sp<IStreamBufferUser> &getUser();
@@ -44,6 +46,7 @@ private:
     MagEventGroupHandle   mBufStatusEvtGrp;
     MagEventHandle        mBufFreeEvt;
     bool                  mbQuit;
+    IStreamBuffer::Type   mType;
 };
 
 
@@ -63,6 +66,7 @@ protected:
     virtual ~StreamBufferUser();
     
 private:
+    void init();
     _size_t readData_CircularBuffer(void *data, _size_t size);
     void fill_CircularBuffer(_size_t size);
     static void doRestSetupCB(void *arg);

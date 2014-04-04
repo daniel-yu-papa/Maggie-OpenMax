@@ -22,7 +22,7 @@ public:
     virtual ~MagPlayer_Demuxer_FFMPEG();
 
     virtual _status_t   readFrameInternal(ui32 StreamID, MediaBuffer_t **buffer);
-    virtual _status_t   start(MagPlayer_Component_CP *contentPipe, ui32 flags);
+    virtual _status_t   start(MagPlayer_Component_CP *contentPipe, MagMiniDBHandle paramDB);
     virtual _status_t   stop();
     
 private:
@@ -32,7 +32,10 @@ private:
     _status_t  ts_noprobe_stop();
     _status_t  ts_noprobe_add_streams();
     bool       ts_noprobe_decide_adding(enum CodecID codec, ui32 pid);
-
+    void       copy_noprobe_params(MagMiniDBHandle playerParams);
+    
+    static void PrintLog_Callback(void* ptr, int level, const char* fmt, va_list vl);
+    
     _status_t  create_track(TrackInfo_t *track);
     
     enum CodecID convertCodec_OMXToFFMPEG(ui32 omxCodec);

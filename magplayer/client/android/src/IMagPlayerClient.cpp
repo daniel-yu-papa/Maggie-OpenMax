@@ -135,6 +135,14 @@ public:
         return reply.readInt32();
     }
 
+    _status_t pause()
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IMagPlayerClient::getInterfaceDescriptor());
+        remote()->transact(PAUSE, data, &reply);
+        return reply.readInt32();
+    }
+    
     _status_t isPlaying(bool* state)
     {
         Parcel data, reply;
@@ -143,15 +151,6 @@ public:
         *state = reply.readInt32();
         return reply.readInt32();
     }
-
-    _status_t pause()
-    {
-        Parcel data, reply;
-        data.writeInterfaceToken(IMagPlayerClient::getInterfaceDescriptor());
-        remote()->transact(PAUSE, data, &reply);
-        return reply.readInt32();
-    }
-
     _status_t seekTo(int msec)
     {
         Parcel data, reply;
@@ -161,14 +160,6 @@ public:
         return reply.readInt32();
     }
 
-    _status_t flush()
-    {
-        Parcel data, reply;
-        data.writeInterfaceToken(IMagPlayerClient::getInterfaceDescriptor());
-        remote()->transact(FLUSH, data, &reply);
-        return reply.readInt32();
-    }
-    
     _status_t fast(int multiple)
     {
         Parcel data, reply;
@@ -213,14 +204,6 @@ public:
         remote()->transact(SET_VOLUME, data, &reply);
         return reply.readInt32();
     }
-
-    _status_t invoke(const Parcel& request, Parcel *reply)
-    {
-        // Avoid doing any extra copy. The interface descriptor should
-        // have been set by MediaPlayer.java.
-        return remote()->transact(INVOKE, request, reply);
-    }
-    
     _status_t setParameter(int key, const Parcel& request)
     {
         Parcel data, reply;
@@ -240,6 +223,22 @@ public:
         data.writeInt32(key);
         return remote()->transact(GET_PARAMETER, data, reply);
     }
+    
+    _status_t invoke(const Parcel& request, Parcel *reply)
+    {
+        // Avoid doing any extra copy. The interface descriptor should
+        // have been set by MediaPlayer.java.
+        return remote()->transact(INVOKE, request, reply);
+    }
+    
+    _status_t flush()
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IMagPlayerClient::getInterfaceDescriptor());
+        remote()->transact(FLUSH, data, &reply);
+        return reply.readInt32();
+    }
+    
 };
 
 IMPLEMENT_META_INTERFACE(MagPlayerClient, "android.media.IMagPlayerClient");

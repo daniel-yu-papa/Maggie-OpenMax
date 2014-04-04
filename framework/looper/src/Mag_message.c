@@ -64,12 +64,12 @@ static void MagMessage_setInt64(MagMessage_t *msg, const char *name, i64 value){
     item->u.int64Value = value;
 }
 
-static void MagMessage_setSize(MagMessage_t *msg, const char *name, _size_t value){
+static void MagMessage_setUInt32(MagMessage_t *msg, const char *name, ui32 value){
     MagItem_t *item;
 
     item = allocateItem(msg, name);
     item->mType = TypeSize;
-    item->u.sizeValue = value;
+    item->u.ui32Value = value;
 }
 
 static void MagMessage_setFloat(MagMessage_t *msg, const char *name, fp32 value){
@@ -134,12 +134,12 @@ static boolean MagMessage_findInt64(MagMessage_t *msg, const char *name, i64 *va
     return MAG_FALSE;
 }
 
-static boolean MagMessage_findSize(MagMessage_t *msg, const char *name, _size_t *value){
+static boolean MagMessage_findUInt32(MagMessage_t *msg, const char *name, ui32 *value){
     MagItem_t *item;
 
     item = findItem(msg, name, TypeSize);
     if (item != NULL){
-        *value = item->u.sizeValue;
+        *value = item->u.ui32Value;
         return MAG_TRUE;
     }
     return MAG_FALSE;
@@ -207,6 +207,7 @@ ui32 MagMessage_what(MagMessage_t *msg){
 
 boolean MagMessage_postMessage(MagMessage_t *msg, i64 delayMs){
     if (msg->mLooper != NULL){
+        AGILE_LOGV("msg(%d) do post() in looper(0x%x)", msg->mWhat, msg->mLooper);
         msg->mLooper->postMessage(msg->mLooper, msg, delayMs);
         return MAG_TRUE;
     }else{
@@ -232,7 +233,7 @@ MagMessageHandle createMagMessage(struct MagLooper *looper, ui32 what, ui32 targ
         msg->setDouble  = MagMessage_setDouble;
         msg->setPointer = MagMessage_setPointer;
         msg->setString  = MagMessage_setString;
-        msg->setSize    = MagMessage_setSize;
+        msg->setUInt32  = MagMessage_setUInt32;
         msg->setMessage = MagMessage_setMessage;
         
         msg->findInt32   = MagMessage_findInt32;
@@ -241,8 +242,8 @@ MagMessageHandle createMagMessage(struct MagLooper *looper, ui32 what, ui32 targ
         msg->findDouble  = MagMessage_findDouble;
         msg->findPointer = MagMessage_findPointer;
         msg->findString  = MagMessage_findString;
-        msg->findSize    = MagMessage_findSize;
-        msg->findMessage  = MagMessage_findMessage;
+        msg->findUInt32  = MagMessage_findUInt32;
+        msg->findMessage = MagMessage_findMessage;
         
         msg->postMessage = MagMessage_postMessage;
     }

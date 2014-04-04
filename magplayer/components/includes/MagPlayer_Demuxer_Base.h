@@ -9,7 +9,7 @@
 #define kDemuxer_Video_Track_Number       "demuxer.video.track.num"          /*Int32*/
 #define kDemuxer_Audio_Track_Number       "demuxer.audio.track.num"          /*Int32*/
 #define kDemuxer_Subtitle_Track_Number    "demuxer.subtitle.track.num"       /*Int32*/
-#define kDemuxer_Track_Info               "demuxer.track.info%i"             /*Pointer: TrackInfo_t*/
+#define kDemuxer_Track_Info               "demuxer.track.info.%i"             /*Pointer: TrackInfo_t*/
 
 #define kDemuxer_Probe_Stream             "demuxer.stream.probe"             /*String: no/yes*/
 #define kDemuxer_Container_Type           "demuxer.container.type"           /*String: ts/unknown*/
@@ -48,7 +48,7 @@ typedef struct{
         *index (videoTrackNum)                         - (videoTrackNum + audioTrackNum -1):                       audio tracks
         *index (videoTrackNum + audioTrackNum) - (videoTrackNum + audioTrackNum subtitleTrackNum-1): subtitle tracks
         */
-    TrackInfo_t *trackTableList;
+    TrackInfo_t **trackTableList;
 }TrackInfoTable_t;
 
 
@@ -96,7 +96,7 @@ public:
     MagMessageHandle createNotifyMsg();
     
     virtual _status_t   readFrameInternal(ui32 StreamID, MediaBuffer_t **buffer) = 0;
-    virtual _status_t   start(MagPlayer_Component_CP *contentPipe, ui32 flags) = 0;
+    virtual _status_t   start(MagPlayer_Component_CP *contentPipe, MagMiniDBHandle paramDB) = 0;
     virtual _status_t   stop() = 0;
     
 protected:

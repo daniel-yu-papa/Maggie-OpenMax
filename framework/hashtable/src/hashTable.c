@@ -46,7 +46,7 @@ static void *StrHashTable_getItem(struct str_hash_table *ht, const char *str){
         }
     }
     
-    printf("failed to get the node (%s)\n", str);
+    //printf("failed to get the node (%s)\n", str);
     return NULL;
 }
 

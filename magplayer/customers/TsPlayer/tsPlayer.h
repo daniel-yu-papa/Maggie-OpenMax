@@ -188,6 +188,7 @@ protected:
     
 private:
     bool mbInitialized;
+    bool mbError;
     
     MagPlayerClient_t mPlayer;
     streamBuf_t       mStreamBuf;
@@ -198,6 +199,7 @@ private:
     ui32 convertAudioCodecType(aformat_t acodec);
 
     void initialize();
+    void destroy();
 };
 
 CTC_MediaProcessor* GetMediaProcessor();

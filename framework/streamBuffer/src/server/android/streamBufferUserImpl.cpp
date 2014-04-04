@@ -7,18 +7,41 @@
 
 StreamBufferUser::StreamBufferUser(const sp<IStreamBuffer> &buffer, _size_t bufSize, _size_t bufNum):
                   mEOS(false){
-    BufferNode_t *p;
-
     INIT_LIST(&mBufferListHead);
     
     mBufferSize   = bufSize;
     mBufferNumber = bufNum;
     mStreamBuffer = buffer;
 
-    mMemDealer = new MemoryDealer(bufNum * bufSize);
-    for (_size_t i = 0; i < bufNum; ++i) {
+    init();
+}
+
+StreamBufferUser::~StreamBufferUser(){
+    List_t *tmpNode;
+    ui32 size = 0;
+    BufferNode_t *pBufNode;
+
+    tmpNode = mBufferListHead.next;
+    
+    while(tmpNode != &mBufferListHead){
+        list_del(tmpNode);
+        mag_free(tmpNode);
+        tmpNode = mBufferListHead.next;
+    }
+
+    if (mCBMgr != NULL){
+        Mag_DestroyMutex(mCBMgr->lock);
+        mag_free(mCBMgr);
+    }
+}
+
+void StreamBufferUser::init(){
+    BufferNode_t *p;
+
+    mMemDealer = new MemoryDealer(mBufferNumber * mBufferSize);
+    for (_size_t i = 0; i < mBufferNumber; ++i) {
         p = (BufferNode_t *)mag_mallocz(sizeof(BufferNode_t));
-        p->buffer = mMemDealer->allocate(bufSize);
+        p->buffer = mMemDealer->allocate(mBufferSize);
         INIT_LIST(&p->node);
         list_add_tail(&p->node, &mBufferListHead);
     }
@@ -41,25 +64,6 @@ StreamBufferUser::StreamBufferUser(const sp<IStreamBuffer> &buffer, _size_t bufS
 
     mStreamBuffer->setUser(this);
     mStreamBuffer->setBuffers(&mBufferListHead);
-}
-
-StreamBufferUser::~StreamBufferUser(){
-    List_t *tmpNode;
-    ui32 size = 0;
-    BufferNode_t *pBufNode;
-
-    tmpNode = mBufferListHead.next;
-    
-    while(tmpNode != &mBufferListHead){
-        list_del(tmpNode);
-        mag_free(tmpNode);
-        tmpNode = mBufferListHead.next;
-    }
-
-    if (mCBMgr != NULL){
-        Mag_DestroyMutex(mCBMgr->lock);
-        mag_free(mCBMgr);
-    }
 }
 
 void StreamBufferUser::fill_CircularBuffer(_size_t size){

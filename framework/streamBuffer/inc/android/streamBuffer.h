@@ -21,10 +21,17 @@ struct IStreamBufferUser;
 struct IStreamBuffer : public IInterface {
     DECLARE_META_INTERFACE(StreamBuffer);
 
+    enum Type{
+        INVALID,
+        ES,
+        TS,
+    };
+    
     virtual void setUser(const sp<IStreamBufferUser> &user) = 0;
     virtual void setBuffers(List_t *bufListHead) = 0;
 
     virtual void onBufferEmpty(_size_t index, _size_t size) = 0;
+    virtual Type getType(void) = 0;
     
 protected:
     sp<IStreamBufferUser> mUser;

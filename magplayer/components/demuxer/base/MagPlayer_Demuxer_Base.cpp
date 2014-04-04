@@ -139,7 +139,9 @@ _status_t Stream_Track::reset(){
 
 MagPlayer_Demuxer_Base::MagPlayer_Demuxer_Base():
                         mIsStarted(MAG_FALSE),
-                        mTrackList(NULL){
+                        mTrackList(NULL),
+                        mLooper(NULL),
+                        mMsgHandler(NULL){
     mParamDB = createMagMiniDB(MAX_PARAM_DB_ITEMS_NUMBER);
     if (NULL == mParamDB){
         AGILE_LOGE("Failed to create the parameters db!");
@@ -266,35 +268,34 @@ TrackInfoTable_t *MagPlayer_Demuxer_Base::getTrackInfoList(){
     AGILE_LOGI("total track number is %d", totalTrackNum);
     
     if (totalTrackNum > 0){
-        mTrackList->trackTableList = (TrackInfo_t *)mag_mallocz(totalTrackNum * sizeof(TrackInfo_t *));
+        mTrackList->trackTableList = (TrackInfo_t **)mag_mallocz(totalTrackNum * sizeof(TrackInfo_t *));
         if (NULL == mTrackList->trackTableList){
             AGILE_LOGE("Failed to create mTrackList->trackTableList!");
             mag_free(mTrackList);
             mTrackList = NULL;
             return NULL;
         }
+
+        i32 v=0;
+        i32 a=0;
+        i32 s=0;
+        TrackInfo_t *ti;
         
         for (i = 0; i < totalTrackNum; i++){
-            i32 v=0;
-            i32 a=0;
-            i32 s=0;
-            TrackInfo_t *ti;
-            
             sprintf(buf, kDemuxer_Track_Info, i);
             ret = mParamDB->findPointer(mParamDB, buf, &value);
             if (ret == MAG_TRUE){
                 track = static_cast<TrackInfo_t *>(value);
+                AGILE_LOGI("index %d: track %s[0x%x], pid = %d, codec = %d", i, track->type == TRACK_VIDEO ? "video" : "audio",
+                            track, track->pid, track->codec);
                 if (track->type == TRACK_VIDEO){
-                    ti = mTrackList->trackTableList + v;
-                    ti = track;
+                    mTrackList->trackTableList[v] = track;
                     v++;
                 }else if (track->type == TRACK_AUDIO){
-                    ti = mTrackList->trackTableList + vnumber + a;
-                    ti = track;
+                    mTrackList->trackTableList[vnumber + a] = track;
                     a++;
                 }else if (track->type == TRACK_SUBTITLE){
-                    ti = mTrackList->trackTableList + vnumber + anumber + s;
-                    ti = track;
+                    mTrackList->trackTableList[vnumber + anumber + s] = track;
                     s++;
                 }else{
                     AGILE_LOGE("unknown track type: %d", track->type);
@@ -304,13 +305,11 @@ TrackInfoTable_t *MagPlayer_Demuxer_Base::getTrackInfoList(){
     }else{
         mTrackList->trackTableList = NULL;
     }
-
+    
     return mTrackList;
 }
 
 _status_t  MagPlayer_Demuxer_Base::setPlayingTrackID(ui32 index){
-    i32 i;
-    ui32 idx = 0;
     TrackInfo_t *ti;
     
     if (!mIsStarted){
@@ -322,10 +321,14 @@ _status_t  MagPlayer_Demuxer_Base::setPlayingTrackID(ui32 index){
         getTrackInfoList();
     }
 
-    ti  = mTrackList->trackTableList + index;
-    if (NULL != ti)
+    ti  = mTrackList->trackTableList[index];
+    AGILE_LOGD("index track: 0x%x", ti);
+    if (NULL != ti){
+        AGILE_LOGD("[index:%d]: To set %s track[0x%x] -- name = %s, pid = %d as Playing", 
+                    index, ti->type == TRACK_VIDEO ? "video" : "audio", ti, 
+                    ti->name, ti->pid);
         ti->status = TRACK_PLAY;
-
+    }
     return MAG_NO_ERROR;
 }
 
@@ -346,7 +349,7 @@ ui32       MagPlayer_Demuxer_Base::getPlayingTracksID(ui32 **index){
 
     total = mTrackList->videoTrackNum + mTrackList->audioTrackNum + mTrackList->subtitleTrackNum;
     for (i = 0; i < total; i++){
-        ti = mTrackList->trackTableList + i;
+        ti = mTrackList->trackTableList[i];
         if (ti->status == TRACK_PLAY){
             *(index + j) = &ti->index;
             j++;
@@ -359,7 +362,8 @@ ui32       MagPlayer_Demuxer_Base::getPlayingTracksID(ui32 **index){
 _status_t   MagPlayer_Demuxer_Base::readFrame(ui32 trackIndex, MediaBuffer_t **buffer){
     TrackInfo_t * ti;
 
-    ti = mTrackList->trackTableList + trackIndex;
+    AGILE_LOGD("trackid = %d", trackIndex);
+    ti = mTrackList->trackTableList[trackIndex];
 
     if (NULL != ti){
         if (ti->status != TRACK_PLAY){
@@ -400,7 +404,8 @@ void MagPlayer_Demuxer_Base::onPlayerNotify(MagMessageHandle msg){
             AGILE_LOGE("failed to find the track-idx!");
             return;
         }   
-
+        
+        AGILE_LOGV("message: what = kWhatReadFrame, track-idx = %d", idx);
         if (MAG_NO_ERROR == readFrame(idx, &buf)){
             if (NULL != buf){
                 ret = msg->findMessage(msg, "reply", &reply);
@@ -446,6 +451,7 @@ _status_t MagPlayer_Demuxer_Base::getLooper(){
     
     if (NULL == mLooper){
         mLooper = createLooper(LOOPER_NAME);
+        AGILE_LOGV("looper handler: 0x%x", mLooper);
     }
     
     if (NULL != mLooper){
@@ -454,6 +460,7 @@ _status_t MagPlayer_Demuxer_Base::getLooper(){
 
             if (NULL != mMsgHandler){
                 mLooper->registerHandler(mLooper, mMsgHandler);
+                mLooper->start(mLooper);
             }else{
                 AGILE_LOGE("failed to create Handler");
                 return MAG_NO_INIT;

@@ -86,7 +86,7 @@ private:
     void *mInfoPriv;
     
     enum{
-        MagMsg_SourceNotify,
+        MagMsg_SourceNotify = 0x10,
         MagMsg_Prepare,
         MagMsg_Start,
         MagMsg_Stop,
@@ -98,6 +98,7 @@ private:
         MagMsg_SetVolume,
         MagMsg_ErrorNotify,
         MagMsg_ComponentNotify,
+        MagMsg_SetParameters,
     };
     
     enum State_t{
@@ -126,8 +127,11 @@ private:
     MagMessageHandle mResetMsg;
     MagMessageHandle mSetVolumeMsg;
     MagMessageHandle mErrorNotifyMsg;
-    MagMessageHandle mComponentNotifyMsg;
+    MagMessageHandle mComponentNotifyMsg;
+    MagMessageHandle mSetParametersMsg;
     
+    MagMutexHandle   mGetParamLock;
+        
     State_t mState;
     State_t mFlushBackState; /*the initial state where flush action should be back after it is complete*/
     State_t mSeekBackState;  /*the initial state where seekTo action should be back after it is complete*/
@@ -139,6 +143,7 @@ private:
     MagEventHandle mCompleteFlushEvt;
     MagEventHandle mErrorEvt;
     MagEventGroupHandle mEventGroup;
+    
     MagEventSchedulerHandle mEventScheduler;
 
     MagMiniDBHandle mParametersDB;
@@ -174,6 +179,7 @@ private:
     void onErrorNotify(MagMessageHandle msg);
     void onSetVolume(MagMessageHandle msg);
     void onComponentNotify(MagMessageHandle msg);
+    void onSetParameters(MagMessageHandle msg);
     
     bool isValidFSState(State_t st);
 

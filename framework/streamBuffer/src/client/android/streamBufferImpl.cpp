@@ -9,6 +9,7 @@ StreamBuffer::StreamBuffer(){
     mBufferNum = 0;
     mCBMgr     = NULL;
     mbQuit     = false;
+    mType      = INVALID;
     
     Mag_CreateEventGroup(&mBufStatusEvtGrp);
 
@@ -71,7 +72,6 @@ void StreamBuffer::setBuffers(List_t *bufListHead){
         
     }
     mBufferHead = bufListHead;
-    
 }
 
 _size_t StreamBuffer::writeData_CircularBuffer(void *data, _size_t size, bool block){
@@ -197,5 +197,13 @@ void StreamBuffer::onBufferEmpty(_size_t index, _size_t size){
     }else{
 
     }
+}
+
+IStreamBuffer::Type StreamBuffer::getType(void){
+    return mType;
+}
+
+void StreamBuffer::setType(IStreamBuffer::Type t){
+    mType = t;
 }
 

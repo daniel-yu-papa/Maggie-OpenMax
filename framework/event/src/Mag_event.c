@@ -19,15 +19,15 @@ static i32 evtNumTotal = 0;
 MagErr_t Mag_CreateEvent(MagEventHandle *evtHandle, MAG_EVENT_PRIO_t prio){
     i32 rc;
     
-    *evtHandle = (MagEventHandle)malloc(sizeof(**evtHandle));
+    *evtHandle = (MagEventHandle)mag_mallocz(sizeof(**evtHandle));
     if(NULL == *evtHandle)
         return MAG_NoMemory;
 
-    (*evtHandle)->pEvtCommon = (Mag_EventCommon_t *)malloc(sizeof(Mag_EventCommon_t));
+    (*evtHandle)->pEvtCommon = (Mag_EventCommon_t *)mag_mallocz(sizeof(Mag_EventCommon_t));
     if(NULL == (*evtHandle)->pEvtCommon)
         goto err_nomem;
 
-    (*evtHandle)->pEvtCallBack = (Mag_EventCallback_t *)malloc(sizeof(Mag_EventCallback_t));
+    (*evtHandle)->pEvtCallBack = (Mag_EventCallback_t *)mag_mallocz(sizeof(Mag_EventCallback_t));
     if(NULL == (*evtHandle)->pEvtCallBack)
         goto err_nomem;
         
@@ -174,7 +174,7 @@ MagErr_t  Mag_SetEvent(MagEventHandle evtHandle){
                                                                  Mag_EvtCbTimeStamp_t, tsListNode);
                 list_del(pEvtCB->hEvtScheduler->cbTimeStampFreeListH.next);
             }else{
-                evtTSHandle = (Mag_EvtCbTimeStamp_t *)malloc(sizeof(Mag_EvtCbTimeStamp_t));
+                evtTSHandle = (Mag_EvtCbTimeStamp_t *)mag_mallocz(sizeof(Mag_EvtCbTimeStamp_t));
             }
             evtTSHandle->cbBody = pEvtCB->hCallback;
             evtTSHandle->timeStamp.tv_sec = now.tv_sec;
@@ -225,7 +225,7 @@ MagErr_t Mag_RegisterEventCallback(MagEventSchedulerHandle schedHandle, MagEvent
     }
     
     if (NULL == evtHandle->pEvtCallBack->hCallback){
-        evtHandle->pEvtCallBack->hCallback = (MagEventCallbackHandle)malloc(sizeof(MagEventCallbackObj_t));
+        evtHandle->pEvtCallBack->hCallback = (MagEventCallbackHandle)mag_mallocz(sizeof(MagEventCallbackObj_t));
         if(NULL == evtHandle->pEvtCallBack->hCallback)
             return MAG_NoMemory;
     }
@@ -297,7 +297,7 @@ MagErr_t Mag_UnregisterEventCallback(MagEventHandle evtHandle){
 MagErr_t Mag_CreateEventGroup(MagEventGroupHandle *evtGrphandle){
     i32 rc;
 
-    *evtGrphandle = (MagEventGroupHandle)malloc(sizeof(**evtGrphandle));
+    *evtGrphandle = (MagEventGroupHandle)mag_mallocz(sizeof(**evtGrphandle));
     if (NULL == *evtGrphandle)
         return MAG_NoMemory;
 
@@ -757,7 +757,7 @@ MagErr_t Mag_CreateEventScheduler(MagEventSchedulerHandle *evtSched, MagEvtSched
     i32 i;
     Mag_EvtCbTimeStamp_t *node;
         
-    *evtSched = (MagEventSchedulerHandle)malloc(sizeof(**evtSched));
+    *evtSched = (MagEventSchedulerHandle)mag_mallocz(sizeof(**evtSched));
     if (NULL == *evtSched)
         return MAG_NoMemory;
 
@@ -782,7 +782,7 @@ MagErr_t Mag_CreateEventScheduler(MagEventSchedulerHandle *evtSched, MagEvtSched
     
     /*pre-allocate a number of the nodes for later using*/
     for (i = 0; i < 10; i++){
-        node = (Mag_EvtCbTimeStamp_t *)malloc(sizeof(Mag_EvtCbTimeStamp_t));
+        node = (Mag_EvtCbTimeStamp_t *)mag_mallocz(sizeof(Mag_EvtCbTimeStamp_t));
         list_add_tail(&node->tsListNode, &(*evtSched)->cbTimeStampFreeListH);
     }
     

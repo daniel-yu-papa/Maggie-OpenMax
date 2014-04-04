@@ -20,6 +20,8 @@ void MagPlayer::onSourceNotify(MagMessageHandle msg){
     void *value;
     boolean ret;
 
+    AGILE_LOGV("enter!");
+    
     ret = msg->findPointer(msg, "source", &value);
     if (!ret){
         AGILE_LOGE("failed to find the source object!");
@@ -117,8 +119,18 @@ void MagPlayer::onPrepared(MagMessageHandle msg){
         return;
     }else{
         mState = ST_PREPARING;
-        
-        ret = mDemuxer->start(mSource, 0);
+
+        void *value;
+
+        if (MAG_NO_ERROR == getParameters(kDemuxer_Container_Type, MagParamTypeString, &value)){
+            AGILE_LOGV("container type: %s", static_cast<char *>(value));
+            mDemuxer->setParameters(kDemuxer_Container_Type, MagParamTypeString, value);
+        }
+        if (MAG_NO_ERROR == getParameters(kDemuxer_Probe_Stream, MagParamTypeString, &value)){
+            AGILE_LOGV("probe stream: %s", static_cast<char *>(value));
+            mDemuxer->setParameters(kDemuxer_Probe_Stream, MagParamTypeString, value);
+        }
+        ret = mDemuxer->start(mSource, mParametersDB);
 
         if (ret == MAG_NO_ERROR){
             MagMessageHandle msg;
@@ -176,15 +188,11 @@ _status_t MagPlayer::prepareAsync(){
 }
 
 _status_t MagPlayer::prepare(){
-    if (ST_INITIALIZED == mState){
-        prepareAsync();
-        AGILE_LOGD("before prepare waiting!");
-        Mag_WaitForEventGroup(mEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
-        AGILE_LOGD("after prepare waiting!");
-    }else{
-        AGILE_LOGE("MagPlayer is at wrong state:%d. QUIT!", mState);
-        return MAG_INVALID_OPERATION;
-    }
+    prepareAsync();
+    AGILE_LOGD("before prepare waiting!");
+    Mag_WaitForEventGroup(mEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
+    AGILE_LOGD("after prepare waiting!");
+    
     return MAG_NO_ERROR;
 }
 
@@ -213,6 +221,7 @@ void MagPlayer::onStart(MagMessageHandle msg){
 }
 
 _status_t MagPlayer::start(){
+    AGILE_LOGV("enter!");
     if (mStartMsg != NULL){
         mStartMsg->postMessage(mStartMsg, 0);
     }else{
@@ -447,64 +456,150 @@ void MagPlayer::setErrorListener(fnNotifyError fn, void *priv){
     }
 }
 
+void MagPlayer::onSetParameters(MagMessageHandle msg){
+    if (ST_INITIALIZED != mState){
+        AGILE_LOGE("MagPlayer is at wrong state:%d. QUIT!", mState);
+        return;
+    }else{
+        char *name;
+        i32 t;
+        MagParamType_t type;
+        
+        msg->findString(msg, "name", &name);
+        msg->findInt32(msg, "type", &t);
+        type = static_cast<MagParamType_t>(t);
+
+        if (NULL != mParametersDB){
+            switch (type){
+                case MagParamTypeInt32:
+                    {
+                    i32 v;
+                    msg->findInt32(msg, "value", &v);
+                    AGILE_LOGV("name = %s, value = %d", name, v);
+                    mParametersDB->setInt32(mParametersDB, name, v);
+                    }
+                    break;
+
+                case MagParamTypeInt64:
+                    {
+                    i64 v;
+                    msg->findInt64(msg, "value", &v);
+                    mParametersDB->setInt64(mParametersDB, name, v);
+                    }
+                    break;
+
+                case MagParamTypeUInt32:
+                    {
+                    ui32 v;
+                    msg->findUInt32(msg, "value", &v);
+                    mParametersDB->setUInt32(mParametersDB, name, v);
+                    }
+                    break;
+
+                case MagParamTypeFloat:
+                    {
+                    fp32 v;
+                    msg->findFloat(msg, "value", &v);
+                    mParametersDB->setFloat(mParametersDB, name, v);
+                    }
+                    break;
+
+                case MagParamTypeDouble:
+                    {
+                    fp64 v;
+                    msg->findDouble(msg, "value", &v);
+                    mParametersDB->setDouble(mParametersDB, name, v);
+                    }
+                    break;
+
+                case MagParamTypePointer:
+                {
+                    void *value;
+                    msg->findPointer(msg, "value", &value);
+                    mParametersDB->setPointer(mParametersDB, name, value);
+                }
+                    break;
+
+                case MagParamTypeString:
+                {
+                    char *v;
+                    msg->findString(msg, "value", &v);
+                    AGILE_LOGV("name = %s, value = %s", name, v);
+                    mParametersDB->setString(mParametersDB, name, v);
+                }
+                    break;
+
+                default:
+                    AGILE_LOGE("the parameter type(%d) is unrecognized!", type);
+                    break;
+            }
+        }else{
+            AGILE_LOGE("the parameter db is NOT initialized!");
+        }
+    }
+}
+
 _status_t MagPlayer::setParameters(const char *name, MagParamType_t type, void *value){
-    if (NULL != mParametersDB){
+    if (NULL != mSetParametersMsg){
+        mSetParametersMsg->setString(mSetParametersMsg, "name", name);
+        mSetParametersMsg->setInt32(mSetParametersMsg, "type", static_cast<i32>(type));
         switch (type){
             case MagParamTypeInt32:
-                {
+            {
                 i32 v = *(static_cast<i32 *>(value));
-                mParametersDB->setInt32(mParametersDB, name, v);
-                }
+                mSetParametersMsg->setInt32(mSetParametersMsg, "value", v);
+            }
                 break;
-
+                
             case MagParamTypeInt64:
-                {
+            {
                 i64 v = *(static_cast<i64 *>(value));
-                mParametersDB->setInt64(mParametersDB, name, v);
-                }
+                mSetParametersMsg->setInt64(mSetParametersMsg, "value", v);
+            }
                 break;
 
             case MagParamTypeUInt32:
-                {
+            {
                 ui32 v = *(static_cast<ui32 *>(value));
-                mParametersDB->setUInt32(mParametersDB, name, v);
-                }
+                mSetParametersMsg->setUInt32(mSetParametersMsg, "value", v);
+            }
                 break;
 
             case MagParamTypeFloat:
-                {
+            {
                 fp32 v = *(static_cast<fp32 *>(value));
-                mParametersDB->setFloat(mParametersDB, name, v);
-                }
+                mSetParametersMsg->setFloat(mSetParametersMsg, "value", v);
+            }
                 break;
 
             case MagParamTypeDouble:
-                {
+            {
                 fp64 v = *(static_cast<fp64 *>(value));
-                mParametersDB->setDouble(mParametersDB, name, v);
-                }
+                mSetParametersMsg->setDouble(mSetParametersMsg, "value", v);
+            }
                 break;
 
             case MagParamTypePointer:
-                {
-                mParametersDB->setPointer(mParametersDB, name, value);
-                }
+            {
+                mSetParametersMsg->setPointer(mSetParametersMsg, "value", value);
+            }
                 break;
 
             case MagParamTypeString:
-                {
+            {
                 char *v = static_cast<char *>(value);
-                mParametersDB->setString(mParametersDB, name, v);
-                }
+                mSetParametersMsg->setString(mSetParametersMsg, "value", v);
+            }
                 break;
 
-            default:
+             default:
                 AGILE_LOGE("the parameter type(%d) is unrecognized!", type);
                 break;
         }
+        mSetParametersMsg->postMessage(mSetParametersMsg, 0);
     }else{
-        AGILE_LOGE("the parameter db is NOT initialized!");
-        return MAG_INVALID_OPERATION;
+        AGILE_LOGE("the mSetParametersMsg is NULL");
+        return MAG_BAD_VALUE;
     }
     return MAG_NO_ERROR;
 }
@@ -512,93 +607,92 @@ _status_t MagPlayer::setParameters(const char *name, MagParamType_t type, void *
 _status_t MagPlayer::getParameters(const char *name, MagParamType_t type, void **value){
     boolean result;
     _status_t ret = MAG_NO_ERROR;
-
-    AGILE_LOGV("Enter");
-    if (NULL != mParametersDB){
+    
+   if (NULL != mParametersDB){
         switch (type){
             case MagParamTypeInt32:
-                {
+            {
                 i32 *v = NULL;
                 result = mParametersDB->findInt32(mParametersDB, name, v);
                 if (result)
                     *value = static_cast<void *>(v);
                 else
                     ret = MAG_BAD_VALUE;
-                }
+            }
                 break;
 
             case MagParamTypeInt64:
-                {
+            {
                 i64 *v = NULL;
                 result = mParametersDB->findInt64(mParametersDB, name, v);
                 if (result)
                     *value = static_cast<void *>(v);
                 else
                     ret = MAG_BAD_VALUE;
-                }
+            }
                 break;
 
             case MagParamTypeUInt32:
-                {
+            {
                 ui32 *v = NULL;
                 result = mParametersDB->findUInt32(mParametersDB, name, v);
                 if (result)
                     *value = static_cast<void *>(v);
                 else
                     ret = MAG_BAD_VALUE;
-                }
+            }
                 break;
 
             case MagParamTypeFloat:
-                {
+            {
                 fp32 *v = NULL;
                 result = mParametersDB->findFloat(mParametersDB, name, v);
                 if (result)
                     *value = static_cast<void *>(v);
                 else
                     ret = MAG_BAD_VALUE;
-                }
+            }
                 break;
 
             case MagParamTypeDouble:
-                {
+            {
                 fp64 *v = NULL;
                 result = mParametersDB->findDouble(mParametersDB, name, v);
                 if (result)
                     *value = static_cast<void *>(v);
                 else
                     ret = MAG_BAD_VALUE;
-                }
+            }
                 break;
 
             case MagParamTypePointer:
-                {
+            {
                 result = mParametersDB->findPointer(mParametersDB, name, value);
                 if (!result)
                     ret = MAG_BAD_VALUE;
-                }
+            }
                 break;
 
             case MagParamTypeString:
-                {
-                char **v = NULL;
-                result = mParametersDB->findString(mParametersDB, name, v);
+            {
+                char *v = NULL;
+                result = mParametersDB->findString(mParametersDB, name, &v);
+                AGILE_LOGD("string: %s", v);
                 if (result)
-                    *value = static_cast<void *>(*v);
+                    *value = static_cast<void *>(v);
                 else
                     ret = MAG_BAD_VALUE;
-                }
+            }
                 break;
 
             default:
                 AGILE_LOGE("the parameter type(%d) is unrecognized!", type);
+                ret = MAG_BAD_VALUE;
                 break;
         }
     }else{
         AGILE_LOGE("the parameter db is NOT initialized!");
-        return MAG_INVALID_OPERATION;
     }
-    AGILE_LOGV("Exit");
     return ret;
 }
 
@@ -639,12 +733,12 @@ void MagPlayer::onComponentNotify(MagMessageHandle msg){
         }
         
         if (NULL != mDemuxerNotify){
+            AGILE_LOGV("what=kWhatFillThisBuffer, track-idx=%d", ivalue);
             mDemuxerNotify->setInt32(mDemuxerNotify, "what", MagPlayer_Demuxer_Base::kWhatReadFrame);
             mDemuxerNotify->setInt32(mDemuxerNotify, "track-idx", ivalue);
             mDemuxerNotify->setMessage(mDemuxerNotify, "reply", mvalue);
             mDemuxerNotify->postMessage(mDemuxerNotify, 0);
-        }
-            
+        }      
     }
 }
 
@@ -698,6 +792,10 @@ void MagPlayer::onMessageReceived(const MagMessageHandle msg, void *priv){
 
         case MagMsg_ComponentNotify:
             thiz->onComponentNotify(msg);
+            break;
+            
+        case MagMsg_SetParameters:
+            thiz->onSetParameters(msg);
             break;
             
         default:
@@ -792,6 +890,8 @@ void MagPlayer::initialize(){
     
     mLooper         = NULL;
     mMsgHandler     = NULL;
+
+    mSource         = NULL;
     
     mParametersDB = createMagMiniDB(PARAMETERS_DB_SIZE);
         
@@ -799,10 +899,11 @@ void MagPlayer::initialize(){
     mSeekCompleteMQ    = Mag_CreateMsgQueue();
     mPrepareCompleteMQ = Mag_CreateMsgQueue();
 
+    Mag_CreateMutex(&mGetParamLock);
     Mag_CreateMutex(&mStateLock);
 
     Mag_CreateEventGroup(&mEventGroup);
-    if (MAG_ErrNone == Mag_CreateEvent(&mCompletePrepareEvt,MAG_EVT_PRIO_DEFAULT))
+    if (MAG_ErrNone == Mag_CreateEvent(&mCompletePrepareEvt, MAG_EVT_PRIO_DEFAULT))
         Mag_AddEventGroup(mEventGroup, mCompletePrepareEvt);
 
     if (MAG_ErrNone == Mag_CreateEvent(&mCompleteSeekEvt, MAG_EVT_PRIO_DEFAULT))
@@ -815,7 +916,7 @@ void MagPlayer::initialize(){
         Mag_AddEventGroup(mEventGroup, mErrorEvt);
     
     Mag_CreateEventScheduler(&mEventScheduler, MAG_EVT_SCHED_NORMAL);
-
+    
     Mag_RegisterEventCallback(mEventScheduler, mCompletePrepareEvt, onCompletePrepareEvtCB, (void *)this);
     Mag_RegisterEventCallback(mEventScheduler, mCompleteSeekEvt, onCompleteSeekEvtCB, (void *)this);
     Mag_RegisterEventCallback(mEventScheduler, mCompleteFlushEvt, onCompleteFlushEvtCB, (void *)this);
@@ -833,6 +934,7 @@ void MagPlayer::initialize(){
     mSetVolumeMsg       = createMessage(MagMsg_SetVolume);
     mErrorNotifyMsg     = createMessage(MagMsg_ErrorNotify);
     mComponentNotifyMsg = createMessage(MagMsg_ComponentNotify);
+    mSetParametersMsg   = createMessage(MagMsg_SetParameters);
 }
 
 MagMessageHandle MagPlayer::createMessage(ui32 what) {
@@ -887,6 +989,7 @@ _status_t MagPlayer::getLooper(){
     
     if (NULL == mLooper){
         mLooper = createLooper(LOOPER_NAME);
+        AGILE_LOGV("looper handler: 0x%x", mLooper);
     }
     
     if (NULL != mLooper){

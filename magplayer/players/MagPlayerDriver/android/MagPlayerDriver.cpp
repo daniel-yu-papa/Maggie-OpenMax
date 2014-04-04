@@ -10,7 +10,8 @@ static const MagParametersTable_t sParamTable[] = {
 };
 
 MagPlayerDriver::MagPlayerDriver(void *client, notify_client_callback_f cb):
-    mState(MPD_ST_IDLE){
+                                                                mState(MPD_ST_IDLE),
+                                                                mSetTrackIndex(0){
     mpClient = client;
     mClientNotifyFn = cb;
     
@@ -29,6 +30,8 @@ MagPlayerDriver::~MagPlayerDriver(){
 }
 
 _status_t MagPlayerDriver::setDataSource(const char *url){
+    AGILE_LOGV("enter! url=%s", url);
+    
     if (mpPlayer != NULL){
         mState = MPD_ST_INITIALIZED;
         return mpPlayer->setDataSource(url);
@@ -38,6 +41,8 @@ _status_t MagPlayerDriver::setDataSource(const char *url){
 }
 
 _status_t MagPlayerDriver::setDataSource(i32 fd, i64 offset, i64 length){
+    AGILE_LOGV("enter! fd=%d, offset=%lld, length=%lld", fd, offset, length);
+    
     if (mpPlayer != NULL){
         mState = MPD_ST_INITIALIZED;
         return mpPlayer->setDataSource(fd, offset, length);
@@ -55,21 +60,16 @@ _status_t MagPlayerDriver::setDataSource(const sp<IStreamBuffer> &source){
     }
     AGILE_LOGV("Enter!");
     
-    ret = getParameter(idsMediaType, &param);
-    AGILE_LOGV("22222!");
-    if (ret == MAG_NO_ERROR){
-        i32 mt = param.readInt32();
-        if (mt == MediaTypeTS){
-            mpStreamBufUser = new StreamBufferUser(source, 4*1024*1024, 1);
-        }else if (mt == MediaTypeES){
+    IStreamBuffer::Type sbt = source->getType();
+    
+    if (sbt == IStreamBuffer::TS){
+        AGILE_LOGV("it is TS stream buffer!");
+        mpStreamBufUser = new StreamBufferUser(source, 1*1024*1024, 1);
+    }else if (sbt == IStreamBuffer::ES){
 
-        }else{
-           AGILE_LOGE("unsupported source type: %d", mt);
-           return MAG_BAD_TYPE;
-        }
     }else{
-        AGILE_LOGE("need to set the media type before setSource");
-        return MAG_INVALID_OPERATION;
+       AGILE_LOGE("unsupported source type: %d", sbt);
+       return MAG_BAD_TYPE;
     }
     
     mState = MPD_ST_INITIALIZED;
@@ -81,6 +81,7 @@ _status_t MagPlayerDriver::setVideoSurfaceTexture(const sp<ISurfaceTexture> &sur
 }
 
 _status_t MagPlayerDriver::prepare(){
+    AGILE_LOGV("Enter! state = %d", mState);
     if (MPD_ST_INITIALIZED == mState){
         return mpPlayer->prepare();
     }else{
@@ -198,21 +199,26 @@ _status_t MagPlayerDriver::setParameter(int key, const Parcel &request){
         case idsMediaType:
         case idsVideo_Codec:
         case idsAudio_Codec:
-            {
+        {
             i32 value = request.readInt32();
             mpPlayer->setParameters(sParamTable[key].name, sParamTable[key].type, static_cast<void *>(&value));
-            }
+        }
             break;
             
         case idsVideo_TS_pidlist:
         case idsAudio_TS_pidlist:
-            {
+        {
             /*the parcel format: number pid#1 codec#1 pid#2 codec#2 pid#3 codec#3 ....*/
             TrackInfo_t *track;
             char keyValue[64];
             i32 i;
             i32 number = request.readInt32();
-
+            char tmp[8] = "ts";
+            char tmp1[8] = "no";
+            
+            mpPlayer->setParameters(kDemuxer_Container_Type, MagParamTypeString, static_cast<void *>(tmp));
+            mpPlayer->setParameters(kDemuxer_Probe_Stream,   MagParamTypeString, static_cast<void *>(tmp1));
+            
             if (key == idsVideo_TS_pidlist)
                 mpPlayer->setParameters(kDemuxer_Video_Track_Number, MagParamTypeInt32, static_cast<void *>(&number));
             else
@@ -228,20 +234,18 @@ _status_t MagPlayerDriver::setParameter(int key, const Parcel &request){
                         track->type = TRACK_AUDIO;
                     
                     sprintf(keyValue, kDemuxer_Track_Info, i);
-                    track->pid   = request.readInt32();
-                    track->codec = request.readInt32();
-                    mpPlayer->setParameters(keyValue, MagParamTypePointer, static_cast<void *>(track));
-                    if (key == idsVideo_TS_pidlist)
-                        sprintf(keyValue, "video.%s", keyValue);
-                    else
-                        sprintf(keyValue, "audio.%s", keyValue);
+                    track->pid   = static_cast<ui32>(request.readInt32());
+                    track->codec = static_cast<ui32>(request.readInt32());
                     track->name  = mag_strdup(keyValue);
+                    mpPlayer->setParameters(keyValue, MagParamTypePointer, static_cast<void *>(track));
+                    AGILE_LOGV("%s track[name: %s]: pid = %u, codec = %u", (key == idsVideo_TS_pidlist) ? "video" : "audio", keyValue,
+                                track->pid, track->codec);
                 }else{
                     AGILE_LOGE("No memory to create the TrackInfo_t");
                 }
             }  
             mSetTrackIndex = i;
-            }
+        }
             break;
 
         default:

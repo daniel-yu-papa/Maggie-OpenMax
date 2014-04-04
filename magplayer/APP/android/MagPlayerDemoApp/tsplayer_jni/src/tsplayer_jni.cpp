@@ -77,6 +77,9 @@ bool ReadFileThread::Start(CTC_MediaProcessor *p, const char *fileName)
     mFile = fopen(fileName, "rb+");
     if (NULL != mFile){
         LOGI("open the file: %s", fileName);
+        mPlayer  = p;
+        mRunning = true;
+        mBuffer = (unsigned char *)malloc(mNumTsPackets*188);
         if (run("readFileThread", ANDROID_PRIORITY_NORMAL) != 0){
             LOGE("failed to run readFileThread");
             return false;
@@ -85,10 +88,6 @@ bool ReadFileThread::Start(CTC_MediaProcessor *p, const char *fileName)
         LOGE("failed to open the file: %s", fileName);
         return false;
     }
-    
-    mPlayer  = p;
-    mRunning = true;
-    mBuffer = (unsigned char *)malloc(mNumTsPackets*188);
     return true;
 }
 
@@ -124,18 +123,19 @@ void Java_com_magplayer_MagPlayerDemo_nativeInit(JNIEnv* env, jobject thiz, jint
 	    return;
 	}
 	
-	AUDIO_PARA_T audioPara;
-	audioPara.pid = apid;
+	AUDIO_PARA_T audioPara[2];
+	audioPara[0].pid = apid;
     if (acodec == 0){
-	    audioPara.aFmt = FORMAT_MPEG;
+	    audioPara[0].aFmt = FORMAT_MPEG;
 	}else if (acodec == 1){
-	    audioPara.aFmt = FORMAT_AAC;
+	    audioPara[0].aFmt = FORMAT_AAC;
 	}else if (acodec == 2){
-	    audioPara.aFmt = FORMAT_DDPlus;
+	    audioPara[0].aFmt = FORMAT_DDPlus;
 	}else{
 	    LOGE("failed to get the correct audio codec(%d)", acodec);
 	    return;
 	}
+	audioPara[1].pid = 0;
 	
 	strcpy(gFileName, (*env).GetStringUTFChars(url, NULL));
 	LOGI("tsplayer file name is %s", gFileName);
@@ -145,7 +145,7 @@ void Java_com_magplayer_MagPlayerDemo_nativeInit(JNIEnv* env, jobject thiz, jint
 	
 	if (ctc_MediaProcessor != NULL){
     	ctc_MediaProcessor->InitVideo(&videoPara);
-    	ctc_MediaProcessor->InitAudio(&audioPara);
+    	ctc_MediaProcessor->InitAudio(audioPara);
     }
 }
 

@@ -13,6 +13,7 @@ enum {
     SET_USER = IBinder::FIRST_CALL_TRANSACTION,
     SET_BUFFERS,
     ON_BUFFER_EMPTY,
+    GET_TYPE,
 };
 
 struct BpStreamBuffer : public BpInterface<IStreamBuffer> {
@@ -24,7 +25,9 @@ struct BpStreamBuffer : public BpInterface<IStreamBuffer> {
         Parcel data, reply;
         data.writeInterfaceToken(IStreamBuffer::getInterfaceDescriptor());
         data.writeStrongBinder(user->asBinder());
+        AGILE_LOGD("enter!");
         remote()->transact(SET_USER, data, &reply);
+        AGILE_LOGD("exit!");
     }
 
     virtual void setBuffers(List_t *bufListHead) {
@@ -33,7 +36,8 @@ struct BpStreamBuffer : public BpInterface<IStreamBuffer> {
         List_t *tmpNode;
         ui32 size = 0;
         BufferNode_t *pBufNode;
-        
+
+        AGILE_LOGD("enter!");
         tmpNode = bufListHead->next;
         while(tmpNode != bufListHead){
             size++;
@@ -51,6 +55,7 @@ struct BpStreamBuffer : public BpInterface<IStreamBuffer> {
             tmpNode = tmpNode->next;
         }
         remote()->transact(SET_BUFFERS, data, &reply);
+        AGILE_LOGD("exit!");
     }
 
     virtual void onBufferEmpty(_size_t index, _size_t size) {
@@ -60,6 +65,13 @@ struct BpStreamBuffer : public BpInterface<IStreamBuffer> {
         data.writeInt32(static_cast<int32_t>(size));
         remote()->transact(
                 ON_BUFFER_EMPTY, data, &reply, IBinder::FLAG_ONEWAY);
+    }
+
+    virtual Type getType(void) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IStreamBuffer::getInterfaceDescriptor());
+        remote()->transact(GET_TYPE, data, &reply);
+        return static_cast<Type>(reply.readInt32());
     }
 };
 
@@ -71,13 +83,16 @@ status_t StreamBuffer_Server::onTransact(
         case SET_USER:
         {
             CHECK_INTERFACE(IStreamBuffer, data, reply);
+            AGILE_LOGD("SET_USER: enter!");
             setUser(interface_cast<IStreamBufferUser>(data.readStrongBinder()));
+            AGILE_LOGD("SET_USER: exit!");
             break;
         }
 
         case SET_BUFFERS:
         {
             CHECK_INTERFACE(IStreamBuffer, data, reply);
+            AGILE_LOGD("SET_BUFFERS: enter!");
             _size_t n = static_cast<_size_t>(data.readInt32());
             List_t *bufHead = (List_t *)mag_mallocz(sizeof(List_t));
             BufferNode_t *p;
@@ -93,6 +108,7 @@ status_t StreamBuffer_Server::onTransact(
                 list_add_tail(&p->node, bufHead);
             }
             setBuffers(bufHead);
+            AGILE_LOGD("SET_BUFFERS: exit!");
             break;
         }
 
@@ -103,6 +119,13 @@ status_t StreamBuffer_Server::onTransact(
             break;
         }
 
+        case GET_TYPE:
+        {
+            CHECK_INTERFACE(IStreamBuffer, data, reply);
+            reply->writeInt32(static_cast<i32>(getType()));
+            break;
+        }
+        
         default:
             return BBinder::onTransact(code, data, reply, flags);
     }

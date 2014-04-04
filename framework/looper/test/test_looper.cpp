@@ -64,7 +64,7 @@ Comp_A::~Comp_A(){
 void Comp_A::onMsg_Test_1(MagMessageHandle msg){
     boolean ret;
     char *value;
-    i32 idx;
+    char *sidx;
     
     ret = msg->findString(msg, "msg", &value);
     if (!ret){
@@ -72,12 +72,12 @@ void Comp_A::onMsg_Test_1(MagMessageHandle msg){
         return;
     } 
 
-    ret = msg->findInt32(msg, "num", &idx);
+    ret = msg->findString(msg, "num", &sidx);
     if (!ret){
-        AGILE_LOGE("failed to find the idx int32!");
+        AGILE_LOGE("failed to find the idx string!");
         return;
     } 
-    AGILE_LOGD("handler %d: do message %s action[index: %d]!", msg->mTarget, value, idx);
+    AGILE_LOGD("handler %d: do message %s action[index: %s]!", msg->mTarget, value, sidx);
     usleep(100000);
 }
 
@@ -387,9 +387,10 @@ int main(){
     replyObj->start();
     
     //sleep(5);
-    
+    char buf[64];
     for (i = 0; i < 10; i++){
-        msg1->setInt32(msg1, "num", i);
+        sprintf(buf, "num%d", i);
+        msg1->setString(msg1, "num", buf);
         msg1->postMessage(msg1, 200);
         usleep(10000);
 

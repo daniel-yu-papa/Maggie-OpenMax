@@ -31,7 +31,7 @@ typedef struct mag_item{
     union {
         i32     int32Value;
         i64     int64Value;
-        _size_t sizeValue;
+        ui32    ui32Value;
         fp32    floatValue;
         fp64    doubleValue;
         void    *ptrValue;
@@ -57,7 +57,7 @@ typedef struct mag_message{
     
     void (*setInt32)(struct mag_message *msg, const char *name, i32 value);
     void (*setInt64)(struct mag_message *msg, const char *name, i64 value);
-    void (*setSize)(struct mag_message *msg, const char *name, _size_t value);
+    void (*setUInt32)(struct mag_message *msg, const char *name, ui32 value);
     void (*setFloat)(struct mag_message *msg, const char *name, fp32 value);
     void (*setDouble)(struct mag_message *msg, const char *name, fp64 value);
     void (*setPointer)(struct mag_message *msg, const char *name, void *value);
@@ -66,7 +66,7 @@ typedef struct mag_message{
     
     boolean (*findInt32)(struct mag_message *msg, const char *name, i32 *value);
     boolean (*findInt64)(struct mag_message *msg, const char *name, i64 *value);
-    boolean (*findSize)(struct mag_message *msg, const char *name, _size_t *value);
+    boolean (*findUInt32)(struct mag_message *msg, const char *name, ui32 *value);
     boolean (*findFloat)(struct mag_message *msg, const char *name, fp32 *value);
     boolean (*findDouble)(struct mag_message *msg, const char *name, fp64 *value);
     boolean (*findPointer)(struct mag_message *msg, const char *name, void **value);
@@ -124,6 +124,8 @@ typedef struct MagLooper{
     ui32 mHandlerID;
 
     i64 mDelayEvtWhenMS;
+
+    i32 mFreeNodeNum;
     
     void (*registerHandler)(struct MagLooper *self, const MagHandler_t *handler);
     _status_t (*unregisterHandler)(struct MagLooper *self, i32 handlerID);

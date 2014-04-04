@@ -65,6 +65,7 @@ _status_t MagPlayerClient::attachNewPlayer(const sp<IMagPlayerClient>& player)
     }
 
     if (p != 0) {
+        AGILE_LOGV("release old MagPlayer!");
         p->disconnect();
     }
 
@@ -106,7 +107,7 @@ _status_t MagPlayerClient::setDataSource(i32 fd, i64 offset, i64 length)
 }
 
 _status_t MagPlayerClient::setDataSource(const sp<IStreamBuffer> &source){
-    AGILE_LOGV("setDataSource");
+    AGILE_LOGV("setDataSource stream buffer");
     _status_t err = MAG_BAD_VALUE;
 
     const sp<IMagPlayerService>& service(getMagPlayerService());
@@ -336,11 +337,11 @@ _status_t MagPlayerClient::setVolume(float leftVolume, float rightVolume)
 
 _status_t MagPlayerClient::setParameter(int key, const Parcel& request)
 {
-   _status_t ret = MAG_UNKNOWN_ERROR;
-    
+    _status_t ret = MAG_UNKNOWN_ERROR;
+
     AGILE_LOGV("setParameter(key:%d)", key);
     Mutex::Autolock _l(mLock);
-    if ( (mPlayer != 0) && ( mCurrentState & MAG_PLAYER_RUNNING ) ) {
+    if ( (mPlayer != 0) && ( mCurrentState & MAG_PLAYER_INITIALIZED ) ) {
         _status_t ret = mPlayer->setParameter(key, request);
         if (ret != MAG_NO_ERROR) {
             mCurrentState = MAG_PLAYER_STATE_ERROR;
@@ -355,7 +356,7 @@ _status_t MagPlayerClient::getParameter(int key, Parcel *reply)
     
     AGILE_LOGV("getParameter(key:%d)", key);
     Mutex::Autolock _l(mLock);
-    if ( (mPlayer != 0) && ( mCurrentState & MAG_PLAYER_RUNNING ) ) {
+    if ( (mPlayer != 0) && ( mCurrentState & MAG_PLAYER_INITIALIZED ) ) {
         _status_t ret = mPlayer->getParameter(key, reply);
         if (ret != MAG_NO_ERROR) {
             mCurrentState = MAG_PLAYER_STATE_ERROR;
@@ -401,7 +402,11 @@ void MagPlayerClient::notify(int msg, int ext1, int ext2)
     case MEDIA_BUFFERING_UPDATE:
         AGILE_LOGV("buffering %d", ext1);
         break;
-    
+        
+    case MEDIA_PREPARED:
+        AGILE_LOGV("prepare completed");
+        break;
+        
     default:
         AGILE_LOGV("unrecognized message: (%d, %d, %d)", msg, ext1, ext2);
         break;
