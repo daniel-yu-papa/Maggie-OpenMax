@@ -58,13 +58,13 @@ bool ReadFileThread::threadLoop()
     int rd_result = 0;
     if (mRunning){
         if (NULL != mFile){
-    		rd_result = fread(mBuffer, (mNumTsPackets*188), 1, mFile);
+    		rd_result = fread(mBuffer, 1, (mNumTsPackets*188), mFile);
     		if (rd_result <= 0)	
 			{
 				LOGE("read the end of file");
+                mPlayer->WriteData(mBuffer, 0);
 				return false;
 			}
-    		
     		int wd_result = mPlayer->WriteData(mBuffer, rd_result);
     		usleep(mWCycle*1000);
 	    }
@@ -105,7 +105,8 @@ CTC_MediaProcessor* ctc_MediaProcessor = NULL;
 FILE *fp = NULL;
 int isPause = 0;
 char gFileName[128];
-ReadFileThread *gThread;
+/*YJ comment: the thread only get running once if using ReadFileThread *gThread. we must use below definition to get it working as expected!*/
+sp<ReadFileThread> gThread;
 
 void Java_com_magplayer_MagPlayerDemo_nativeInit(JNIEnv* env, jobject thiz, jint vpid, jint vcodec, jint apid, jint acodec, jint numTSPackets, jint wCycle, jstring url)
 {

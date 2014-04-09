@@ -12,6 +12,8 @@ extern "C" {
 #include "MagPlayer_Demuxer_Base.h"
 #include "MagPlayer_ContentPipe.h"
 
+#include <stdio.h>
+
 #define TS_NOPROBE_NEW_PID_MASK      (0x8000)
 #define TS_NOPROBE_REMOVE_PID_MASK   (0x10000)
 
@@ -22,7 +24,7 @@ public:
     virtual ~MagPlayer_Demuxer_FFMPEG();
 
     virtual _status_t   readFrameInternal(ui32 StreamID, MediaBuffer_t **buffer);
-    virtual _status_t   start(MagPlayer_Component_CP *contentPipe, MagMiniDBHandle paramDB);
+    virtual _status_t   startInternal(MagPlayer_Component_CP *contentPipe, MagMiniDBHandle paramDB);
     virtual _status_t   stop();
     
 private:
@@ -67,6 +69,10 @@ private:
     static i64 AVIO_Static_Seek (void * opaque, i64 offset, i32 whence);
 
     RBTreeNodeHandle mStreamIDRoot;
+
+    /*dump ffmpeg frames to the file. for debugging purpose*/
+    FILE *mVideoDumpFile; 
+    FILE *mAudioDumpFile;
 };
 
 #endif

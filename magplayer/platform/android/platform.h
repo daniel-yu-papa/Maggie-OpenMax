@@ -3,4 +3,8 @@
 
 #define GET_POINTER(obj) obj.get()
 
+#define ATOMIC_INC(v) android_atomic_inc(v)
+
+#define ATOMIC_DEC(v) android_atomic_dec(v)
+
 #endif

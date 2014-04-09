@@ -153,9 +153,9 @@ static boolean LooperThreadEntry(void *priv){
         return MAG_FALSE;
 
     if (MagEventQueueEmpty(looper)){
-        AGILE_LOGD("[0x%x] before waiting[evt grp: 0x%x]",looper, looper->mMQPushEvtGroup);
+        //AGILE_LOGV("[0x%x] before waiting[evt grp: 0x%x]",looper, looper->mMQPushEvtGroup);
         Mag_WaitForEventGroup(looper->mMQPushEvtGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
-        AGILE_LOGD("[0x%x] after waiting[evt grp: 0x%x]",looper, looper->mMQPushEvtGroup);
+        //AGILE_LOGV("[0x%x] after waiting[evt grp: 0x%x]",looper, looper->mMQPushEvtGroup);
     }
 
     Mag_AcquireMutex(looper->mLock);
@@ -163,7 +163,7 @@ static boolean LooperThreadEntry(void *priv){
         i64 nowMS = getNowMs();
         void *value;
         rbtree_getMinValue(looper->mDelayEvtTreeRoot, &looper->mDelayEvtWhenMS, &value);
-        AGILE_LOGD("min value: %lld", looper->mDelayEvtWhenMS);
+        AGILE_LOGV("min value: %lld", looper->mDelayEvtWhenMS);
         if (looper->mDelayEvtWhenMS > nowMS){
             msg = getNoDelayMessage(looper);
             Mag_ReleaseMutex(looper->mLock);

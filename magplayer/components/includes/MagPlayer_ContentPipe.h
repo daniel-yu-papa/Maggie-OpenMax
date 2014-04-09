@@ -1,6 +1,7 @@
 #ifndef __MAGPLAYER_CONTENT_PIPE_H__
 #define __MAGPLAYER_CONTENT_PIPE_H__
 
+#include "MagFramework.h"
 #include "StreamBufferDef.h"
 
 #ifndef MPCP_IN
@@ -93,16 +94,34 @@ public:
     MPCP_RESULTTYPE GetSize( MPCP_OUT MPCP_POSITIONTYPE* pSize );
 
     MPCP_RESULTTYPE Read( MPCP_OUT ui8* pData, MPCP_INOUT ui32* pSize );
+    void            SetDemuxerNotifier(MagMessageHandle msg);
 
 private:
+    enum{
+        MagCPMsg_DataObserver,
+    };
+    
     enum Source_t{
         MPCP_INVALID = 0,
         MPCP_URL,
         MPCP_MEMORY,
     };
+
     StreamBufferUser *mStreamBuffer;
 
     enum Source_t mSourceType;
+
+    void onDataObserver(MagMessageHandle msg);
+    MagMessageHandle createMessage(ui32 what);
+    _status_t getLooper();
+
+    static void onMessageReceived(const MagMessageHandle msg, void *priv);
+    
+    MagLooperHandle  mLooper;
+    MagHandlerHandle mMsgHandler;
+
+    MagMessageHandle mDataObserverMsg;
+    MagMessageHandle mDemuxerNotifier;
 };
 
 

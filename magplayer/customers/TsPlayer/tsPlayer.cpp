@@ -218,8 +218,7 @@ bool TsPlayer::StartPlay(){
 
 int  TsPlayer::WriteData(unsigned char* pBuffer, unsigned int nSize){
     int w = 0;
-    
-    AGILE_LOGV("Enter: write size - %d", nSize);   
+      
     if (!mbInitialized){
         AGILE_LOGE("the player is not initialized, quit!");
         return 0;
@@ -231,9 +230,12 @@ int  TsPlayer::WriteData(unsigned char* pBuffer, unsigned int nSize){
     }
         
     StreamBuffer *sb = static_cast<StreamBuffer *>(GET_POINTER(mStreamBuf));
-    
-    w = sb->WriteData(pBuffer, nSize, true);
-    AGILE_LOGV("write size: %d", w);
+    if (nSize != 0){
+        w = sb->WriteData(pBuffer, nSize, true);
+    }else{
+        /*if nSize == 0, to notify the EOS*/
+        sb->getUser()->issueCommand(IStreamBufferUser::EOS, true);
+    }
     return w;
 }
 

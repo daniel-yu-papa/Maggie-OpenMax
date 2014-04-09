@@ -12,7 +12,8 @@ StreamBufferUser::StreamBufferUser(const sp<IStreamBuffer> &buffer, _size_t bufS
     mBufferSize   = bufSize;
     mBufferNumber = bufNum;
     mStreamBuffer = buffer;
-
+    mReadPolicy   = StreamBufferUser::READ_ANY;
+        
     init();
 }
 
@@ -69,7 +70,7 @@ void StreamBufferUser::init(){
 void StreamBufferUser::fill_CircularBuffer(_size_t size){
     if (mCBMgr != NULL){
         Mag_AcquireMutex(mCBMgr->lock);
-        //AGILE_LOGI("filled %u bytes data", size);
+        //AGILE_LOGV("filled %u bytes data", size);
         mCBMgr->writeIndex += size;
         mCBMgr->writeIndex = mCBMgr->writeIndex % mCBMgr->totalSize;
         Mag_ReleaseMutex(mCBMgr->lock);
@@ -109,16 +110,38 @@ void StreamBufferUser::issueCommand(Command cmd, bool synchronous){
     }
 }
 
+_size_t StreamBufferUser::getDataSize(){
+    i32 w;
+    i32 r;
+
+    Mag_AcquireMutex(mCBMgr->lock);
+    r = mCBMgr->readIndex;
+    w = mCBMgr->writeIndex;
+    Mag_ReleaseMutex(mCBMgr->lock);
+
+    if (w < r){
+        return (_size_t)(mCBMgr->totalSize - (r - w));
+    }else if (w > r){
+        return (_size_t)(w - r);
+    }
+    return 0;
+}
+
+void StreamBufferUser::setReadPolicy(enum Read_Policy p){
+    mReadPolicy = p;
+}
+
 _size_t StreamBufferUser::readData_CircularBuffer(void *data, _size_t size){
     i32 w;
     i32 total_read = 0;
-    
+
+restart:
     Mag_AcquireMutex(mCBMgr->lock);
     w = mCBMgr->writeIndex;
     Mag_ReleaseMutex(mCBMgr->lock);
-    
+
     if (mCBMgr != NULL){
-        //AGILE_LOGI("readIndex=%d, writeIndex=%u, size=%u", mCBMgr->readIndex, w, size);
+        AGILE_LOGV("readIndex=%d, writeIndex=%u, size=%u", mCBMgr->readIndex, w, size);
         if (w == mCBMgr->readIndex){
             /*if w == r: the buffer is empty*/
             return 0;
@@ -139,17 +162,22 @@ _size_t StreamBufferUser::readData_CircularBuffer(void *data, _size_t size){
                 mStreamBuffer->onBufferEmpty(0, size);
                 return size;
             }else{
-                ui32 firstPart = mCBMgr->totalSize - mCBMgr->readIndex;
-                ui32 secondPart = w;
+                if (mReadPolicy == StreamBufferUser::READ_ANY){
+                    ui32 firstPart = mCBMgr->totalSize - mCBMgr->readIndex;
+                    ui32 secondPart = w;
 
-                if (firstPart > 0)
-                    memcpy(data, static_cast<void *>(static_cast<ui8 *>(mCBMgr->pointer) + mCBMgr->readIndex), firstPart);
-                memcpy(static_cast<void *>(static_cast<ui8 *>(data) + firstPart), static_cast<void *>(mCBMgr->pointer), secondPart);
+                    if (firstPart > 0)
+                        memcpy(data, static_cast<void *>(static_cast<ui8 *>(mCBMgr->pointer) + mCBMgr->readIndex), firstPart);
+                    memcpy(static_cast<void *>(static_cast<ui8 *>(data) + firstPart), static_cast<void *>(mCBMgr->pointer), secondPart);
 
-                mCBMgr->readIndex = w;
-                total_read = firstPart + secondPart;
-                mStreamBuffer->onBufferEmpty(0, total_read);
-                return total_read;
+                    mCBMgr->readIndex = w;
+                    total_read = firstPart + secondPart;
+                    mStreamBuffer->onBufferEmpty(0, total_read);
+                    return total_read;
+                }else{
+                    usleep(10000);
+                    goto restart;
+                }
             }
         }else{
             if (w - mCBMgr->readIndex >= static_cast<i32>(size)){
@@ -158,18 +186,22 @@ _size_t StreamBufferUser::readData_CircularBuffer(void *data, _size_t size){
                 mStreamBuffer->onBufferEmpty(0, size);
                 return size;
             }else{
-                total_read = w - mCBMgr->readIndex;
-                memcpy(data, static_cast<void *>(static_cast<ui8 *>(mCBMgr->pointer) + mCBMgr->readIndex), total_read);
-                mCBMgr->readIndex += total_read;
-                mStreamBuffer->onBufferEmpty(0, total_read);
-                return total_read;
+                if (mReadPolicy == StreamBufferUser::READ_ANY){
+                    total_read = w - mCBMgr->readIndex;
+                    memcpy(data, static_cast<void *>(static_cast<ui8 *>(mCBMgr->pointer) + mCBMgr->readIndex), total_read);
+                    mCBMgr->readIndex += total_read;
+                    mStreamBuffer->onBufferEmpty(0, total_read);
+                    return total_read;
+                }else{
+                    usleep(10000);
+                    goto restart;
+                }
             }
         }
     }else{
         AGILE_LOGE("mCBMgr is NULL. invalid state!");
-        return 0;
     }
-    return size;    
+    return 0;    
 }
 
 _size_t StreamBufferUser::read(void *data, _size_t size){

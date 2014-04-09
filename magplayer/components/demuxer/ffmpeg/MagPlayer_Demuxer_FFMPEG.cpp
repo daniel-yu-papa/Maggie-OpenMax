@@ -21,6 +21,12 @@ static const ui32 kVideoBufPoolSize = (8 * 1024 * 1024);
 static const ui32 kAudioBufPoolSize = (512 * 1024);
 static const ui32 kSubtitleBufPoolSize = (512 * 1024);
 
+#define FFMPEG_DEMUXER_DEBUG
+
+#ifdef FFMPEG_DEMUXER_DEBUG
+#define VIDEO_FRAMES_FUMP_FILE "/data/ffmpeg_video.es"
+#define AUDIO_FRAMES_FUMP_FILE "/data/ffmpeg_audio.es"
+#endif
 
 MagPlayer_Demuxer_FFMPEG::MagPlayer_Demuxer_FFMPEG():
                              mInitialized(false),
@@ -29,10 +35,23 @@ MagPlayer_Demuxer_FFMPEG::MagPlayer_Demuxer_FFMPEG():
     av_log_set_callback(PrintLog_Callback);
 
     av_register_all();
+    
+#ifdef FFMPEG_DEMUXER_DEBUG
+    mVideoDumpFile = NULL;
+    mAudioDumpFile = NULL;
+#endif
 }
 
 MagPlayer_Demuxer_FFMPEG::~MagPlayer_Demuxer_FFMPEG(){
     av_log_set_callback(NULL);
+#ifdef FFMPEG_DEMUXER_DEBUG
+    if (NULL != mAudioDumpFile){
+        fclose(mAudioDumpFile);
+    }
+    if (NULL != mVideoDumpFile){
+        fclose(mVideoDumpFile);
+    }
+#endif
 }
 
 void MagPlayer_Demuxer_FFMPEG::PrintLog_Callback(void* ptr, int level, const char* fmt, va_list vl){
@@ -295,7 +314,7 @@ bool MagPlayer_Demuxer_FFMPEG::ts_noprobe_decide_adding(enum CodecID codec, ui32
                         mpAVFormat->streams[i]->id, 
                         mpAVFormat->streams[i]->codec->codec_id);
             
-            if (!(mpAVFormat->streams[i]->id & TS_NOPROBE_REMOVE_PID_MASK) && (mpAVFormat->streams[i]->id == pid)){
+            if (!(mpAVFormat->streams[i]->id & TS_NOPROBE_REMOVE_PID_MASK) && (mpAVFormat->streams[i]->id == (i32)pid)){
                 if (mpAVFormat->streams[i]->codec->codec_id == codec){
                     return false;
                 }else{
@@ -418,14 +437,13 @@ _status_t  MagPlayer_Demuxer_FFMPEG::ts_noprobe_start(){
         if (NULL == context){
             return MAG_NO_MEMORY;
         }
-        
-        ffmpeg_utiles_SetOption("probesize", "1024"); //128000
 
         mpAVFormat = ffmpeg_utiles_CreateAVFormat(NULL, context, false, false);
         if (NULL == mpAVFormat){
             return MAG_NO_MEMORY;
         }
         
+        ffmpeg_utiles_SetOption("probesize", "1024"); //128000
         av_dict_copy(&avdict_tmp, mpFormatOpts, 0);
 
         if ((rc = av_opt_set_dict(mpAVFormat, &avdict_tmp)) < 0)
@@ -552,11 +570,21 @@ _status_t  MagPlayer_Demuxer_FFMPEG::probe_stop(){
     return MAG_NO_ERROR;
 }
 
-_status_t  MagPlayer_Demuxer_FFMPEG::start(MagPlayer_Component_CP *contentPipe, MagMiniDBHandle paramDB){
+_status_t  MagPlayer_Demuxer_FFMPEG::startInternal(MagPlayer_Component_CP *contentPipe, MagMiniDBHandle paramDB){
     char *value;
     boolean ret;
     _status_t rc = MAG_NO_ERROR;
     
+#ifdef FFMPEG_DEMUXER_DEBUG
+    mVideoDumpFile = fopen(VIDEO_FRAMES_FUMP_FILE, "wb+");
+    if (NULL != mVideoDumpFile)
+        AGILE_LOGE("failed to open the file: %s", VIDEO_FRAMES_FUMP_FILE);
+    
+    mAudioDumpFile = fopen(AUDIO_FRAMES_FUMP_FILE, "wb+");
+    if (NULL != mAudioDumpFile)
+        AGILE_LOGE("failed to open the file: %s", AUDIO_FRAMES_FUMP_FILE);
+#endif
+
     mDataSource = contentPipe;
     
     if (NULL == mParamDB){
@@ -581,7 +609,6 @@ _status_t  MagPlayer_Demuxer_FFMPEG::start(MagPlayer_Component_CP *contentPipe, 
             }
         }
     }
-
     return probe_start();
 }
 
@@ -624,6 +651,7 @@ void MagPlayer_Demuxer_FFMPEG::setMediaBufferFields(MediaBuffer_t *mb, AVPacket 
 }
 
 _status_t MagPlayer_Demuxer_FFMPEG::readMore(Stream_Track *track, ui32 StreamID){
+#define READ_FRAME_TRY_MAX 10
     AVPacket packet;
     MediaBuffer_t *mb;
     Stream_Track *other_track;
@@ -632,6 +660,17 @@ _status_t MagPlayer_Demuxer_FFMPEG::readMore(Stream_Track *track, ui32 StreamID)
         i32 res = av_read_frame(mpAVFormat, &packet);
         if (res >= 0) {
             av_dup_packet(&packet);
+#ifdef FFMPEG_DEMUXER_DEBUG
+            if (mpAVFormat->streams[packet.stream_index]->codec->codec_type == AVMEDIA_TYPE_AUDIO){
+                if (NULL != mAudioDumpFile){
+                    fwrite(packet.data, 1, packet.size, mAudioDumpFile);
+                }
+            }else{
+                if (NULL != mVideoDumpFile){
+                    fwrite(packet.data, 1, packet.size, mVideoDumpFile);
+                }
+            }
+#endif
             if (StreamID == packet.stream_index){
                 mb = track->getMediaBuffer();
                 setMediaBufferFields(mb, &packet);
@@ -652,7 +691,7 @@ _status_t MagPlayer_Demuxer_FFMPEG::readMore(Stream_Track *track, ui32 StreamID)
                 av_free_packet(&packet);
             }  
         } else {
-            AGILE_LOGD("No more packets from ffmpeg, End of stream!");
+            AGILE_LOGD("No packet reading from ffmpeg!");
             return MAG_NOT_ENOUGH_DATA;
         }
     }
@@ -674,6 +713,7 @@ _status_t   MagPlayer_Demuxer_FFMPEG::readFrameInternal(ui32 StreamID, MediaBuff
             ret = readMore(track, StreamID);
             if (MAG_NO_ERROR == ret){
                 mb = track->dequeueFrame();
+                AGILE_LOGD("read the media buffer: 0x%x", mb);
             }
         }
     }

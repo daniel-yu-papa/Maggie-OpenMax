@@ -527,14 +527,14 @@ MagErr_t Mag_WaitForEventGroup(MagEventGroupHandle evtGrphandle, MAG_EVENT_GROUP
             rc = pthread_cond_timedwait(&evtGrphandle->cond, &evtGrphandle->lock, &target);
             if(ETIMEDOUT == rc){
                 ret = MAG_TimeOut;
-                AGILE_LOGD("WaitfForEventSet(evtSet: 0x%lx): timeout [%d ms]", (unsigned long)evtGrphandle, timeoutMsec);
+                AGILE_LOGV("WaitfForEventSet(evtSet: 0x%lx): timeout [%d ms]", (unsigned long)evtGrphandle, timeoutMsec);
                 goto done;
             }
         }
 
         /*the blocking system call: futex might be interrupted by OS signal.*/
         if (EINTR == rc){
-            AGILE_LOGD("WaitfForEventSet(evtSet: 0x%lx): interrupted by system signal", (unsigned long)evtGrphandle);
+            AGILE_LOGW("WaitfForEventSet(evtSet: 0x%lx): interrupted by system signal", (unsigned long)evtGrphandle);
             continue;
         }
 

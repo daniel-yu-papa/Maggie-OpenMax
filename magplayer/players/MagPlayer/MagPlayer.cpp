@@ -809,15 +809,16 @@ void MagPlayer::onCompletePrepareEvtCB(void *priv){
 
     if (NULL == thiz)
         return;
-    
+
+    /*must set the state firstly and then proceed the messages in the waiting queue. Otherwise it might cause dead lock*/
+    thiz->mState = ST_PREPARED;
     do {
         thiz->mPrepareCompleteMQ->get(thiz->mPrepareCompleteMQ, &msg);
         if (NULL != msg){
             msg->postMessage(msg, 0);
         }
     }while(msg);
-    thiz->mState = ST_PREPARED;
-
+    
     if ((thiz->mNotifyPrepareCompleteFn != NULL) && (thiz->mPrepareCompletePriv != NULL))
         thiz->mNotifyPrepareCompleteFn(thiz->mPrepareCompletePriv);
 }
@@ -829,13 +830,6 @@ void MagPlayer::onCompleteSeekEvtCB(void *priv){
     if (NULL == thiz)
         return;
     
-    do {
-        thiz->mSeekCompleteMQ->get(thiz->mSeekCompleteMQ, &msg);
-        if (NULL != msg){
-            msg->postMessage(msg, 0);
-        }
-    }while(msg);
-
     if (thiz->isValidFSState(thiz->mSeekBackState)){
         thiz->mState = thiz->mSeekBackState;
         if ((thiz->mNotifySeekCompleteFn != NULL) && (thiz->mSeekCompletePriv != NULL))
@@ -843,6 +837,13 @@ void MagPlayer::onCompleteSeekEvtCB(void *priv){
     }else{
         AGILE_LOGE("backstate: state %d is not valid for seekTo operation. QUIT!", thiz->mSeekBackState);
     }
+    
+    do {
+        thiz->mSeekCompleteMQ->get(thiz->mSeekCompleteMQ, &msg);
+        if (NULL != msg){
+            msg->postMessage(msg, 0);
+        }
+    }while(msg);
 }
 
 void MagPlayer::onCompleteFlushEvtCB(void *priv){
@@ -851,13 +852,6 @@ void MagPlayer::onCompleteFlushEvtCB(void *priv){
 
     if (NULL == thiz)
         return;
-    
-    do {
-        thiz->mFlushCompleteMQ->get(thiz->mFlushCompleteMQ, &msg);
-        if (NULL != msg){
-            msg->postMessage(msg, 0);
-        }
-    }while(msg);
 
     if (thiz->isValidFSState(thiz->mFlushBackState)){
         thiz->mState = thiz->mFlushBackState;
@@ -870,6 +864,13 @@ void MagPlayer::onCompleteFlushEvtCB(void *priv){
     }else{
         AGILE_LOGE("backstate:%d is not valid for Flush operation. QUIT!", thiz->mFlushBackState);
     }
+
+    do {
+        thiz->mFlushCompleteMQ->get(thiz->mFlushCompleteMQ, &msg);
+        if (NULL != msg){
+            msg->postMessage(msg, 0);
+        }
+    }while(msg);
 }
 
 void MagPlayer::onErrorEvtCB(void *priv){

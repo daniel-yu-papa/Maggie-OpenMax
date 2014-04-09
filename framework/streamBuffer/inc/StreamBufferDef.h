@@ -51,6 +51,11 @@ private:
 
 
 struct StreamBufferUser : public StreamBufferUser_Server {
+    enum Read_Policy{
+        READ_ANY,   /*read out the data even if the available data size is less than the expected size*/
+        READ_FULL,  /*read out the data only if the available data size meets the expected size*/
+    };
+    
     StreamBufferUser(const sp<IStreamBuffer> &buffer, _size_t bufSize, _size_t bufNum);
     virtual void onBufferFilled(_size_t index, _size_t size);
     
@@ -61,7 +66,9 @@ struct StreamBufferUser : public StreamBufferUser_Server {
     
     bool isEOS();
     void reset();
-
+    void setReadPolicy(enum Read_Policy p);
+    _size_t getDataSize();
+    
 protected:
     virtual ~StreamBufferUser();
     
@@ -82,6 +89,8 @@ private:
     CircularBufferMgr_t *mCBMgr;
 
     bool mEOS;
+
+    enum Read_Policy mReadPolicy;
 };
 
 #endif
