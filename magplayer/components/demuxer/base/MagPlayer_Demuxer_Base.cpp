@@ -33,7 +33,8 @@ _status_t Stream_Track::start(){
     if (mBufferPoolSize > 0){
         mBufPoolHandle = magMemPoolCreate(mBufferPoolSize);
         if (mBufPoolHandle != NULL){
-            AGILE_LOGI("The buffer pool 0x%x is created!", mBufPoolHandle);
+            AGILE_LOGI("The buffer pool 0x%x is created for %s track!", 
+                        mBufPoolHandle, mInfo->type == TRACK_VIDEO ? "video" : mInfo->type == TRACK_AUDIO ? "audio" : "subtitle");
         }else{
             AGILE_LOGE("Failed to create the buffer pool!");
             return MAG_NO_MEMORY;
@@ -79,21 +80,16 @@ _status_t     Stream_Track::enqueueFrame(MediaBuffer_t *mb){
     if (NULL != buf){
         memcpy(buf, mb->buffer, mb->buffer_size);
         mb->buffer = buf;
-        Mag_AcquireMutex(mMutex);
         putMediaBuffer(&mMBufBusyListHead, mb);
-        Mag_ReleaseMutex(mMutex);
         return MAG_NO_ERROR;
     }
     return MAG_NO_MEMORY;
 }
 
 _status_t     Stream_Track::releaseFrame(MediaBuffer_t *mb){
-    if (NULL == mb){
+    if (NULL != mb){
         magMemPoolPutBuffer(mBufPoolHandle, mb->buffer);
-
-        Mag_AcquireMutex(mMutex);
         putMediaBuffer(&mMBufFreeListHead, mb);
-        Mag_ReleaseMutex(mMutex);
         return MAG_NO_ERROR;
     }else{
         return MAG_NO_MEMORY;
@@ -101,10 +97,11 @@ _status_t     Stream_Track::releaseFrame(MediaBuffer_t *mb){
 }
 
 MediaBuffer_t *Stream_Track::getMediaBuffer(){
-    List_t *next = mMBufFreeListHead.next;
-    MediaBuffer_t *item;
+    List_t *next = NULL;
+    MediaBuffer_t *item = NULL;
 
     Mag_AcquireMutex(mMutex);
+    next = mMBufFreeListHead.next;
     if (next != &mMBufFreeListHead){
         item = (MediaBuffer_t *)list_entry(next, MediaBuffer_t, node);
         list_del(next);
@@ -122,12 +119,16 @@ MediaBuffer_t *Stream_Track::getMediaBuffer(){
 }
 
 _status_t Stream_Track::putMediaBuffer(List_t *list_head, MediaBuffer_t *mb){
+    _status_t ret = MAG_NO_ERROR;
+    
+    Mag_AcquireMutex(mMutex);
     if ((mb != NULL) && (list_head != NULL)){
         list_add_tail(&mb->node, list_head);
-        return MAG_NO_ERROR;
     }else{
-        return MAG_BAD_VALUE;
+        ret = MAG_BAD_VALUE;
     }
+    Mag_ReleaseMutex(mMutex);
+    return ret;
 }
 
 _status_t Stream_Track::reset(){

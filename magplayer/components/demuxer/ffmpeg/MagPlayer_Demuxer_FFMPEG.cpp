@@ -21,7 +21,7 @@ static const ui32 kVideoBufPoolSize = (8 * 1024 * 1024);
 static const ui32 kAudioBufPoolSize = (512 * 1024);
 static const ui32 kSubtitleBufPoolSize = (512 * 1024);
 
-#define FFMPEG_DEMUXER_DEBUG
+//#define FFMPEG_DEMUXER_DEBUG
 
 #ifdef FFMPEG_DEMUXER_DEBUG
 #define VIDEO_FRAMES_FUMP_FILE "/data/ffmpeg_video.es"

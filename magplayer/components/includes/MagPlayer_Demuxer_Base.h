@@ -134,7 +134,7 @@ private:
 #define EXTERNC
 #endif
 
-EXTERNC _status_t releaseMediaBuffer(void* thiz, MediaBuffer_t *mb);
+EXTERNC _status_t releaseMediaBuffer(MediaBuffer_t *mb);
 
 #undef EXTERNC
 

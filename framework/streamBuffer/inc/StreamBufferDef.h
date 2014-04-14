@@ -52,8 +52,8 @@ private:
 
 struct StreamBufferUser : public StreamBufferUser_Server {
     enum Read_Policy{
-        READ_ANY,   /*read out the data even if the available data size is less than the expected size*/
-        READ_FULL,  /*read out the data only if the available data size meets the expected size*/
+        READ_ANY,   /*read out the data even if the available data size is less than the expected size. it is unblock operation*/
+        READ_FULL,  /*read out the data only if the available data size meets the expected size. It is block operation.*/
     };
     
     StreamBufferUser(const sp<IStreamBuffer> &buffer, _size_t bufSize, _size_t bufNum);

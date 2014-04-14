@@ -22,7 +22,7 @@ typedef struct magMempoolInternal_t{
     unsigned int memPoolSize;
     unsigned char *pMemPoolBuf;
     List_t freeMBListHead;      /*the free MB nearest to the Mem Pool is always the first node in the list*/   
-    List_t *activeMBNode;
+    List_t *activeMBNode;       /*point to the MB that hit the allocation in the nearest time*/
     unsigned int index;         /* the index of the mempool in terms of the creation time*/
 }magMempoolInternal_t;
 
