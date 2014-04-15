@@ -11,6 +11,7 @@
     <string-array name="audio_codec_array">
         <item>MPEG2</item>
         <item>AAC</item>
+        <item>AC-3</item>
         <item>DD+</item>
     </string-array>
 </resources>

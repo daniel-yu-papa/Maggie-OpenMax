@@ -56,16 +56,20 @@ ReadFileThread::~ReadFileThread(){
 bool ReadFileThread::threadLoop()
 {
     int rd_result = 0;
+    int expected = mNumTsPackets*188;
+    
     if (mRunning){
         if (NULL != mFile){
-    		rd_result = fread(mBuffer, 1, (mNumTsPackets*188), mFile);
-    		if (rd_result <= 0)	
-			{
-				LOGE("read the end of file");
+    		rd_result = fread(mBuffer, 1, expected, mFile);
+            if (rd_result < expected){
+                LOGE("Read to the end of file(remaining: %d bytes)", rd_result);
+                mPlayer->WriteData(mBuffer, rd_result);
                 mPlayer->WriteData(mBuffer, 0);
 				return false;
-			}
-    		int wd_result = mPlayer->WriteData(mBuffer, rd_result);
+            }else{
+                mPlayer->WriteData(mBuffer, rd_result);
+            }
+    		
     		usleep(mWCycle*1000);
 	    }
     }
@@ -126,11 +130,13 @@ void Java_com_magplayer_MagPlayerDemo_nativeInit(JNIEnv* env, jobject thiz, jint
 	
 	AUDIO_PARA_T audioPara[2];
 	audioPara[0].pid = apid;
-    if (acodec == 0){
+        if (acodec == 0){
 	    audioPara[0].aFmt = FORMAT_MPEG;
 	}else if (acodec == 1){
 	    audioPara[0].aFmt = FORMAT_AAC;
 	}else if (acodec == 2){
+            audioPara[0].aFmt = FORMAT_AC3;  	    
+        }else if (acodec == 3){
 	    audioPara[0].aFmt = FORMAT_DDPlus;
 	}else{
 	    LOGE("failed to get the correct audio codec(%d)", acodec);

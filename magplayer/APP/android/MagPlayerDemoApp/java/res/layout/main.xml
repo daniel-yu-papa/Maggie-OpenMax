@@ -27,7 +27,7 @@
             <EditText android:id="@+id/videoPID" 
                 android:layout_width="100dip"
                 android:layout_height="wrap_content" 
-                android:text="101"
+                android:text="17"
                 android:textSize="20sp" />
             
             <Spinner
@@ -46,7 +46,7 @@
             <EditText android:id="@+id/audioPID" 
                 android:layout_width="100dip"
                 android:layout_height="wrap_content" 
-                android:text="144"
+                android:text="20"
                 android:textSize="20sp" />
             
             <Spinner

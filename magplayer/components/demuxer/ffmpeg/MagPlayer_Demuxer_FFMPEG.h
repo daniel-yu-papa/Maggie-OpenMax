@@ -73,6 +73,9 @@ private:
     /*dump ffmpeg frames to the file. for debugging purpose*/
     FILE *mVideoDumpFile; 
     FILE *mAudioDumpFile;
+
+    /*dump stream buffer reading data*/
+    FILE *mStreamBufFile;
 };
 
 #endif

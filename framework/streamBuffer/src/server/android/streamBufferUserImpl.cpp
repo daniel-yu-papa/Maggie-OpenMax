@@ -6,7 +6,7 @@
 #define MODULE_TAG "magFramework-StreamBuffer"
 
 StreamBufferUser::StreamBufferUser(const sp<IStreamBuffer> &buffer, _size_t bufSize, _size_t bufNum):
-                  mEOS(false){
+                                                                                               mEOS(false){
     INIT_LIST(&mBufferListHead);
     
     mBufferSize   = bufSize;
@@ -143,13 +143,21 @@ restart:
     if (mCBMgr != NULL){
         AGILE_LOGV("readIndex=%d, writeIndex=%u, size=%u", mCBMgr->readIndex, w, size);
         if (w == mCBMgr->readIndex){
-            /*if w == r: the buffer is empty*/
-            return 0;
+            if (mReadPolicy == StreamBufferUser::READ_ANY){
+                /*if w == r: the buffer is empty*/
+                return 0;
+            }else{
+                if (!isEOS()){
+                    usleep(10000);
+                    goto restart;
+                }
+            }
         }else if (w < mCBMgr->readIndex){
             if ((w + mCBMgr->totalSize - mCBMgr->readIndex) >= static_cast<i32>(size)){
                 if (mCBMgr->totalSize >= mCBMgr->readIndex + static_cast<i32>(size)){
                     memcpy(data, static_cast<void *>(static_cast<ui8 *>(mCBMgr->pointer) + mCBMgr->readIndex), size);
                     mCBMgr->readIndex += size;
+                    mCBMgr->readIndex = mCBMgr->readIndex % mCBMgr->totalSize;
                 }else{
                     ui32 firstPart = mCBMgr->totalSize - mCBMgr->readIndex;
                     ui32 secondPart = size - firstPart;
@@ -175,11 +183,13 @@ restart:
                     mStreamBuffer->onBufferEmpty(0, total_read);
                     return total_read;
                 }else{
-                    usleep(10000);
-                    goto restart;
+                    if (!isEOS()){
+                        usleep(10000);
+                        goto restart;
+                    }
                 }
             }
-        }else{
+        }else{ /* w > r*/
             if (w - mCBMgr->readIndex >= static_cast<i32>(size)){
                 memcpy(data, static_cast<void *>(static_cast<ui8 *>(mCBMgr->pointer) + mCBMgr->readIndex), size);
                 mCBMgr->readIndex += size;
@@ -193,8 +203,10 @@ restart:
                     mStreamBuffer->onBufferEmpty(0, total_read);
                     return total_read;
                 }else{
-                    usleep(10000);
-                    goto restart;
+                    if (!isEOS()){
+                        usleep(10000);
+                        goto restart;
+                    }
                 }
             }
         }

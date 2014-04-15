@@ -42,6 +42,7 @@ void MagPlayer_Mock_OMX::setMagPlayerNotifier(MagMessageHandle notifyMsg){
 
 void MagPlayer_Mock_OMX::proceedMediaBuffer(MediaBuffer_t *buf){
     if (NULL != mDumpFile){
+        AGILE_LOGD("write data size: %d", buf->buffer_size);
         fwrite(buf->buffer, 1, buf->buffer_size, mDumpFile);
     }
     buf->release(buf);

@@ -24,8 +24,14 @@ static const ui32 kSubtitleBufPoolSize = (512 * 1024);
 //#define FFMPEG_DEMUXER_DEBUG
 
 #ifdef FFMPEG_DEMUXER_DEBUG
-#define VIDEO_FRAMES_FUMP_FILE "/data/ffmpeg_video.es"
-#define AUDIO_FRAMES_FUMP_FILE "/data/ffmpeg_audio.es"
+#define VIDEO_FRAMES_DUMP_FILE "/data/ffmpeg_video.es"
+#define AUDIO_FRAMES_DUMP_FILE "/data/ffmpeg_audio.es"
+#endif
+
+//#define FFMPEG_STREAMBUF_DEBUG
+
+#ifdef FFMPEG_STREAMBUF_DEBUG
+#define STREAMBUF_DUMP_FILE "/data/streambuf.data"
 #endif
 
 MagPlayer_Demuxer_FFMPEG::MagPlayer_Demuxer_FFMPEG():
@@ -40,10 +46,17 @@ MagPlayer_Demuxer_FFMPEG::MagPlayer_Demuxer_FFMPEG():
     mVideoDumpFile = NULL;
     mAudioDumpFile = NULL;
 #endif
+
+#ifdef FFMPEG_STREAMBUF_DEBUG
+    mStreamBufFile = NULL;
+#endif
 }
 
 MagPlayer_Demuxer_FFMPEG::~MagPlayer_Demuxer_FFMPEG(){
     av_log_set_callback(NULL);
+    
+    destroyMagMiniDB(mParamDB);
+    
 #ifdef FFMPEG_DEMUXER_DEBUG
     if (NULL != mAudioDumpFile){
         fclose(mAudioDumpFile);
@@ -52,6 +65,13 @@ MagPlayer_Demuxer_FFMPEG::~MagPlayer_Demuxer_FFMPEG(){
         fclose(mVideoDumpFile);
     }
 #endif
+
+#ifdef FFMPEG_STREAMBUF_DEBUG
+    if (mStreamBufFile != NULL){
+        fclose(mStreamBufFile);
+    }
+#endif
+
 }
 
 void MagPlayer_Demuxer_FFMPEG::PrintLog_Callback(void* ptr, int level, const char* fmt, va_list vl){
@@ -72,6 +92,17 @@ i32 MagPlayer_Demuxer_FFMPEG::AVIO_Read (ui8 *buf, int buf_size){
     
     if (NULL != mDataSource){
         if (MPCP_OK == mDataSource->Read(buf, &size)){
+#ifdef FFMPEG_STREAMBUF_DEBUG
+            if (mStreamBufFile == NULL){
+                mStreamBufFile = fopen(STREAMBUF_DUMP_FILE, "wb+");
+            }
+
+            if (NULL != mStreamBufFile){
+                fwrite(buf, 1, size, mStreamBufFile);
+            }else{
+                AGILE_LOGE("failed to open the file: %s", STREAMBUF_DUMP_FILE);
+            }
+#endif
             return size;
         }
     }
@@ -576,13 +607,13 @@ _status_t  MagPlayer_Demuxer_FFMPEG::startInternal(MagPlayer_Component_CP *conte
     _status_t rc = MAG_NO_ERROR;
     
 #ifdef FFMPEG_DEMUXER_DEBUG
-    mVideoDumpFile = fopen(VIDEO_FRAMES_FUMP_FILE, "wb+");
+    mVideoDumpFile = fopen(VIDEO_FRAMES_DUMP_FILE, "wb+");
     if (NULL != mVideoDumpFile)
-        AGILE_LOGE("failed to open the file: %s", VIDEO_FRAMES_FUMP_FILE);
+        AGILE_LOGE("failed to open the file: %s", VIDEO_FRAMES_DUMP_FILE);
     
-    mAudioDumpFile = fopen(AUDIO_FRAMES_FUMP_FILE, "wb+");
+    mAudioDumpFile = fopen(AUDIO_FRAMES_DUMP_FILE, "wb+");
     if (NULL != mAudioDumpFile)
-        AGILE_LOGE("failed to open the file: %s", AUDIO_FRAMES_FUMP_FILE);
+        AGILE_LOGE("failed to open the file: %s", AUDIO_FRAMES_DUMP_FILE);
 #endif
 
     mDataSource = contentPipe;
@@ -657,7 +688,9 @@ _status_t MagPlayer_Demuxer_FFMPEG::readMore(Stream_Track *track, ui32 StreamID)
     Stream_Track *other_track;
     
     while (true) {
+        AGILE_LOGD("before av_read_frame");
         i32 res = av_read_frame(mpAVFormat, &packet);
+        AGILE_LOGD("after av_read_frame. res = %d", res);
         if (res >= 0) {
             av_dup_packet(&packet);
 #ifdef FFMPEG_DEMUXER_DEBUG

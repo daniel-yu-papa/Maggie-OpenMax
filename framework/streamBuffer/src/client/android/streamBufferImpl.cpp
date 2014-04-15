@@ -101,6 +101,7 @@ restart:
                 if (mCBMgr->totalSize >= mCBMgr->writeIndex + static_cast<i32>(size)){
                     memcpy(static_cast<void *>(mCBMgr->pointer + mCBMgr->writeIndex), data, size);
                     mCBMgr->writeIndex += size;
+                    mCBMgr->writeIndex = mCBMgr->writeIndex % mCBMgr->totalSize;
                 }else{
                     ui32 firstPart = mCBMgr->totalSize - mCBMgr->writeIndex;
                     ui32 secondPart = size - firstPart;
@@ -134,7 +135,7 @@ restart:
                     return total_write;
                 }
             }
-        }else{
+        }else{ /*r > w*/
             if ((r - mCBMgr->writeIndex - 1) >= (i32)size){
                 memcpy(static_cast<void *>(mCBMgr->pointer + mCBMgr->writeIndex), data, size);
                 mCBMgr->writeIndex += size;
