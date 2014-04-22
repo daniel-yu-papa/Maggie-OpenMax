@@ -11,8 +11,6 @@
 enum {
     ON_BUFFER_FILLED = IBinder::FIRST_CALL_TRANSACTION,
     ISSUE_COMMAND,
-    START,
-    SETUP,
 };
 
 struct BpStreamBufferUser : public BpInterface<IStreamBufferUser> {
@@ -26,7 +24,7 @@ struct BpStreamBufferUser : public BpInterface<IStreamBufferUser> {
         data.writeInt32(static_cast<int32_t>(index));
         data.writeInt32(static_cast<int32_t>(size));
 
-        remote()->transact(ON_BUFFER_FILLED, data, &reply, IBinder::FLAG_ONEWAY);
+        remote()->transact(ON_BUFFER_FILLED, data, &reply);
     }
 
     virtual void issueCommand(
@@ -36,7 +34,7 @@ struct BpStreamBufferUser : public BpInterface<IStreamBufferUser> {
         data.writeInt32(static_cast<int32_t>(cmd));
         data.writeInt32(static_cast<int32_t>(synchronous));
 
-        remote()->transact(ISSUE_COMMAND, data, &reply, IBinder::FLAG_ONEWAY);
+        remote()->transact(ISSUE_COMMAND, data, &reply);
     }
 };
 
@@ -65,7 +63,7 @@ status_t StreamBufferUser_Server::onTransact(
             issueCommand(cmd, synchronous);
             break;
         }
-        
+
         default:
             return BBinder::onTransact(code, data, reply, flags);
     }

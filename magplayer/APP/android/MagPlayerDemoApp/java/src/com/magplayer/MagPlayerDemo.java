@@ -36,8 +36,7 @@ public class MagPlayerDemo extends TabActivity
     private Context context;
     
     private Button selectFile;
-    private Button tsplayer_play;
-    private Button tsplayer_stop;
+    private Button tsplayer_play_stop;
     
     private int vpid;
     private int vcodec;
@@ -50,9 +49,8 @@ public class MagPlayerDemo extends TabActivity
     private EditText writeCycleText;
     
     private Uri playFileUri;
-// Create an ArrayAdapter using the string array and a default spinner layout
-
-
+// Create an ArrayAdapter using the string array and a default spinner layout 
+    
     /** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -148,34 +146,51 @@ public class MagPlayerDemo extends TabActivity
         writeNumTsPacketsText = (EditText) findViewById(R.id.writeNumInTSPackets);
         writeCycleText        = (EditText) findViewById(R.id.writeCycleInMS);
         
-        tsplayer_play = (Button)findViewById(R.id.tsplayer_play);
-        tsplayer_play.setOnClickListener(new Button.OnClickListener(){
+        tsplayer_play_stop = (Button)findViewById(R.id.tsplayer_play);
+        tsplayer_play_stop.setOnClickListener(new Button.OnClickListener(){
             public void onClick(View v)
             {
                int numTsPackets;
                int wCycle;
-               vpid = Integer.parseInt(vpidText.getText().toString());
-               apid = Integer.parseInt(apidText.getText().toString());
-               numTsPackets = Integer.parseInt(writeNumTsPacketsText.getText().toString());
-               wCycle       = Integer.parseInt(writeCycleText.getText().toString());
+
+               if (tsplayer_play_stop.getText().equals("Play") ){
+                   tsplayer_play_stop.setText("Stop");
+                   //Button tsplayer_play =new Button(MagPlayerDemo.this, null);
+                   tsplayer_play_stop.setEnabled(false);
                
-               if (playFileUri == Uri.EMPTY){
-                    Toast.makeText(context, "ERROR: please select the playing file", Toast.LENGTH_SHORT).show();
-               }else{
-                   Log.i(TAG, "init: vpid=" + vpid + ", vcodec=" + vcodec + ", apid=" + apid + ", acodec=" + acodec + ", url=" + playFileUri.getPath());
-                   Log.i(TAG, "tunning param: number of ts packets-" + numTsPackets + "  write cycle-" + wCycle +"ms");
+                   //Button tsplayer_stop =new Button(MagPlayerDemo.this, null);
+                   //tsplayer_stop.setEnabled(true);
+    
+                   vpid = Integer.parseInt(vpidText.getText().toString());
+                   apid = Integer.parseInt(apidText.getText().toString());
+                   numTsPackets = Integer.parseInt(writeNumTsPacketsText.getText().toString());
+                   wCycle       = Integer.parseInt(writeCycleText.getText().toString());
                    
-                   nativeInit(vpid, vcodec, apid, acodec, numTsPackets, wCycle, playFileUri.getPath());
-                   nativePlay();
-                }
-            }
-        });
-        
-        tsplayer_stop = (Button)findViewById(R.id.tsplayer_stop);
-        tsplayer_stop.setOnClickListener(new Button.OnClickListener(){
-            public void onClick(View v)
-            {
-               nativeStop();
+                   if (playFileUri == Uri.EMPTY){
+                        Toast.makeText(context, "ERROR: please select the playing file", Toast.LENGTH_SHORT).show();
+                   }else{
+                       Log.i(TAG, "init: vpid=" + vpid + ", vcodec=" + vcodec + ", apid=" + apid + ", acodec=" + acodec + ", url=" + playFileUri.getPath());
+                       Log.i(TAG, "tunning param: number of ts packets-" + numTsPackets + "  write cycle-" + wCycle +"ms");
+                       
+                       nativeInit(vpid, vcodec, apid, acodec, numTsPackets, wCycle, playFileUri.getPath());
+                       nativePlay();
+                   }
+                   //try {
+                   //    Thread.sleep(500);
+                   //}catch(InterruptedException e) {
+                   //    e.printStackTrace();
+                   //}
+     
+                   tsplayer_play_stop.setEnabled(true);
+               }else{
+                   tsplayer_play_stop.setText("Play");
+                   //Button tsplayer_play =new Button(MagPlayerDemo.this, null);
+                   tsplayer_play_stop.setEnabled(false);
+                   
+                   nativeStop();
+                   
+                   tsplayer_play_stop.setEnabled(true);
+               }
             }
         });
         

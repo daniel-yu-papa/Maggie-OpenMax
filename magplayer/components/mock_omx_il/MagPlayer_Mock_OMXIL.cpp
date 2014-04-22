@@ -9,16 +9,18 @@
 
 #define ES_DUMP_FILE_NAME "/data/data/magplayer_%s.es"
 
-MagPlayer_Mock_OMX::MagPlayer_Mock_OMX(const char *type):
+MagPlayer_Mock_OMX::MagPlayer_Mock_OMX(const char *type, i32 trackID):
                                       mMagPlayerNotifier(NULL),
                                       mLooper(NULL),
-                                      mMsgHandler(NULL){ 
+                                      mMsgHandler(NULL),
+                                      mTrackID(trackID){ 
     mType = mag_strdup(type);
     AGILE_LOGV("Constructor. type = %s", mType);
 }
 
 MagPlayer_Mock_OMX::~MagPlayer_Mock_OMX(){
     destroyMagMessage(mEmptyThisBufferMsg);
+    mag_free(mType);
 }
 
 void MagPlayer_Mock_OMX::start(){
@@ -36,13 +38,21 @@ void MagPlayer_Mock_OMX::start(){
     postFillThisBuffer();
 }
 
+void MagPlayer_Mock_OMX::stop(){
+    mLooper->clear(mLooper);
+    if (mDumpFile){
+        AGILE_LOGD("Close the file -- OK!");
+        fclose(mDumpFile);
+        mDumpFile = NULL;
+    }
+}
+
 void MagPlayer_Mock_OMX::setMagPlayerNotifier(MagMessageHandle notifyMsg){
     mMagPlayerNotifier = notifyMsg;
 }
 
 void MagPlayer_Mock_OMX::proceedMediaBuffer(MediaBuffer_t *buf){
     if (NULL != mDumpFile){
-        AGILE_LOGD("write data size: %d", buf->buffer_size);
         fwrite(buf->buffer, 1, buf->buffer_size, mDumpFile);
     }
     buf->release(buf);
@@ -52,6 +62,7 @@ void MagPlayer_Mock_OMX::onEmptyThisBuffer(MagMessageHandle msg){
     boolean ret;
     void *value;
     MediaBuffer_t *buf = NULL;
+    char *eos = false;
     
     ret = msg->findPointer(msg, "media-buffer", &value);
     if (!ret){
@@ -60,9 +71,28 @@ void MagPlayer_Mock_OMX::onEmptyThisBuffer(MagMessageHandle msg){
     }  
 
     buf = static_cast<MediaBuffer_t *>(value);
-    proceedMediaBuffer(buf);
 
-    postFillThisBuffer();
+    if (NULL != buf){
+        proceedMediaBuffer(buf);
+        postFillThisBuffer();
+    }else{
+        ret = msg->findString(msg, "eos", &eos);
+        if (!ret){
+            AGILE_LOGE("failed to find the eos string!");
+        }  
+
+        if (!strcmp(eos, "yes")){
+            AGILE_LOGD("get EOS. finished!");
+
+            /*simulate the video playback complete and then notify the APP*/
+            mMagPlayerNotifier->setInt32(mMagPlayerNotifier, "what", MagPlayer::kWhatPlayComplete);
+            mMagPlayerNotifier->setInt32(mMagPlayerNotifier, "track-id", mTrackID);
+            mMagPlayerNotifier->setMessage(mMagPlayerNotifier, "reply", mEmptyThisBufferMsg);
+            mMagPlayerNotifier->postMessage(mMagPlayerNotifier, 0);
+        }else{
+            postFillThisBuffer();
+        }
+    }
 }
 
 void MagPlayer_Mock_OMX::postFillThisBuffer(){

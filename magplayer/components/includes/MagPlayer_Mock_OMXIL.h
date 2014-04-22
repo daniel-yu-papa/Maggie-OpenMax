@@ -9,11 +9,12 @@
 
 class MagPlayer_Mock_OMX{
 public:
-    MagPlayer_Mock_OMX(const char *type);
+    MagPlayer_Mock_OMX(const char *type, i32 trackID);
     ~MagPlayer_Mock_OMX();
 
     void setMagPlayerNotifier(MagMessageHandle notifyMsg);
     void start();
+    void stop();
     
     enum{
         MagMockOMX_EmptyThisBuffer,
@@ -27,6 +28,7 @@ private:
     MagMessageHandle mEmptyThisBufferMsg;
 
     char *mType;
+    i32  mTrackID;
     FILE *mDumpFile;
     
     void onEmptyThisBuffer(MagMessageHandle msg);

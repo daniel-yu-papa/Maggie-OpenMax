@@ -11,27 +11,35 @@
 #endif
 
 #ifdef __cplusplus
-inline char *CPPFuncName(const char *prettyFunction, const char *func){
-    char *str = strdup(prettyFunction);
-    char *token = NULL; 
-    char *result = NULL;
+#if 0
+    inline char *CPPFuncName(const char *prettyFunction, const char *func){
+        char *str = strdup(prettyFunction);
+        char *token = NULL; 
+        char *result = NULL;
 
-    result = strrchr(str, ':');
-    if (result == NULL)
-        return const_cast<char*>(func);
-    
-    token = strtok(str, ":");
-    result = strrchr(token, ' ');
-    
-    if (NULL == result)
-        result = token;
-    
-    sprintf(result, "%s::%s", result, func);
-    return result;
-} 
+        result = strrchr(str, ':');
+        if (result == NULL)
+            return const_cast<char*>(func);
+        
+        token = strtok(str, ":");
+        result = strrchr(token, ' ');
+        
+        if (NULL == result)
+            result = token;
+        
+        sprintf(result, "%s::%s", result, func);
+        return result;
+    } 
+#endif
     #undef __FUNCTION_NAME__
-    #define __FUNCTION_NAME__  CPPFuncName(__PRETTY_FUNCTION__, __FUNCTION__)
+    #define __FUNCTION_NAME__  __PRETTY_FUNCTION__/*CPPFuncName(__PRETTY_FUNCTION__, __FUNCTION__)*/
 #else
+#if 0
+    inline char *CFuncName(const char *func){
+        char *str = strdup(func);
+        return str;
+    }
+#endif
     #undef __FUNCTION_NAME__
     #define __FUNCTION_NAME__  __FUNCTION__
 #endif

@@ -36,7 +36,7 @@ static MagLooperEvent_t *getFreeEvent(MagLooperHandle hLooper){
 
 static void putFreeEvent(MagLooperHandle hLooper, MagLooperEvent_t *pEvent){
     MagMessageHandle msg;
-    i32 i;
+    ui32 i;
     msg = pEvent->mMessage;
 
     for (i = 0; i < msg->mNumItems; i++){
@@ -80,6 +80,7 @@ static boolean deliverMessage(MagLooperHandle hLooper, MagLooperEvent_t *evt){
     MagMessageHandle msg;
     boolean ret = MAG_FALSE;
 
+    AGILE_LOGV("enter!");
     if (NULL == evt){
         AGILE_LOGE("evt is NULL!");
         return MAG_FALSE;
@@ -121,6 +122,8 @@ static void clearMessageQueue(MagLooperHandle hLooper){
     i64 key;
     void *value;
     MagLooperEvent_t *evt;
+
+    Mag_AcquireMutex(hLooper->mLock);
     while (hLooper->mDelayEvtTreeRoot){
         rbtree_getMinValue(hLooper->mDelayEvtTreeRoot, &key, &value);
         rbtree_delete(&hLooper->mDelayEvtTreeRoot, key);
@@ -138,6 +141,7 @@ static void clearMessageQueue(MagLooperHandle hLooper){
         list_add(&evt->node, &hLooper->mFreeEvtQueue);
         tmpNode = hLooper->mNoDelayEvtQueue.next;
     }
+    Mag_ReleaseMutex(hLooper->mLock);
 }
 
 /*run once before the Looper thread start to be looping*/
@@ -153,9 +157,9 @@ static boolean LooperThreadEntry(void *priv){
         return MAG_FALSE;
 
     if (MagEventQueueEmpty(looper)){
-        //AGILE_LOGV("[0x%x] before waiting[evt grp: 0x%x]",looper, looper->mMQPushEvtGroup);
+        AGILE_LOGV("[0x%x] before waiting[evt grp: 0x%x]",looper, looper->mMQPushEvtGroup);
         Mag_WaitForEventGroup(looper->mMQPushEvtGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
-        //AGILE_LOGV("[0x%x] after waiting[evt grp: 0x%x]",looper, looper->mMQPushEvtGroup);
+        AGILE_LOGV("[0x%x] after waiting[evt grp: 0x%x]",looper, looper->mMQPushEvtGroup);
     }
 
     Mag_AcquireMutex(looper->mLock);
@@ -235,6 +239,11 @@ static _status_t MagLooper_stop(MagLooperHandle hLooper){
     return MAG_NO_ERROR;
 }
 
+static void MagLooper_clear(MagLooperHandle hLooper){
+    clearMessageQueue(hLooper);
+    
+}
+
 static void internal_copyMessage(MagMessage_t *to, MagMessage_t *from){
     ui32 i;
     
@@ -289,7 +298,7 @@ static ui32 MagLooper_getHandlerID(MagLooperHandle hLooper){
 
 static _status_t MagLooper_waitOnAllDone(MagLooperHandle hLooper){
     while(!MagEventQueueEmpty(hLooper)){
-        usleep(40000);
+        usleep(4000);
     }
     return MAG_NO_ERROR;
 }
@@ -333,6 +342,7 @@ MagLooperHandle createLooper(const char *pName){
         pLooper->postMessage       = MagLooper_postMessage;
         pLooper->getHandlerID      = MagLooper_getHandlerID;
         pLooper->waitOnAllDone     = MagLooper_waitOnAllDone;
+        pLooper->clear             = MagLooper_clear;
         
         ui32 i;
         MagLooperEvent_t *pEvent;

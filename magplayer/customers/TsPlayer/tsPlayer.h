@@ -79,10 +79,16 @@ typedef enum
 
 typedef void (*IPTV_PLAYER_EVT_CB)(IPTV_PLAYER_EVT_e evt, void *handler);
 
+class TsPlayer;
+
 class TsPlayerListener: public MagPlayerListener{
 public:
+    TsPlayerListener(TsPlayer *obj);
     virtual void notify(int msg, int ext1, int ext2);
+private:
+    TsPlayer *mHost;
 };
+
 
 class CTC_MediaProcessor{
 public:
@@ -142,8 +148,6 @@ public:
 
     virtual void playerback_register_evt_cb(IPTV_PLAYER_EVT_CB pfunc, void *handler) = 0;    
 };
-
-
 
 class TsPlayer : public CTC_MediaProcessor, public MagSingleton<TsPlayer>{
     friend class MagSingleton<TsPlayer>;

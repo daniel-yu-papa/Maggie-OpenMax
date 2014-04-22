@@ -14,6 +14,7 @@ enum {
     SET_BUFFERS,
     ON_BUFFER_EMPTY,
     GET_TYPE,
+    RESET,
 };
 
 struct BpStreamBuffer : public BpInterface<IStreamBuffer> {
@@ -64,7 +65,7 @@ struct BpStreamBuffer : public BpInterface<IStreamBuffer> {
         data.writeInt32(static_cast<int32_t>(index));
         data.writeInt32(static_cast<int32_t>(size));
         remote()->transact(
-                ON_BUFFER_EMPTY, data, &reply, IBinder::FLAG_ONEWAY);
+                ON_BUFFER_EMPTY, data, &reply /*, IBinder::FLAG_ONEWAY*/);
     }
 
     virtual Type getType(void) {
@@ -72,6 +73,13 @@ struct BpStreamBuffer : public BpInterface<IStreamBuffer> {
         data.writeInterfaceToken(IStreamBuffer::getInterfaceDescriptor());
         remote()->transact(GET_TYPE, data, &reply);
         return static_cast<Type>(reply.readInt32());
+    }
+
+    virtual void reset(void) {
+        Parcel data, reply;
+        data.writeInterfaceToken(IStreamBuffer::getInterfaceDescriptor());
+        remote()->transact(
+                RESET, data, &reply /*, IBinder::FLAG_ONEWAY*/);
     }
 };
 
@@ -123,6 +131,13 @@ status_t StreamBuffer_Server::onTransact(
         {
             CHECK_INTERFACE(IStreamBuffer, data, reply);
             reply->writeInt32(static_cast<i32>(getType()));
+            break;
+        }
+
+        case RESET:
+        {
+            CHECK_INTERFACE(IStreamBuffer, data, reply);
+            reset();
             break;
         }
         

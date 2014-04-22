@@ -57,7 +57,7 @@ bool ReadFileThread::threadLoop()
 {
     int rd_result = 0;
     int expected = mNumTsPackets*188;
-    
+
     if (mRunning){
         if (NULL != mFile){
     		rd_result = fread(mBuffer, 1, expected, mFile);
@@ -65,6 +65,8 @@ bool ReadFileThread::threadLoop()
                 LOGE("Read to the end of file(remaining: %d bytes)", rd_result);
                 mPlayer->WriteData(mBuffer, rd_result);
                 mPlayer->WriteData(mBuffer, 0);
+                mRunning = false;
+                fclose(mFile);
 				return false;
             }else{
                 mPlayer->WriteData(mBuffer, rd_result);
@@ -72,6 +74,8 @@ bool ReadFileThread::threadLoop()
     		
     		usleep(mWCycle*1000);
 	    }
+    }else{
+        return false;
     }
     return true;
 }

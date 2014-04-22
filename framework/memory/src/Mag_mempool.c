@@ -260,6 +260,7 @@ static MagErr_t allocateBuffer(magMempoolHandle hMemPool, magMempoolInternal_t *
 static magMemBlock_t *findAllocMemBlock(magMempoolHandle hMemPool, void *pBuf){
     List_t *pNode = NULL;
     magMemBlock_t *mb = NULL;
+    magMemBlock_t *match_mb = NULL;
     
     List_t *debugNode = NULL;
     int debugCount = 1;
@@ -274,11 +275,12 @@ static magMemBlock_t *findAllocMemBlock(magMempoolHandle hMemPool, void *pBuf){
             debugNode = pNode->next;
             debugCount++;
             while (debugNode != &hMemPool->allocatedMBListHead){
-                AGILE_LOGD("[0x%x]: debugNode = 0x%x, allocatedMBListHead = 0x%x", 
-                            hMemPool, debugNode, &hMemPool->allocatedMBListHead);
-                mb = (magMemBlock_t *)list_entry(debugNode, magMemBlock_t, node);
-                if (pBuf == mb->pBuf)
+                match_mb = (magMemBlock_t *)list_entry(debugNode, magMemBlock_t, node);
+                AGILE_LOGE("buffer list: #%d - 0x%x", debugCount, match_mb->pBuf);
+                if (pBuf == match_mb->pBuf){
+                    mb = match_mb;
                     AGILE_LOGE("[0x%x]: the pBuf[0x%x] is at the %dth places in AllocList", hMemPool, pBuf, debugCount);
+                }
                 debugCount++;
                 debugNode = debugNode->next;
             }
@@ -539,6 +541,12 @@ void magMemPoolDestroy(magMempoolHandle hMemPool){
     magMempoolInternal_t * mpool = NULL;
     magMemBlock_t *mb = NULL;
 
+    AGILE_LOGV("enter!");
+    if (NULL == hMemPool){
+        AGILE_LOGD("hMemPool is NULL. quit!");
+        return;
+    }
+    
     pthread_mutex_lock(&hMemPool->mutex);
     
     tmpNode = hMemPool->memPoolListHead.next;
@@ -549,12 +557,12 @@ void magMemPoolDestroy(magMempoolHandle hMemPool){
         while (pNode != &mpool->freeMBListHead){
             list_del(pNode);
             mb = (magMemBlock_t *)list_entry(pNode, magMemBlock_t, node);
-            mag_freep(mb);
+            mag_free(mb);
             pNode = mpool->freeMBListHead.next;
         }
         list_del(tmpNode);
-        mag_freep(mpool->pMemPoolBuf);
-        mag_freep(mpool);
+        mag_free(mpool->pMemPoolBuf);
+        mag_free(mpool);
         
         tmpNode = hMemPool->memPoolListHead.next;
     }
@@ -563,7 +571,7 @@ void magMemPoolDestroy(magMempoolHandle hMemPool){
     while (pNode != &hMemPool->allocatedMBListHead){
         list_del(pNode);
         mb = (magMemBlock_t *)list_entry(pNode, magMemBlock_t, node);
-        mag_freep(mb);
+        mag_free(mb);
         pNode = hMemPool->allocatedMBListHead.next;
     }
 
@@ -571,14 +579,15 @@ void magMemPoolDestroy(magMempoolHandle hMemPool){
     while (pNode != &hMemPool->unusedMBListHead){
         list_del(pNode);
         mb = (magMemBlock_t *)list_entry(pNode, magMemBlock_t, node);
-        mag_freep(mb);
+        mag_free(mb);
         pNode = hMemPool->unusedMBListHead.next;
     }
 
     pthread_mutex_unlock(&hMemPool->mutex);
 
     pthread_mutex_destroy(&hMemPool->mutex);
-    mag_freep(hMemPool);
+    mag_free(hMemPool);
+    AGILE_LOGV("exit!");
 }
 
 void magMemPoolDump(magMempoolHandle hMemPool){

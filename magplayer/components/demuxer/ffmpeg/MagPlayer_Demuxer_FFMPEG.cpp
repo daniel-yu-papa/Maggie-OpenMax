@@ -35,9 +35,10 @@ static const ui32 kSubtitleBufPoolSize = (512 * 1024);
 #endif
 
 MagPlayer_Demuxer_FFMPEG::MagPlayer_Demuxer_FFMPEG():
-                             mInitialized(false),
                              mTotalTrackNum(0),
-                             mStreamIDRoot(NULL){
+                             mStreamIDRoot(NULL),
+                             mpFormatOpts(NULL),
+                             mpAVFormat(NULL){
     av_log_set_callback(PrintLog_Callback);
 
     av_register_all();
@@ -55,8 +56,6 @@ MagPlayer_Demuxer_FFMPEG::MagPlayer_Demuxer_FFMPEG():
 MagPlayer_Demuxer_FFMPEG::~MagPlayer_Demuxer_FFMPEG(){
     av_log_set_callback(NULL);
     
-    destroyMagMiniDB(mParamDB);
-    
 #ifdef FFMPEG_DEMUXER_DEBUG
     if (NULL != mAudioDumpFile){
         fclose(mAudioDumpFile);
@@ -71,7 +70,6 @@ MagPlayer_Demuxer_FFMPEG::~MagPlayer_Demuxer_FFMPEG(){
         fclose(mStreamBufFile);
     }
 #endif
-
 }
 
 void MagPlayer_Demuxer_FFMPEG::PrintLog_Callback(void* ptr, int level, const char* fmt, va_list vl){
@@ -329,6 +327,7 @@ _status_t  MagPlayer_Demuxer_FFMPEG::create_track(TrackInfo_t *track){
     strack = new Stream_Track(track, buf_pool_size);
     if (NULL != strack){
         mStreamIDRoot = rbtree_insert(mStreamIDRoot, track->streamID, static_cast<void *>(strack));
+        track->stream_track = static_cast<void *>(strack);
     }else{
         return MAG_NO_MEMORY;
     }
@@ -384,17 +383,21 @@ _status_t  MagPlayer_Demuxer_FFMPEG::ts_noprobe_add_streams(){
     ret = mParamDB->findInt32(mParamDB, kDemuxer_Video_Track_Number, &number);
     if (ret == MAG_TRUE){
         mTotalTrackNum = mTotalTrackNum + number;
+        AGILE_LOGV("mTotalTrackNum: %d, video track number: %d", mTotalTrackNum, number);
     }
 
     ret = mParamDB->findInt32(mParamDB, kDemuxer_Audio_Track_Number, &number);
     if (ret == MAG_TRUE){
         mTotalTrackNum = mTotalTrackNum + number;
+        AGILE_LOGV("mTotalTrackNum: %d, audio track number: %d", mTotalTrackNum, number);
     }
 
     ret = mParamDB->findInt32(mParamDB, kDemuxer_Subtitle_Track_Number, &number);
     if (ret == MAG_TRUE){
         mTotalTrackNum = mTotalTrackNum + number;
+        AGILE_LOGV("mTotalTrackNum: %d, subtitle track number: %d", mTotalTrackNum, number);
     }
+    
     AGILE_LOGI("total track number is %d", mTotalTrackNum);
 
     if (mpAVFormat->nb_streams > 0){
@@ -463,65 +466,59 @@ _status_t  MagPlayer_Demuxer_FFMPEG::ts_noprobe_start(){
     AVIOContext *context;
     AVInputFormat *fmt;
 
-    if (!mInitialized){
-        context = ffmpeg_utiles_CreateAVIO();
-        if (NULL == context){
-            return MAG_NO_MEMORY;
-        }
+    context = ffmpeg_utiles_CreateAVIO();
+    if (NULL == context){
+        return MAG_NO_MEMORY;
+    }
 
-        mpAVFormat = ffmpeg_utiles_CreateAVFormat(NULL, context, false, false);
-        if (NULL == mpAVFormat){
-            return MAG_NO_MEMORY;
-        }
-        
-        ffmpeg_utiles_SetOption("probesize", "1024"); //128000
-        av_dict_copy(&avdict_tmp, mpFormatOpts, 0);
+    mpAVFormat = ffmpeg_utiles_CreateAVFormat(NULL, context, false, false);
+    if (NULL == mpAVFormat){
+        return MAG_NO_MEMORY;
+    }
+    
+    ffmpeg_utiles_SetOption("probesize", "1024"); //128000
+    av_dict_copy(&avdict_tmp, mpFormatOpts, 0);
 
-        if ((rc = av_opt_set_dict(mpAVFormat, &avdict_tmp)) < 0)
-        {
-            AGILE_LOGE("Failed to do av_opt_set_dict()");
-            ret = MAG_UNKNOWN_ERROR;
-            goto opt_fail;
-        }
-        
-        fmt = av_find_input_format("mpegts");
-        if (!fmt)
-        {
-            AGILE_LOGE("Failed to do av_find_input_format(mpegts)");
-            ret = MAG_NAME_NOT_FOUND;
+    if ((rc = av_opt_set_dict(mpAVFormat, &avdict_tmp)) < 0)
+    {
+        AGILE_LOGE("Failed to do av_opt_set_dict()");
+        ret = MAG_UNKNOWN_ERROR;
+        goto opt_fail;
+    }
+    
+    fmt = av_find_input_format("mpegts");
+    if (!fmt)
+    {
+        AGILE_LOGE("Failed to do av_find_input_format(mpegts)");
+        ret = MAG_NAME_NOT_FOUND;
+        goto failure;
+    }
+    fmt->flags |= AVFMT_NOFILE;
+    mpAVFormat->iformat = fmt;
+
+    /* allocate private data */
+    if (mpAVFormat->iformat->priv_data_size > 0) {
+        if (!(mpAVFormat->priv_data = av_mallocz(mpAVFormat->iformat->priv_data_size))) {
+            AGILE_LOGE("no memory for mpAVFormat->priv_data allocation(size = %d)", 
+                       mpAVFormat->iformat->priv_data_size);
+            ret = MAG_NO_MEMORY;
             goto failure;
         }
-        fmt->flags |= AVFMT_NOFILE;
-        mpAVFormat->iformat = fmt;
-
-        /* allocate private data */
-        if (mpAVFormat->iformat->priv_data_size > 0) {
-            if (!(mpAVFormat->priv_data = av_mallocz(mpAVFormat->iformat->priv_data_size))) {
-                AGILE_LOGE("no memory for mpAVFormat->priv_data allocation(size = %d)", 
-                           mpAVFormat->iformat->priv_data_size);
-                ret = MAG_NO_MEMORY;
+        
+        if (mpAVFormat->iformat->priv_class) {
+            *(const AVClass**)mpAVFormat->priv_data = mpAVFormat->iformat->priv_class;
+            av_opt_set_defaults(mpAVFormat->priv_data);
+            if (av_opt_set_dict(mpAVFormat->priv_data, &avdict_tmp) < 0){
+                ret = MAG_UNKNOWN_ERROR;
                 goto failure;
-            }
-            
-            if (mpAVFormat->iformat->priv_class) {
-                *(const AVClass**)mpAVFormat->priv_data = mpAVFormat->iformat->priv_class;
-                av_opt_set_defaults(mpAVFormat->priv_data);
-                if (av_opt_set_dict(mpAVFormat->priv_data, &avdict_tmp) < 0){
-                    ret = MAG_UNKNOWN_ERROR;
-                    goto failure;
-                }
             }
         }
     }
     
     ts_noprobe_add_streams();
 
-    if (!mInitialized){
-        av_demuxer_open(mpAVFormat);
-    }
-    
-    mInitialized = true;
-    
+    av_demuxer_open(mpAVFormat);
+  
     av_dump_format(mpAVFormat, 0, DUMMY_FILE, 0);
     
 opt_fail:
@@ -555,10 +552,20 @@ _status_t  MagPlayer_Demuxer_FFMPEG::ts_noprobe_stop(){
         mParamDB->deleteItem(mParamDB, keyName);
     }
     mTotalTrackNum = 0;
-    
+
+    /*destroy ffmpeg staffs*/
+    av_dict_free(&mpFormatOpts);
+
+    if (mpAVFormat){
+        avformat_close_input(&mpAVFormat);
+        mpAVFormat = NULL;
+    }
+
+    mIsStarted = MAG_FALSE;
     return MAG_NO_ERROR;
 }
 
+#if 0
 void  MagPlayer_Demuxer_FFMPEG::copy_noprobe_params(MagMiniDBHandle playerParams){
     i32  number;
     i32  total_tracks = 0;
@@ -587,11 +594,14 @@ void  MagPlayer_Demuxer_FFMPEG::copy_noprobe_params(MagMiniDBHandle playerParams
         sprintf(keyValue, kDemuxer_Track_Info, i);
         if (playerParams->findPointer(playerParams, keyValue, &pointer)){
             setParameters(keyValue, MagParamTypePointer, pointer);
+            playerParams->derefItem(playerParams, keyValue);
+            
         }else{
             AGILE_LOGE("failed to get the %s track info!", keyValue);
         }
     }
 }
+#endif
 
 _status_t  MagPlayer_Demuxer_FFMPEG::probe_start(){
     return MAG_NO_ERROR;
@@ -601,7 +611,7 @@ _status_t  MagPlayer_Demuxer_FFMPEG::probe_stop(){
     return MAG_NO_ERROR;
 }
 
-_status_t  MagPlayer_Demuxer_FFMPEG::startInternal(MagPlayer_Component_CP *contentPipe, MagMiniDBHandle paramDB){
+_status_t  MagPlayer_Demuxer_FFMPEG::startInternal(MagPlayer_Component_CP *contentPipe){
     char *value;
     boolean ret;
     _status_t rc = MAG_NO_ERROR;
@@ -631,7 +641,7 @@ _status_t  MagPlayer_Demuxer_FFMPEG::startInternal(MagPlayer_Component_CP *conte
 
             if (ret == MAG_TRUE){
                 if (!strcmp(value, "no")){
-                    copy_noprobe_params(paramDB);
+                    //copy_noprobe_params(paramDB);
                     rc = ts_noprobe_start();
                     if (rc == MAG_NO_ERROR)
                         mIsStarted = MAG_TRUE;
@@ -643,7 +653,7 @@ _status_t  MagPlayer_Demuxer_FFMPEG::startInternal(MagPlayer_Component_CP *conte
     return probe_start();
 }
 
-_status_t  MagPlayer_Demuxer_FFMPEG::stop(){
+_status_t  MagPlayer_Demuxer_FFMPEG::stopInternal(){
     char *value;
     boolean ret;
     
@@ -651,7 +661,7 @@ _status_t  MagPlayer_Demuxer_FFMPEG::stop(){
         AGILE_LOGE("the Demuxer is not initialized. Quit!");
         return MAG_NO_INIT;
     }
-
+    
     ret = mParamDB->findString(mParamDB, kDemuxer_Container_Type, &value);
 
     if (ret == MAG_TRUE){
@@ -686,11 +696,17 @@ _status_t MagPlayer_Demuxer_FFMPEG::readMore(Stream_Track *track, ui32 StreamID)
     AVPacket packet;
     MediaBuffer_t *mb;
     Stream_Track *other_track;
+    i32 frames = 0;
+    i32 total = 0;
+    
+    if (mTotalTrackNum > 1){
+        total = (mTotalTrackNum - 1) * 5;
+    }else{
+        total = 5;
+    }
     
     while (true) {
-        AGILE_LOGD("before av_read_frame");
         i32 res = av_read_frame(mpAVFormat, &packet);
-        AGILE_LOGD("after av_read_frame. res = %d", res);
         if (res >= 0) {
             av_dup_packet(&packet);
 #ifdef FFMPEG_DEMUXER_DEBUG
@@ -711,6 +727,7 @@ _status_t MagPlayer_Demuxer_FFMPEG::readMore(Stream_Track *track, ui32 StreamID)
                 av_free_packet(&packet);
                 break;
             }else{
+                frames++;
                 other_track = static_cast<Stream_Track *>(rbtree_get(mStreamIDRoot, packet.stream_index));
                 if (NULL != other_track){
                     TrackInfo_t* info;
@@ -721,7 +738,13 @@ _status_t MagPlayer_Demuxer_FFMPEG::readMore(Stream_Track *track, ui32 StreamID)
                         other_track->enqueueFrame(mb);
                     }
                 }
+                
                 av_free_packet(&packet);
+                    
+                if (frames >= total){
+                    AGILE_LOGV("Can't get the packet with id:%d but got %d other frames.", StreamID, frames);
+                    return MAG_NAME_NOT_FOUND;
+                }
             }  
         } else {
             AGILE_LOGD("No packet reading from ffmpeg!");

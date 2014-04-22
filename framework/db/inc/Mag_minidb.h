@@ -32,7 +32,7 @@ typedef struct mag_minidb_item{
         void    *ptrValue;
         char    *stringValue;
     } u;
-    const char *mName;
+    char *mName;
     enum MagMiniDBItemType mType;
 }MagMiniDBItem_t;
 
@@ -60,6 +60,7 @@ typedef struct mag_minidb{
     boolean (*findPointer)(struct mag_minidb *db, const char *name, void **value);
     boolean (*findString)(struct mag_minidb *db, const char *name, char **s);
 
+    void    (*derefItem)(struct mag_minidb *db, const char *name);
     void    (*deleteItem)(struct mag_minidb *db, const char *name);
 }MagMiniDB_t;
 

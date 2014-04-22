@@ -17,15 +17,13 @@ MagPlayer_Component_CP::MagPlayer_Component_CP(){
     mLooper          = NULL;
     mMsgHandler      = NULL;
     
+    mIsOpened        = false;
+    
     mDataObserverMsg = createMessage(MagCPMsg_DataObserver);
 }
 
 MagPlayer_Component_CP::~MagPlayer_Component_CP(){
 
-}
-
-MPCP_RESULTTYPE MagPlayer_Component_CP::Open( ){
-    return MPCP_OK;
 }
 
 MPCP_RESULTTYPE MagPlayer_Component_CP::Create( MPCP_IN ui8 *szURI ){
@@ -34,13 +32,28 @@ MPCP_RESULTTYPE MagPlayer_Component_CP::Create( MPCP_IN ui8 *szURI ){
 
 
 MPCP_RESULTTYPE MagPlayer_Component_CP::Create( MPCP_IN StreamBufferUser *buffer ){
-    mStreamBuffer = buffer;
-    mStreamBuffer->setReadPolicy(StreamBufferUser::READ_FULL);
+    mStreamBuffer = buffer; 
     mSourceType   = MPCP_MEMORY;
     return MPCP_OK;
 }
 
+MPCP_RESULTTYPE MagPlayer_Component_CP::Open( ){
+    AGILE_LOGV("enter!");
+    if (mSourceType == MPCP_MEMORY){
+        AGILE_LOGV("set read policy: full!");
+        mStreamBuffer->start(StreamBufferUser::READ_FULL);
+    }
+    mIsOpened = true;
+    return MPCP_OK;
+}
+
 MPCP_RESULTTYPE MagPlayer_Component_CP::Close( ){
+    mLooper->clear(mLooper);
+    if (mSourceType == MPCP_MEMORY){
+        if (NULL != mStreamBuffer)
+            mStreamBuffer->reset();
+    }
+    mIsOpened = false;
     return MPCP_OK;
 }
 
@@ -61,7 +74,7 @@ MPCP_RESULTTYPE MagPlayer_Component_CP::Read( MPCP_OUT ui8* pData, MPCP_INOUT ui
         ui32 readSize = *pSize;
         if (mStreamBuffer){
             *pSize = mStreamBuffer->read(static_cast<void *>(pData), readSize);
-            if (*pSize < readSize){
+            if ((*pSize < readSize) && (mIsOpened)){
                 /*start up the buffer observer to wait for the required data to be ready*/
                 if (mStreamBuffer->isEOS()){
                     AGILE_LOGV("send mDemuxerNotifier message for EOS!");

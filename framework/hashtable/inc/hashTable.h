@@ -106,6 +106,7 @@ typedef struct str_hash_table{
 
     void  (*addItem)(struct str_hash_table *ht, void *item, const char *str);
     void* (*getItem)(struct str_hash_table *ht, const char *str);
+    void  (*delItem)(struct str_hash_table *ht, const char *str);
     void  (*print)(struct str_hash_table *ht);
 }StrHashTable_t;
 

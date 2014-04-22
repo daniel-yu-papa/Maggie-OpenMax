@@ -27,7 +27,7 @@
             <EditText android:id="@+id/videoPID" 
                 android:layout_width="100dip"
                 android:layout_height="wrap_content" 
-                android:text="17"
+                android:text="4130"
                 android:textSize="20sp" />
             
             <Spinner
@@ -46,7 +46,7 @@
             <EditText android:id="@+id/audioPID" 
                 android:layout_width="100dip"
                 android:layout_height="wrap_content" 
-                android:text="20"
+                android:text="4131"
                 android:textSize="20sp" />
             
             <Spinner
@@ -106,13 +106,7 @@
                 android:id="@+id/tsplayer_play"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Play" />  
-            
-            <Button
-                android:id="@+id/tsplayer_stop"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Stop" />       
+                android:text="Play" />
         </LinearLayout>
     </LinearLayout>
     

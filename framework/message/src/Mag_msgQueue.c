@@ -32,7 +32,7 @@ void MagMsgQueue_get(Mag_MsgQueueHandle h, MagMessageHandle *msg){
     
     tmpNode = h->mQueueHead.next;
     if (tmpNode == &h->mQueueHead){
-        msg = NULL;
+        *msg = NULL;
     }else{
         pMsg = (Mag_MsgQueueNode_t *)list_entry(tmpNode, Mag_MsgQueueNode_t, node); 
         *msg = pMsg->msg;

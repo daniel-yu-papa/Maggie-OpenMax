@@ -25,6 +25,7 @@ enum TrackStatus_t{
     TRACK_STOP = 0,
     TRACK_PAUSE,
     TRACK_PLAY,
+    TRACK_PLAY_COMPLETE,
 };
 
 typedef struct{
@@ -32,13 +33,15 @@ typedef struct{
     enum TrackStatus_t status;
     
     ui32 index;                   /*the incremental index of all tracks in the stream in align with the structure TrackInfoTable_t*/
-    char *name;                   /*the description information acquired from the stream*/
+    char name[32];                /*the description information acquired from the stream*/
     ui32 streamID;                /*the stream id used in low-level demuxer*/
     ui32 codec;                   /*codec id*/
     ui32 pid;                     /*pid for ts*/
 
     i32  pendingRead;             /*the pending read number when no data happens while try to read frame*/
     MagMessageHandle message;     /*To send the message for reading frame*/
+
+    void *stream_track;           /*point to the class Stream_Track*/
 }TrackInfo_t;
 
 typedef struct{
@@ -91,17 +94,20 @@ public:
     MagPlayer_Demuxer_Base();
     virtual ~MagPlayer_Demuxer_Base();
     
-    void setParameters(const char *name, MagParamType_t type, void *value);
-    TrackInfoTable_t *getTrackInfoList();
+    //void setParameters(const char *name, MagParamType_t type, void *value);
+    TrackInfoTable_t *getTrackInfoList();
+    void             destroyTrackInfoList();
+    
     _status_t   setPlayingTrackID(ui32 index);
     ui32        getPlayingTracksID(ui32 **index);
     _status_t   readFrame(ui32 trackIndex, MediaBuffer_t **buffer);
     MagMessageHandle createNotifyMsg();
     _status_t   start(MagPlayer_Component_CP *contentPipe, MagMiniDBHandle paramDB);
+    _status_t   stop();
     
     virtual _status_t   readFrameInternal(ui32 StreamID, MediaBuffer_t **buffer) = 0;
-    virtual _status_t   startInternal(MagPlayer_Component_CP *contentPipe, MagMiniDBHandle paramDB) = 0;
-    virtual _status_t   stop() = 0;
+    virtual _status_t   startInternal(MagPlayer_Component_CP *contentPipe) = 0;
+    virtual _status_t   stopInternal() = 0;
     
 protected:
     MagMiniDBHandle mParamDB;
@@ -111,10 +117,12 @@ private:
     enum{
         MagDemuxerMsg_PlayerNotify,
         MagDemuxerMsg_ContentPipeNotify,
+        MagDemuxerMsg_Stop,
     };
 
     void onPlayerNotify(MagMessageHandle msg);
     void onContentPipeNotify(MagMessageHandle msg);
+    void onStop(MagMessageHandle msg);
     
     static void      onMessageReceived(const MagMessageHandle msg, void *priv);
     MagMessageHandle createMessage(ui32 what);
@@ -126,6 +134,10 @@ private:
     MagHandlerHandle mMsgHandler;
 
     MagMessageHandle mDataReadyMsg;
+
+    bool mIsEOS;
+
+    MagMessageHandle mDemuxStopMsg;
 };
 
 #ifdef __cplusplus

@@ -131,6 +131,7 @@ typedef struct MagLooper{
     _status_t (*unregisterHandler)(struct MagLooper *self, i32 handlerID);
     _status_t (*start)(struct MagLooper *self);
     _status_t (*stop)(struct MagLooper *self);
+    void      (*clear)(struct MagLooper *self);
     void (*postMessage)(struct MagLooper *self, MagMessage_t *msg, i64 delayUs);
 
     ui32 (*getHandlerID)(struct MagLooper *self);

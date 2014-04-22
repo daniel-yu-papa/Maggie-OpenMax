@@ -21,6 +21,7 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_C_INCLUDES := \
     $(MAGPLAYER_FRAMEWORK_INC_PATH) \
     $(LOCAL_PATH) \
+    $(MAGPLAYER_PATH)/includes \
     $(MAGPLAYER_PATH)/platform/android \
     $(MAGPLAYER_PATH)/players/inc \
     $(MAGPLAYER_PATH)/client/android/inc \

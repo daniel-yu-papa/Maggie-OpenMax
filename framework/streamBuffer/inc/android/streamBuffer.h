@@ -32,6 +32,7 @@ struct IStreamBuffer : public IInterface {
 
     virtual void onBufferEmpty(_size_t index, _size_t size) = 0;
     virtual Type getType(void) = 0;
+    virtual void reset(void) = 0;
     
 protected:
     sp<IStreamBufferUser> mUser;

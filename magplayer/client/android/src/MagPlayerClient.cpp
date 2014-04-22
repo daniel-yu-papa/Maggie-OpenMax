@@ -1,4 +1,5 @@
 #include "MagPlayerClient.h"
+#include "EventType.h"
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
@@ -195,6 +196,8 @@ _status_t MagPlayerClient::stop()
         _status_t ret = mPlayer->stop();
         if (ret != MAG_NO_ERROR) {
             mCurrentState = MAG_PLAYER_STATE_ERROR;
+        }else{
+            mCurrentState = MAG_PLAYER_INITIALIZED;
         }
     }
     return ret;

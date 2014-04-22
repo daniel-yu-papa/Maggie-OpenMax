@@ -6,7 +6,8 @@
 #define MODULE_TAG "magFramework-StreamBuffer"
 
 StreamBufferUser::StreamBufferUser(const sp<IStreamBuffer> &buffer, _size_t bufSize, _size_t bufNum):
-                                                                                               mEOS(false){
+                                                                                               mEOS(false),
+                                                                                               mQuitRead(false){
     INIT_LIST(&mBufferListHead);
     
     mBufferSize   = bufSize;
@@ -39,6 +40,7 @@ StreamBufferUser::~StreamBufferUser(){
 void StreamBufferUser::init(){
     BufferNode_t *p;
 
+    mQuitRead = false;
     mMemDealer = new MemoryDealer(mBufferNumber * mBufferSize);
     for (_size_t i = 0; i < mBufferNumber; ++i) {
         p = (BufferNode_t *)mag_mallocz(sizeof(BufferNode_t));
@@ -92,10 +94,17 @@ bool StreamBufferUser::isEOS(){
 }
 
 void StreamBufferUser::reset(){
+    Mag_AcquireMutex(mCBMgr->lock);
+    mQuitRead = true;
     if (mCBMgr){
         mCBMgr->readIndex  = 0;
         mCBMgr->writeIndex = 0;
     }
+    mEOS        = false;
+    mReadPolicy = StreamBufferUser::READ_ANY;
+    Mag_ReleaseMutex(mCBMgr->lock);
+    
+    mStreamBuffer->reset();
 }
 
 void StreamBufferUser::issueCommand(Command cmd, bool synchronous){
@@ -127,8 +136,9 @@ _size_t StreamBufferUser::getDataSize(){
     return 0;
 }
 
-void StreamBufferUser::setReadPolicy(enum Read_Policy p){
+void StreamBufferUser::start(enum Read_Policy p){
     mReadPolicy = p;
+    mQuitRead   = false;
 }
 
 _size_t StreamBufferUser::readData_CircularBuffer(void *data, _size_t size){
@@ -143,11 +153,12 @@ restart:
     if (mCBMgr != NULL){
         AGILE_LOGV("readIndex=%d, writeIndex=%u, size=%u", mCBMgr->readIndex, w, size);
         if (w == mCBMgr->readIndex){
-            if (mReadPolicy == StreamBufferUser::READ_ANY){
+            if ((mReadPolicy == StreamBufferUser::READ_ANY) || isEOS()){
                 /*if w == r: the buffer is empty*/
+                AGILE_LOGD("stream buffer is empty!!");
                 return 0;
             }else{
-                if (!isEOS()){
+                if (!mQuitRead){
                     usleep(10000);
                     goto restart;
                 }
@@ -170,7 +181,7 @@ restart:
                 mStreamBuffer->onBufferEmpty(0, size);
                 return size;
             }else{
-                if (mReadPolicy == StreamBufferUser::READ_ANY){
+                if ((mReadPolicy == StreamBufferUser::READ_ANY) || isEOS()){
                     ui32 firstPart = mCBMgr->totalSize - mCBMgr->readIndex;
                     ui32 secondPart = w;
 
@@ -183,7 +194,7 @@ restart:
                     mStreamBuffer->onBufferEmpty(0, total_read);
                     return total_read;
                 }else{
-                    if (!isEOS()){
+                    if (!mQuitRead){
                         usleep(10000);
                         goto restart;
                     }
@@ -196,14 +207,14 @@ restart:
                 mStreamBuffer->onBufferEmpty(0, size);
                 return size;
             }else{
-                if (mReadPolicy == StreamBufferUser::READ_ANY){
+                if ((mReadPolicy == StreamBufferUser::READ_ANY) || isEOS()){
                     total_read = w - mCBMgr->readIndex;
                     memcpy(data, static_cast<void *>(static_cast<ui8 *>(mCBMgr->pointer) + mCBMgr->readIndex), total_read);
                     mCBMgr->readIndex += total_read;
                     mStreamBuffer->onBufferEmpty(0, total_read);
                     return total_read;
                 }else{
-                    if (!isEOS()){
+                    if (!mQuitRead){
                         usleep(10000);
                         goto restart;
                     }

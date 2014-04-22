@@ -24,8 +24,8 @@ public:
     virtual ~MagPlayer_Demuxer_FFMPEG();
 
     virtual _status_t   readFrameInternal(ui32 StreamID, MediaBuffer_t **buffer);
-    virtual _status_t   startInternal(MagPlayer_Component_CP *contentPipe, MagMiniDBHandle paramDB);
-    virtual _status_t   stop();
+    virtual _status_t   startInternal(MagPlayer_Component_CP *contentPipe);
+    virtual _status_t   stopInternal();
     
 private:
     MagPlayer_Component_CP *mDataSource;
@@ -34,7 +34,7 @@ private:
     _status_t  ts_noprobe_stop();
     _status_t  ts_noprobe_add_streams();
     bool       ts_noprobe_decide_adding(enum CodecID codec, ui32 pid);
-    void       copy_noprobe_params(MagMiniDBHandle playerParams);
+    //void       copy_noprobe_params(MagMiniDBHandle playerParams);
     
     static void PrintLog_Callback(void* ptr, int level, const char* fmt, va_list vl);
     
@@ -50,7 +50,6 @@ private:
     AVFormatContext *mpAVFormat; /* av format context. */
     AVDictionary    *mpFormatOpts;
 
-    bool       mInitialized;
     i32        mTotalTrackNum;
     
     AVIOContext     *ffmpeg_utiles_CreateAVIO();

@@ -1,5 +1,6 @@
 #include "MagPlayerDriver.h"
 #include "MagPlayerClient.h"
+#include "EventType.h"
 
 static const MagParametersTable_t sParamTable[] = {
     /*key: 1  */{kMediaType,        MagParamTypeInt32},
@@ -14,6 +15,8 @@ MagPlayerDriver::MagPlayerDriver(void *client, notify_client_callback_f cb):
                                                                 mSetTrackIndex(0){
     mpClient = client;
     mClientNotifyFn = cb;
+
+    mpStreamBufUser = NULL;
     
     mpPlayer = new MagPlayer();
     if (NULL != mpPlayer){
@@ -26,7 +29,11 @@ MagPlayerDriver::MagPlayerDriver(void *client, notify_client_callback_f cb):
 }
 
 MagPlayerDriver::~MagPlayerDriver(){
-    delete mpPlayer;
+    //if (mpStreamBufUser)
+    //    delete mpStreamBufUser;
+
+    if (mpPlayer)
+        delete mpPlayer;
 }
 
 _status_t MagPlayerDriver::setDataSource(const char *url){
@@ -110,6 +117,7 @@ _status_t MagPlayerDriver::start(){
 
 _status_t MagPlayerDriver::stop(){
     if (MPD_ST_INITIALIZED == mState){
+        mSetTrackIndex = 0;
         return mpPlayer->stop();
     }else{
         AGILE_LOGE("the state[%d] is wrong", mState);
@@ -236,7 +244,7 @@ _status_t MagPlayerDriver::setParameter(int key, const Parcel &request){
                     sprintf(keyValue, kDemuxer_Track_Info, i);
                     track->pid   = static_cast<ui32>(request.readInt32());
                     track->codec = static_cast<ui32>(request.readInt32());
-                    track->name  = mag_strdup(keyValue);
+                    strncpy(track->name, keyValue, 32);
                     mpPlayer->setParameters(keyValue, MagParamTypePointer, static_cast<void *>(track));
                     AGILE_LOGV("%s track[name: %s]: pid = %u, codec = %u", (key == idsVideo_TS_pidlist) ? "video" : "audio", keyValue,
                                 track->pid, track->codec);

@@ -40,6 +40,15 @@ StreamBuffer::~StreamBuffer(){
         mag_free(mCBMgr);
     }
 }
+void StreamBuffer::reset(){
+    if (NULL != mCBMgr){
+        Mag_AcquireMutex(mCBMgr->lock);
+        mCBMgr->readIndex = 0;
+        mCBMgr->writeIndex = 0;
+        AGILE_LOGI("complete reset!");
+        Mag_ReleaseMutex(mCBMgr->lock);
+    }
+}
 
 void StreamBuffer::setUser(const sp<IStreamBufferUser> &user){
     AGILE_LOGI("enter!");
@@ -143,7 +152,7 @@ restart:
             }else{
                 if (block){
                     /*wait on buffer free event*/
-                    AGILE_LOGD("wait on buffer-free-event!");
+                    AGILE_LOGD("wait on buffer-free-event(r: %d, w: %d, size: %d)!", r, mCBMgr->writeIndex, size);
                     Mag_WaitForEventGroup(mBufStatusEvtGrp, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
                     goto restart;
                 }else{

@@ -50,6 +50,35 @@ static void *StrHashTable_getItem(struct str_hash_table *ht, const char *str){
     return NULL;
 }
 
+static void StrHashTable_delItem(struct str_hash_table *ht, const char *str){
+    unsigned int tableIndex = 0;
+    LinkedKeyNode_t *tnode = NULL;
+    struct hlist_node *pos;
+    struct hlist_node *prev;
+    
+    tableIndex = calcDJBHashValue(str, strlen(str)) % ht->mTableSize;
+
+    if (NULL == ht->mpTable[tableIndex].head.first){
+        //printf("the string[%s] has not been added into the Table!!\n", str);
+        return;
+    }else{
+        while(NULL != ht->mpTable[tableIndex].head.first){
+            /*several nodes has the same hash key so traverse the link*/
+            hlist_for_each_entry_to_tail(tnode, pos, prev, &ht->mpTable[tableIndex].head, node){
+                
+            }
+            
+            if(!strcmp(str, tnode->nodeStr)){
+                hlist_del(prev);
+                free((void *)tnode);
+            }
+        }
+    }
+    
+    //printf("failed to get the node (%s)\n", str);
+}
+
+
 #define AGILELOG_PRINT_BUFFER_SIZE 2048
 static void StrHashTable_print(struct str_hash_table *ht){
 
@@ -90,6 +119,7 @@ HashTableHandle  createMagStrHashTable(int num){
             ht->mTableSize = num;
             ht->addItem = StrHashTable_addItem;
             ht->getItem = StrHashTable_getItem;
+            ht->delItem = StrHashTable_delItem;
             ht->print   = StrHashTable_print;
         }
     }
@@ -99,9 +129,9 @@ HashTableHandle  createMagStrHashTable(int num){
 void             destroyMagStrHashTable(HashTableHandle ht){
     int i;
     LinkedKeyNode_t *tnode = NULL;
-    struct hlist_node *pos;
-    struct hlist_node *prev;
-
+    struct hlist_node *pos = NULL;
+    struct hlist_node *prev = NULL;
+    
     if (NULL == ht)
         return;
     

@@ -25,6 +25,8 @@ Stream_Track::Stream_Track(TrackInfo_t *info, ui32 buffer_pool_size):
 }
 
 Stream_Track::~Stream_Track(){
+    AGILE_LOGV("track %d: enter!", mInfo->streamID);
+    reset();
     Mag_DestroyMutex(mMutex);
     magMemPoolDestroy(mBufPoolHandle);   
 }
@@ -51,8 +53,6 @@ TrackInfo_t* Stream_Track::getInfo(){
 MediaBuffer_t* Stream_Track::dequeueFrame(){
     List_t *next;
     MediaBuffer_t *item = NULL;
-
-    AGILE_LOGV("enter!");
     
     Mag_AcquireMutex(mMutex);
     
@@ -149,27 +149,26 @@ MagPlayer_Demuxer_Base::MagPlayer_Demuxer_Base():
                         mTrackList(NULL),
                         mLooper(NULL),
                         mMsgHandler(NULL),
-                        mDataReadyMsg(NULL){
+                        mDataReadyMsg(NULL),
+                        mIsEOS(false){
+    /*
     mParamDB = createMagMiniDB(MAX_PARAM_DB_ITEMS_NUMBER);
     if (NULL == mParamDB){
         AGILE_LOGE("Failed to create the parameters db!");
-    }
+    }*/
+    mParamDB = NULL;
 
     mDataReadyMsg = createMessage(MagDemuxerMsg_PlayerNotify);
     mDataReadyMsg->setInt32(mDataReadyMsg, "what", MagPlayer_Demuxer_Base::kWhatReadFrame);
+
+    mDemuxStopMsg    = createMessage(MagDemuxerMsg_Stop);
 }
 
 MagPlayer_Demuxer_Base::~MagPlayer_Demuxer_Base(){
-    destroyMagMiniDB(mParamDB);
-
-    if (NULL != mTrackList){
-        if (mTrackList->trackTableList)
-            mag_free(mTrackList->trackTableList);
-        
-        mag_free(mTrackList);
-    }
+    //destroyMagMiniDB(mParamDB);
 }
 
+#if 0
 void MagPlayer_Demuxer_Base::setParameters(const char *name, MagParamType_t type, void *value){
     if (NULL != mParamDB){
         switch (type){
@@ -227,7 +226,7 @@ void MagPlayer_Demuxer_Base::setParameters(const char *name, MagParamType_t type
         AGILE_LOGE("the parameter db is NOT initialized!");
     }
 }
-
+#endif
 
 TrackInfoTable_t *MagPlayer_Demuxer_Base::getTrackInfoList(){
     void *value;
@@ -247,6 +246,7 @@ TrackInfoTable_t *MagPlayer_Demuxer_Base::getTrackInfoList(){
     }
     
     if (mTrackList != NULL){
+        AGILE_LOGE("The Track List has been created!");
         return mTrackList;
     }
 
@@ -326,6 +326,35 @@ TrackInfoTable_t *MagPlayer_Demuxer_Base::getTrackInfoList(){
     return mTrackList;
 }
 
+void MagPlayer_Demuxer_Base::destroyTrackInfoList(){
+    i32 totalTrackNum = 0;
+    i32 i;
+    TrackInfo_t *track;
+    Stream_Track *st = NULL;
+    
+    if (mTrackList == NULL)
+        return;
+
+    if (mTrackList->trackTableList == NULL){
+        mag_free(mTrackList);
+        mTrackList = NULL;
+        return;
+    }
+    
+    totalTrackNum = mTrackList->audioTrackNum + mTrackList->videoTrackNum + mTrackList->subtitleTrackNum;
+
+    for (i = 0; i < totalTrackNum; i++){
+        track = mTrackList->trackTableList[i];
+        destroyMagMessage(track->message);
+        st = static_cast<Stream_Track *>(track->stream_track);
+        if (st)
+            delete st;
+    }
+    mag_free(mTrackList->trackTableList);
+    mag_free(mTrackList);
+    mTrackList = NULL;
+}
+
 _status_t  MagPlayer_Demuxer_Base::setPlayingTrackID(ui32 index){
     TrackInfo_t *ti;
     
@@ -379,7 +408,7 @@ ui32       MagPlayer_Demuxer_Base::getPlayingTracksID(ui32 **index){
 _status_t   MagPlayer_Demuxer_Base::readFrame(ui32 trackIndex, MediaBuffer_t **buffer){
     TrackInfo_t * ti;
 
-    AGILE_LOGD("trackid = %d", trackIndex);
+    AGILE_LOGV("trackid = %d", trackIndex);
     ti = mTrackList->trackTableList[trackIndex];
 
     if (NULL != ti){
@@ -407,13 +436,30 @@ _status_t  MagPlayer_Demuxer_Base::start(MagPlayer_Component_CP *contentPipe, Ma
     msg = createMessage(MagDemuxerMsg_ContentPipeNotify);
     contentPipe->SetDemuxerNotifier(msg);
 
-    return startInternal(contentPipe, paramDB);
+    mParamDB = paramDB;
+    
+    return startInternal(contentPipe);
+}
+
+void MagPlayer_Demuxer_Base::onStop(MagMessageHandle msg){
+    AGILE_LOGV("enter!");
+
+    destroyTrackInfoList();
+    stopInternal();
+}
+
+_status_t MagPlayer_Demuxer_Base::stop(){
+    mLooper->clear(mLooper);
+    mDemuxStopMsg->postMessage(mDemuxStopMsg, 0);
+    mLooper->waitOnAllDone(mLooper);
+    return MAG_NO_ERROR;
 }
 
 void MagPlayer_Demuxer_Base::onPlayerNotify(MagMessageHandle msg){
     boolean ret;
     i32 idx;
-
+    _status_t res;
+    
     MediaBuffer_t *buf = NULL;
     MagMessageHandle reply = NULL;
     i32 what;
@@ -437,29 +483,48 @@ void MagPlayer_Demuxer_Base::onPlayerNotify(MagMessageHandle msg){
         } 
         
         AGILE_LOGV("message: what = kWhatReadFrame, track-idx = %d", idx);
-        if (MAG_NO_ERROR == readFrame(idx, &buf)){
+
+        if (NULL == reply){
+            AGILE_LOGE("the reply message is NULL");
+            return;
+        }
+
+        res = readFrame(idx, &buf);
+        if (MAG_NO_ERROR == res){
             if (NULL != buf){
-                if (NULL != reply){
-                    reply->setPointer(reply, "media-buffer", static_cast<void *>(buf));
-                    /*send message to OMX component that owns the media track processing*/
-                    reply->postMessage(reply, 0);
-                }else{
-                    AGILE_LOGE("the reply message is NULL.");
-                }
+                reply->setString(reply, "eos", "no");
+                reply->setPointer(reply, "media-buffer", static_cast<void *>(buf));
+                /*send message to OMX component that owns the media track processing*/
+                reply->postMessage(reply, 0);
             }else{
                 AGILE_LOGE("the media buffer is NULL!");
             }
+        }else if (MAG_NAME_NOT_FOUND == res){
+            reply->setString(reply, "eos", "no");
+            reply->setPointer(reply, "media-buffer", NULL);
+            /*send message to OMX component that owns the media track processing*/
+            reply->postMessage(reply, 0);
         }else{
-            TrackInfo_t *ti;
-            if (mTrackList == NULL){
-                AGILE_LOGE("the tracking list is empty. Should not be here!!");
-                getTrackInfoList();
+            if (mIsEOS){
+                reply->setString(reply, "eos", "yes");
+                reply->setPointer(reply, "media-buffer", NULL);
+                /*send message to OMX component that owns the media track processing*/
+                reply->postMessage(reply, 0);
+            }else{
+                TrackInfo_t *ti;
+                if (mTrackList == NULL){
+                    AGILE_LOGE("the tracking list is empty. Should not be here!!");
+                    getTrackInfoList();
+                }
+                
+                if (mTrackList){
+                    ti = mTrackList->trackTableList[idx];
+                    ATOMIC_INC(&ti->pendingRead);
+                    ti->message->setMessage(ti->message, "reply", reply);
+                    
+                    AGILE_LOGV("track: %d, pending read number: %d]", idx, ti->pendingRead);
+                }
             }
-            ti = mTrackList->trackTableList[idx];
-            ATOMIC_INC(&ti->pendingRead);
-            ti->message->setMessage(ti->message, "reply", reply);
-            
-            AGILE_LOGV("track: %d, pending read number: %d]", idx, ti->pendingRead);
         }
     }
 }
@@ -467,8 +532,7 @@ void MagPlayer_Demuxer_Base::onPlayerNotify(MagMessageHandle msg){
 void MagPlayer_Demuxer_Base::onContentPipeNotify(MagMessageHandle msg){
     char *eos;
     boolean ret;
-
-    AGILE_LOGV("enter!");
+    
     ret = msg->findString(msg, "eos", &eos);
     if (!ret){
         AGILE_LOGE("failed to find the eos string!");
@@ -477,11 +541,18 @@ void MagPlayer_Demuxer_Base::onContentPipeNotify(MagMessageHandle msg){
 
     if (!strcmp(eos, "yes")){
         /*get EOS notification*/
+        mIsEOS = true;
+        AGILE_LOGV("get EOS!");
     }else{
         i32 i;
         TrackInfo_t *ti;
         i32 pendings;
-        i32 totalTracks = mTrackList->audioTrackNum + mTrackList->videoTrackNum + mTrackList->subtitleTrackNum;
+        i32 totalTracks;
+
+        if (!mTrackList)
+            return;
+        
+        totalTracks = mTrackList->audioTrackNum + mTrackList->videoTrackNum + mTrackList->subtitleTrackNum;
         
         for (i = 0; i < totalTracks; i++){
             ti = mTrackList->trackTableList[i];
@@ -508,6 +579,10 @@ void MagPlayer_Demuxer_Base::onMessageReceived(const MagMessageHandle msg, void 
 
         case MagDemuxerMsg_ContentPipeNotify:
             thiz->onContentPipeNotify(msg);
+            break;
+
+        case MagDemuxerMsg_Stop:
+            thiz->onStop(msg);
             break;
             
         default:

@@ -84,10 +84,10 @@ public:
     MPCP_RESULTTYPE SetConfig( MPCP_IN ui8 *szKey, MPCP_IN void *value);    
     MPCP_RESULTTYPE GetConfig( MPCP_IN ui8 *szKey, MPCP_OUT void *value);
 
-    MPCP_RESULTTYPE Open( );    
     MPCP_RESULTTYPE Create( MPCP_IN ui8 *szURI );
     MPCP_RESULTTYPE Create( MPCP_IN StreamBufferUser *buffer );
-    MPCP_RESULTTYPE Close( );
+    MPCP_RESULTTYPE Open ( );
+    MPCP_RESULTTYPE Close ( );
 
     MPCP_RESULTTYPE SetPosition( MPCP_IN MPCP_POSITIONTYPE nOffset, MPCP_IN MPCP_ORIGINTYPE eOrigin );   
     MPCP_RESULTTYPE GetCurrentPosition( MPCP_OUT MPCP_POSITIONTYPE* pPosition );
@@ -122,6 +122,8 @@ private:
 
     MagMessageHandle mDataObserverMsg;
     MagMessageHandle mDemuxerNotifier;
+
+    bool mIsOpened;
 };
 
 

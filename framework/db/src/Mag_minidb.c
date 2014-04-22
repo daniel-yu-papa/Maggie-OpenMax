@@ -122,6 +122,8 @@ void MagMiniDB_setPointer(struct mag_minidb *db, const char *name, void *value){
     Mag_AcquireMutex(db->mLock);
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
     if (NULL != hItem){
+        AGILE_LOGV("name: %s, the old pointer: 0x%x", name, hItem->u.ptrValue);
+        mag_free(hItem->u.ptrValue);
         hItem->u.ptrValue = value;
         hItem->mType = MagMiniDB_TypePointer;
     }else{
@@ -315,6 +317,30 @@ boolean MagMiniDB_findString(struct mag_minidb *db, const char *name, char **s){
     return ret;
 }
 
+/* once the string/pointer type items are copied to other mag_minidb object. 
+  * the items must be deferenced cause the copied mag_minidb object takes responsibility to free them.*/
+void    MagMiniDB_derefItem(struct mag_minidb *db, const char *name){
+    MagMiniDBItemHandle hItem;
+    boolean ret;
+
+    Mag_AcquireMutex(db->mLock);
+    hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
+    if (NULL != hItem){
+        if (hItem->mType == MagMiniDB_TypeString){
+            AGILE_LOGV("set [%s] string pointer to NULL");
+            hItem->u.stringValue = NULL;
+        }
+        
+        if (hItem->mType == MagMiniDB_TypePointer){
+            AGILE_LOGV("set [%s] pointer to NULL");
+            hItem->u.ptrValue = NULL;
+        } 
+    }else{
+        AGILE_LOGE("failed to find the key: %s", name);
+    }
+    Mag_ReleaseMutex(db->mLock);
+}
+
 void    MagMiniDB_deleteItem(struct mag_minidb *db, const char *name){
     MagMiniDBItemHandle hItem;
     boolean ret;
@@ -322,13 +348,20 @@ void    MagMiniDB_deleteItem(struct mag_minidb *db, const char *name){
     Mag_AcquireMutex(db->mLock);
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
     if (NULL != hItem){
-        if (hItem->mType == MagMiniDB_TypeString)
+        if (hItem->mType == MagMiniDB_TypeString){
             mag_free(hItem->u.stringValue);
-        if (hItem->mType == MagMiniDB_TypePointer)
-            mag_free(hItem->u.ptrValue);
+            hItem->u.stringValue = NULL;
+        }
         
+        if (hItem->mType == MagMiniDB_TypePointer){
+            mag_free(hItem->u.ptrValue);
+            hItem->u.ptrValue = NULL;
+        } 
+        
+        mag_free(hItem->mName);
         list_del(&hItem->node);
         mag_free(hItem);
+        db->mhHashTable->delItem(db->mhHashTable, name);
     }else{
         AGILE_LOGE("failed to find the key: %s", name);
     }
@@ -363,6 +396,7 @@ MagMiniDBHandle createMagMiniDB(i32 maxItemsNum){
         h->findUInt32  = MagMiniDB_findUInt32;
 
         h->deleteItem  = MagMiniDB_deleteItem;
+        h->derefItem   = MagMiniDB_derefItem;
     }
 
     return h;
@@ -371,6 +405,8 @@ MagMiniDBHandle createMagMiniDB(i32 maxItemsNum){
 void destroyMagMiniDB(MagMiniDBHandle db){
     List_t *tmpNode;
     MagMiniDBItemHandle hItem;
+
+    Mag_AcquireMutex(db->mLock);
     
     destroyMagStrHashTable(db->mhHashTable);
 
@@ -382,12 +418,15 @@ void destroyMagMiniDB(MagMiniDBHandle db){
             mag_free(hItem->u.stringValue);
         if (hItem->mType == MagMiniDB_TypePointer)
             mag_free(hItem->u.ptrValue);
-        
+
+        mag_free(hItem->mName);
         list_del(&hItem->node);
         mag_free(hItem);
         tmpNode = db->mItemListHead.next;
     }
-
+    Mag_ReleaseMutex(db->mLock);
+    
     Mag_DestroyMutex(db->mLock);
+    mag_free(db);
 }
 

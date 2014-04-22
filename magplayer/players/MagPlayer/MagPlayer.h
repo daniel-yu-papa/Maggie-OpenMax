@@ -30,8 +30,10 @@ class MagPlayer {
 public:
     enum {
         kWhatFillThisBuffer      = 'filb',
+        kWhatPlayComplete        = 'plcm',
         kWhatError               = 'erro',
     };
+
     
     MagPlayer();
     virtual ~MagPlayer();

@@ -28,7 +28,8 @@ struct StreamBuffer : public StreamBuffer_Server{
     _size_t WriteData(void *data, _size_t size, bool block);
 
     sp<IStreamBufferUser> &getUser();
-    
+
+    void reset();
 protected:
     virtual ~StreamBuffer();
 
@@ -61,12 +62,13 @@ struct StreamBufferUser : public StreamBufferUser_Server {
     
     virtual void issueCommand(
             Command cmd, bool synchronous);
-    
+
+
+    void reset(void);
     _size_t read(void *data, _size_t size);
     
     bool isEOS();
-    void reset();
-    void setReadPolicy(enum Read_Policy p);
+    void start(enum Read_Policy p);
     _size_t getDataSize();
     
 protected:
@@ -89,7 +91,8 @@ private:
     CircularBufferMgr_t *mCBMgr;
 
     bool mEOS;
-
+    bool mQuitRead; /*temporaily use the stupid looping read method untill the buffer overflow/underflow logic is added*/
+    
     enum Read_Policy mReadPolicy;
 };
 

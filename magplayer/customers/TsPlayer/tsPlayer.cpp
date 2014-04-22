@@ -5,6 +5,8 @@
 #include "OMX_Audio.h"
 #include "OMX_AudioExt.h"
 
+#include "EventType.h"
+
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
@@ -42,6 +44,7 @@ void TsPlayer::initialize(){
         }
         StreamBuffer *sb = static_cast<StreamBuffer *>(GET_POINTER(mStreamBuf));
         sb->setType(IStreamBuffer::TS);
+
         ret = mPlayer->setDataSource(mStreamBuf);
         if (ret != MAG_NO_ERROR){
             AGILE_LOGE("failed to do setDataSource(ret = 0x%x)", ret);
@@ -54,7 +57,7 @@ void TsPlayer::initialize(){
         return;
     }
 
-    mpListener = new TsPlayerListener();
+    mpListener = new TsPlayerListener(this);
     if (mpListener != NULL)
         mPlayer->setListener(mpListener);
 
@@ -63,7 +66,16 @@ void TsPlayer::initialize(){
 }
 
 void TsPlayer::destroy(){
+    AGILE_LOGV("enter!");
+    
+    if (mpListener)
+        delete mpListener;
 
+    //if (mStreamBuf)
+    //    delete mStreamBuf;
+
+    //if (mPlayer)
+    //    delete mPlayer;
 }
 
 TsPlayer::TsPlayer():
@@ -72,6 +84,7 @@ TsPlayer::TsPlayer():
 }
 
 TsPlayer::~TsPlayer(){
+    destroy();
 }
 
 
@@ -228,7 +241,8 @@ int  TsPlayer::WriteData(unsigned char* pBuffer, unsigned int nSize){
         AGILE_LOGE("it is in error state, quit!");
         return 0;
     }
-        
+    //AGILE_LOGV("write %d", nSize);
+    
     StreamBuffer *sb = static_cast<StreamBuffer *>(GET_POINTER(mStreamBuf));
     if (nSize != 0){
         w = sb->WriteData(pBuffer, nSize, true);
@@ -315,7 +329,6 @@ bool TsPlayer::Stop(){
         AGILE_LOGE("it is in error state, quit!");
         return 0;
     }
-    
     mPlayer->stop();
     return true;
 }
@@ -408,7 +421,21 @@ void TsPlayer::playerback_register_evt_cb(IPTV_PLAYER_EVT_CB pfunc, void *hander
 
 }
 
+TsPlayerListener::TsPlayerListener(TsPlayer *obj){
+    mHost = obj;
+}
+
 void TsPlayerListener::notify(int msg, int ext1, int ext2){
     AGILE_LOGD("get message: %d(ext1:%d, ext2:%d)", msg, ext1, ext2);
+    switch (msg){
+        case MEDIA_INFO:
+            if (ext1 == MEDIA_INFO_PLAY_COMPLETE){
+                mHost->Stop();
+            }
+            break;
+
+        default:
+            break;
+    }
 }
 
