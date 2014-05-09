@@ -1,4 +1,6 @@
 /*
+ * Author: YJ
+ * Date: 2014-05-09
  * Implemention the OMX IL Spec Version 1.2.0 - chapter: 3.2.3 
  */
  
