@@ -39,10 +39,9 @@ void mag_free(void *ptr){
         free(ptr);
 }
 
-void mag_freep(void *arg){
-    void **ptr = (void **)arg;
-    mag_free(*ptr);
-    *ptr = NULL;
+void mag_freep(void **arg){
+    mag_free(*arg);
+    *arg = NULL;
 }
 
 char *mag_strdup(const char *s){

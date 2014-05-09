@@ -36,7 +36,7 @@ void *mag_realloc(void *ptr, size_t size) mag_alloc_size(2);
 
 void mag_free(void *ptr);
 
-void mag_freep(void *arg);
+void mag_freep(void **arg);
 
 char *mag_strdup(const char *s) mag_malloc_attrib;
 
