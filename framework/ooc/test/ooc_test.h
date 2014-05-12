@@ -7,13 +7,15 @@
 DeclareClass(Polygon, Base);
 
 Virtuals(Polygon, Base) 
-    int (*getEdges)(Polygon thiz);
+    int (*getEdges)(/*Polygon*/ void *thiz);
 EndOfVirtuals;
 
 ClassMembers(Polygon, Base, \
-    int (*setColor)(Polygon thiz, int colour); \
+    int (*setColor)(Polygon thiz, 
+                    int colour); \
     int (*getColor)(Polygon thiz); \
-    void (*setOwner)(Polygon thiz, char *owner); \
+    void (*setOwner)(Polygon thiz, 
+                     char *owner); \
     char *(*getOwner)(Polygon thiz); \
 )
     char *mpOwner;

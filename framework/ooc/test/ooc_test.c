@@ -67,7 +67,7 @@ int virtual_triangle_sellToCustomer(Triangle thiz, int money){
 }
 
 
-int virtual_triangle_get_edges(Polygon thiz){
+int virtual_triangle_get_edges(/*Polygon*/ void *thiz){
     Triangle self = ooc_cast(thiz, Triangle);
     AGILE_LOGD("[%s]: edges number is %d", __FUNCTION__, self->mEdgeNum);
 
@@ -144,6 +144,7 @@ TriangleInGold TriangleInGold_Create(int edge, int color){
     return (TriangleInGold) ooc_new( TriangleInGold, (void *)param);
 }
 
+
 int main( int argc, char argv[] ){
     TriangleInGold goldTri;
     Triangle tri;
@@ -163,6 +164,14 @@ int main( int argc, char argv[] ){
     //parent->setColor(parent, 12);
     parent->getColor(parent);
     parent->setOwner(parent, "Yu Jun");
+
+    if ( !PolygonVirtual(parent)->getEdges ){
+        AGILE_LOGE("[%s]: PolygonVirtual(parent)->getEdges is NULL", __FUNCTION__);
+    }else{
+        AGILE_LOGD("before PolygonVirtual(parent)->getEdges()");
+        PolygonVirtual(parent)->getEdges(parent);
+        AGILE_LOGD("after PolygonVirtual(parent)->getEdges()");
+    }
    
     ooc_delete((Object)goldTri);
 }
