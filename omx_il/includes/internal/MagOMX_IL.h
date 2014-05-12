@@ -3,8 +3,14 @@
 
 #include "OMX_Core.h"
 
-#define kInvalidCompPortNumber  0
+/*Mag OMX IL Version definitions*/
+#define kVersionMajor           1
+#define kVersionMinor           2
+#define kVersionRevision        0
+#define kVersionStep            0
 
+/*Mag OMX IL port number range definitions*/
+#define kInvalidCompPortNumber  0
 #define kCompPortStartNumber    1
 
 
@@ -39,7 +45,7 @@ typedef struct
 /*do component registration. 
  * it is called upon OMX_Init().
  */
-MagOMX_Component_Registration_t *MagOMX_Component_Registration ();
+MagOMX_Component_Registration_t *MagOMX_Component_Registration (void);
 
 /* revert the component registration
  * when implemented, this gets called upon OMX_Deinit().
