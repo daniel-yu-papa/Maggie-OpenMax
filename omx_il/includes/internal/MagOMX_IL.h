@@ -9,9 +9,26 @@
 #define kVersionRevision        0
 #define kVersionStep            0
 
+#define kComponentVersion       0x00000001
+
 /*Mag OMX IL port number range definitions*/
 #define kInvalidCompPortNumber  0
 #define kCompPortStartNumber    1
+
+#define STRINGIFY(x) case x: return #x
+
+
+/** all parameters/configs structures start with this structure. */
+typedef struct
+{
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+} MagOMX_Param_Header_t;
+
+typedef struct  {
+    OMX_U32 nGroupPriority;
+    OMX_U32 nGroupID;
+} MagOMX_Param_PRIORITYMGMTTYPE_t;
 
 
 /** construct and initialize component
@@ -51,5 +68,56 @@ MagOMX_Component_Registration_t *MagOMX_Component_Registration (void);
  * when implemented, this gets called upon OMX_Deinit().
  */
 void MagOMX_Component_Deregistration (void);
+
+static inline void setSpecVersion(OMX_VERSIONTYPE* pSpecVersion) {
+    pSpecVersion->s.nVersionMajor = kVersionMajor;
+    pSpecVersion->s.nVersionMinor = kVersionMinor;
+    pSpecVersion->s.nRevision     = kVersionRevision;
+    pSpecVersion->s.nStep         = kVersionStep;
+}
+
+static inline void setComponentVersion(OMX_VERSIONTYPE* pComponentVersion) {
+    pComponentVersion->nVersion   = kComponentVersion;
+}
+
+static inline void initHeader(void *obj, OMX_U32 size){
+    MagOMX_Param_Header_t *header = (MagOMX_Param_Header_t *obj);
+
+    header->nSize = size;
+    header->s.nVersionMajor = kVersionMajor;
+    header->s.nVersionMinor = kVersionMinor;
+    header->s.nRevision     = kVersionRevision;
+    header->s.nStep         = kVersionStep;
+}
+
+static inline OMX_STRING OmxState2String(OMX_STATETYPE state) {
+    switch (state) {
+        STRINGIFY(OMX_StateReserved_0x00000000);
+        STRINGIFY(OMX_StateLoaded);
+        STRINGIFY(OMX_StateIdle);
+        STRINGIFY(OMX_StateExecuting);
+        STRINGIFY(OMX_StatePause);
+        STRINGIFY(OMX_StateWaitForResources);
+        STRINGIFY(OMX_StateKhronosExtensions);
+        STRINGIFY(OMX_StateVendorStartUnused);
+        STRINGIFY(OMX_StateMax);
+        default: return "state - unknown";
+    }
+}
+
+static inline OMX_STRING OmxParameter2String(OMX_INDEXTYPE nIndex) {
+    switch (nIndex) {
+        STRINGIFY(OMX_IndexParamAudioInit);
+        STRINGIFY(OMX_IndexParamImageInit);
+        STRINGIFY(OMX_IndexParamVideoInit);
+        STRINGIFY(OMX_IndexParamOtherInit);
+        STRINGIFY(OMX_IndexParamNumAvailableStreams);
+        STRINGIFY(OMX_IndexConfigTunneledPortStatus);
+        STRINGIFY(OMX_IndexParamActiveStream);
+        STRINGIFY(OMX_StateVendorStartUnused);
+        STRINGIFY(OMX_StateMax);
+        default: return "parameter - unknown";
+    }
+}
 
 #endif

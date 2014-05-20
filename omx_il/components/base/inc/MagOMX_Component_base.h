@@ -85,32 +85,26 @@ Virtuals(MagOmxComponent, Base)
     OMX_ERRORTYPE (*FillThisBuffer)(
                     OMX_IN  OMX_HANDLETYPE hComponent,
                     OMX_IN  OMX_BUFFERHEADERTYPE* pBuffer);
-                    
-    OMX_ERRORTYPE (*SetCallbacks)(
-                    OMX_IN  OMX_HANDLETYPE hComponent,
-                    OMX_IN  OMX_CALLBACKTYPE* pCallbacks, 
-                    OMX_IN  OMX_PTR pAppData);
-                    
-    OMX_ERRORTYPE (*ComponentDeInit)(
-                    OMX_IN  OMX_HANDLETYPE hComponent,);
-                    
+
     OMX_ERRORTYPE (*UseEGLImage)(
                     OMX_IN  OMX_HANDLETYPE hComponent,
                     OMX_INOUT OMX_BUFFERHEADERTYPE** ppBufferHdr,
                     OMX_IN OMX_U32 nPortIndex,
                     OMX_IN OMX_PTR pAppPrivate,
                     OMX_IN void* eglImage);
-                    
-    OMX_ERRORTYPE (*ComponentRoleEnum)(
+    
+    OMX_ERRORTYPE (*SetCallbacks)(
                     OMX_IN  OMX_HANDLETYPE hComponent,
-             		OMX_OUT OMX_U8 *cRole,
-             		OMX_IN OMX_U32 nIndex);
+                    OMX_IN  OMX_CALLBACKTYPE* pCallbacks, 
+                    OMX_IN  OMX_PTR pAppData);
+
+    OMX_COMPONENTTYPE *(*Create)(
+                    OMX_IN MagOmxComponent pBase, 
+                    OMX_IN OMX_PTR pAppData);
 EndOfVirtuals;
 
 ClassMembers(MagOmxComponent, Base, \               
-    OMX_COMPONENTTYPE *(*Create)(
-                    OMX_IN MagOmxComponent pBase, 
-                    OMX_IN OMX_PTR pAppData);       \
+
 )
     OMX_COMPONENTTYPE      mComponentObject;  /*OMX IL spec defined Component handle*/
 EndOfClassMembers;
