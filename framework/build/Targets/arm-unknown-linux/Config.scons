@@ -1,0 +1,5 @@
+LoadTool('gcc-generic', env, gcc_cross_prefix='arm-linux')
+
+### Specific System choices
+env['FRAMEWORK_EXTRA_LIBS']=['pthread']
+env['STRIP'] = ''
