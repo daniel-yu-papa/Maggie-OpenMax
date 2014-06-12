@@ -204,7 +204,7 @@ else:
 #  
 AGILELOG_LIB_PATH = 'agilelog/Targets/'+env['target']+'/'+env['build_config']
 
-FRAMEWORK_COMMON_INC_PATH = "inc agilelog/inc"
+FRAMEWORK_COMMON_INC_PATH = "inc agilelog/inc agilelog/external/tinyxml2"
 FRAMEWORK_CORE_INC_PATH = "core/base/inc core/db/inc core/event/inc core/hashtable/inc core/looper/inc core/message/inc core/ooc/inc"
 FRAMEWORK_PLATFORM_INC_PATH = "platform/hal/inc platform/memory/inc platform/thread/inc"
 

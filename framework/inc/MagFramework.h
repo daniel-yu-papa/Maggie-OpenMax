@@ -19,4 +19,6 @@
 #include "Mag_ooc.h"
 #include "Mag_thread.h"
 
+#include "tinyxml2.h"
+
 #endif
