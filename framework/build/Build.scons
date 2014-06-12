@@ -1,6 +1,7 @@
 import sys
 import os
 import imp
+import shutil
 from glob import glob
 
 #######################################################
@@ -72,7 +73,8 @@ class LibraryModule(Module):
                  extra_cpp_defines     = [],
                  extra_link_flags      = [],
                  shared                = False,
-                 install               = False) :
+                 install               = False,
+                 installHeaders        = False) :
         build_source_dirs = [source_root+'/'+drct for drct in build_source_dirs]        
         Module.__init__(self, 
                         name, 
@@ -115,14 +117,30 @@ class LibraryModule(Module):
             libs = GetLibraries(Split(linked_modules))
             self.product = self.env.SharedLibrary(target=name, LIBS=libs, source=sources)
         self.env.Alias(name, self.product)
-        
+
         # copy to Targets folder
         if install is True:
             inst = env.Install(dir=env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']), source=self.product)
             if env['build_config'] == 'Release' and env.has_key('STRIP'):
                     env.AddPostAction(inst, env['STRIP']+' $TARGETS');
+        
+        if installHeaders is True:
+            targetDir = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/include')
+            if not os.path.exists(targetDir):  
+                os.makedirs(targetDir)
+            for subdir in Split(self.build_include_dirs):
+                absoluteDir = env.GetBuildPath('#/'+subdir)
+                print 'enter the dir: '+absoluteDir
+                os.chdir(absoluteDir)
+                headerFiles = []
+                headerFiles = glob('*.h')
+                for sourceFile in Split(headerFiles):
+                    print 'copy file: '+sourceFile
+                    shutil.copy(sourceFile,  targetDir)
 
-      
+            env.Clean(inst, targetDir)
+                
+
 def Application(name, dir, deps, 
                 extra_link_flags = [], 
                 install = False):
@@ -299,4 +317,5 @@ LibraryModule(name                  = 'MagFramework',
               build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH),
               extra_link_flags      = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
               shared                =  True,
-              install               =  True)
+              install               =  True,
+              installHeaders        =  True)
