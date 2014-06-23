@@ -8,6 +8,7 @@
 #include "Mag_agilelog.h"
 #include "Mag_hal.h"
 #include "Mag_thread.h"
+#include "Mag_mem.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,6 +44,11 @@ typedef struct mag_item{
         char    *stringValue;
         struct mag_message *messageValue;
     } u;
+    /*
+     *MAG_TRUE[default]: the ptrValue/stringValue/messageValue is freed by message
+     *MAG_FALSE: the ptrValue/stringValue/messageValue is freed by allocator. Do nothing in message destroy.
+     */
+    boolean mOwnedByMsg;
     const char *mName;
     enum MsgPayloadType mType;
 }MagItem_t;
@@ -65,9 +71,9 @@ typedef struct mag_message{
     void (*setUInt32)(struct mag_message *msg, const char *name, ui32 value);
     void (*setFloat)(struct mag_message *msg, const char *name, fp32 value);
     void (*setDouble)(struct mag_message *msg, const char *name, fp64 value);
-    void (*setPointer)(struct mag_message *msg, const char *name, void *value);
+    void (*setPointer)(struct mag_message *msg, const char *name, void *value, boolean owndedByMsg);
     void (*setString)(struct mag_message *msg, const char *name, const char *s);
-    void (*setMessage)(struct mag_message *msg, const char *name, struct mag_message *message);
+    void (*setMessage)(struct mag_message *msg, const char *name, struct mag_message *message, boolean owndedByMsg);
     
     boolean (*findInt32)(struct mag_message *msg, const char *name, i32 *value);
     boolean (*findInt64)(struct mag_message *msg, const char *name, i64 *value);
@@ -131,6 +137,7 @@ typedef struct MagLooper{
     i64 mDelayEvtWhenMS;
 
     i32 mFreeNodeNum;
+    boolean mEventInExecuting;
     
     void (*registerHandler)(struct MagLooper *self, const MagHandler_t *handler);
     _status_t (*unregisterHandler)(struct MagLooper *self, i32 handlerID);

@@ -29,11 +29,11 @@ static _status_t loopEntryWrapper(void *userData){
         if (ret != MAG_TRUE || user->mExitPending){
             user->mExitPending = MAG_TRUE;
             user->mRunning     = MAG_FALSE;
-            AGILE_LOGD("exit!");
+            AGILE_LOGD("exit thread %s!", user->mName);
             break;
         }
     }while(1);
-    
+
     Mag_SetEvent(user->mExitEvt);
     
     return 0;
@@ -46,7 +46,7 @@ static void *loopEntry(void *priv){
         userData = (MagThread_t *)priv;
         setpriority(PRIO_PROCESS, 0, userData->mPriority);   
         prctl(PR_SET_NAME, (unsigned long)userData->mName, 0, 0, 0);
-        mag_free(userData->mName);
+        // mag_free(userData->mName);
         loopEntryWrapper(priv);
     }
 
@@ -55,6 +55,9 @@ static void *loopEntry(void *priv){
 
 static _status_t createThread(MagThread_t *self){
     pthread_attr_t attr; 
+
+    self->mExitPending = MAG_FALSE;
+
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     if (self->mStackSize) {
@@ -81,17 +84,19 @@ static _status_t MagThread_Run(MagThread_t *self){
     Mag_AcquireMutex(self->mLock);
     
     if (self->mRunning == MAG_TRUE){
+        Mag_ReleaseMutex(self->mLock);
+        AGILE_LOGE("the thread %s is running. ignore the run() command!", self->mName);
         // thread already started
         return MAG_INVALID_OPERATION; 
     }
     
     ret = createThread(self);
     if (ret == MAG_NO_ERROR){
+        AGILE_LOGV("thread %s start to run!", self->mName);
         self->mRunning = MAG_TRUE;
     }
 
     Mag_ReleaseMutex(self->mLock);
-
     return ret;
 }
 
@@ -205,6 +210,7 @@ void Mag_DestroyThread(MagThreadHandle self){
 
     Mag_DestroyEvent(self->mExitEvt);
     Mag_DestroyEventGroup(self->mExitEvtGroup);
+    mag_free(self->mName);
     mag_free(self);
 }
 

@@ -8,8 +8,19 @@
 static void freeItem(MagItem_t *item){
     switch(item->mType){
         case TypeString:
-            mag_free(item->u.stringValue);
+            mag_freep(&item->u.stringValue);
             break;
+
+        case TypePointer:
+            if (item->mOwnedByMsg)
+                mag_freep(&item->u.ptrValue);
+            break;
+
+        case TypeMessage:
+            if (item->mOwnedByMsg)
+                destroyMagMessage(item->u.messageValue);
+            break;
+
         default:
             break;
     }
@@ -42,7 +53,8 @@ static MagItem_t *allocateItem(MagMessage_t *msg, const char *name){
         MAG_ASSERT(msg->mNumItems < MAX_MSG_PAYLOAD_NUM);
         i = msg->mNumItems++;
         item = &msg->mItems[i];
-
+        
+        item->mOwnedByMsg = MAG_TRUE;
         item->mName = mag_strdup(name);
     }
     return item;
@@ -88,11 +100,12 @@ static void MagMessage_setDouble(MagMessage_t *msg, const char *name, fp64 value
     item->u.doubleValue = value;
 }
 
-static void MagMessage_setPointer(MagMessage_t *msg, const char *name, void *value){
+static void MagMessage_setPointer(MagMessage_t *msg, const char *name, void *value, boolean owndedByMsg){
     MagItem_t *item;
 
     item = allocateItem(msg, name);
     item->mType = TypePointer;
+    item->mOwnedByMsg = owndedByMsg;
     item->u.ptrValue = value;
 }
 
@@ -104,11 +117,12 @@ static void MagMessage_setString(MagMessage_t *msg, const char *name, const char
     item->u.stringValue = mag_strdup(s);
 }
 
-static void MagMessage_setMessage(MagMessage_t *msg, const char *name, struct mag_message *message){
+static void MagMessage_setMessage(MagMessage_t *msg, const char *name, struct mag_message *message, boolean owndedByMsg){
     MagItem_t *item;
 
     item = allocateItem(msg, name);
     item->mType = TypeMessage;
+    item->mOwnedByMsg = owndedByMsg;
     item->u.messageValue = message;
 }
 
@@ -258,18 +272,18 @@ void             destroyMagMessage(MagMessageHandle msg){
         return;
     
     for (i = 0; i < msg->mNumItems; i++){
-        if (msg->mItems[i].mType == TypePointer){
-            mag_free(msg->mItems[i].u.ptrValue);
+        if ((msg->mItems[i].mOwnedByMsg) && (msg->mItems[i].mType == TypePointer)){
+            mag_freep(&msg->mItems[i].u.ptrValue);
         }
 
         if (msg->mItems[i].mType == TypeString){
-            mag_free(msg->mItems[i].u.stringValue);
+            mag_freep(&msg->mItems[i].u.stringValue);
         }
 
-        if (msg->mItems[i].mType == TypeMessage){
+        if ((msg->mItems[i].mOwnedByMsg) && (msg->mItems[i].mType == TypeMessage)){
             destroyMagMessage(msg->mItems[i].u.messageValue);
         }
     }
-    mag_free(msg);
+    mag_freep(&msg);
 }
 

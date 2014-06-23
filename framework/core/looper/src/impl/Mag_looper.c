@@ -48,6 +48,7 @@ static void putFreeEvent(MagLooperHandle hLooper, MagLooperEvent_t *pEvent){
     Mag_AcquireMutex(hLooper->mLock);
     list_add(&pEvent->node, &hLooper->mFreeEvtQueue);
     hLooper->mFreeNodeNum++;
+    hLooper->mEventInExecuting = MAG_FALSE;
     AGILE_LOGV("[0x%x]free node number: %d", hLooper, hLooper->mFreeNodeNum);
     Mag_ReleaseMutex(hLooper->mLock);
 }
@@ -170,6 +171,9 @@ static boolean LooperThreadEntry(void *priv){
         AGILE_LOGV("min value: %lld", looper->mDelayEvtWhenMS);
         if (looper->mDelayEvtWhenMS > nowMS){
             msg = getNoDelayMessage(looper);
+            if (msg)
+                looper->mEventInExecuting = MAG_TRUE;
+
             Mag_ReleaseMutex(looper->mLock);
             
             if (NULL == msg){
@@ -181,14 +185,17 @@ static boolean LooperThreadEntry(void *priv){
             }
         }else{
             rbtree_delete(&looper->mDelayEvtTreeRoot, looper->mDelayEvtWhenMS);
-            
             MagLooperEvent_t *evt = (MagLooperEvent_t *)value;
+            if (evt)
+                looper->mEventInExecuting = MAG_TRUE;
             Mag_ReleaseMutex(looper->mLock);
             
             deliverMessage(looper, evt);
         }
     }else{
         msg = getNoDelayMessage(looper);
+        if (msg)
+            looper->mEventInExecuting = MAG_TRUE;
         Mag_ReleaseMutex(looper->mLock);
 
         if (NULL != msg){
@@ -297,7 +304,7 @@ static ui32 MagLooper_getHandlerID(MagLooperHandle hLooper){
 }
 
 static _status_t MagLooper_waitOnAllDone(MagLooperHandle hLooper){
-    while(!MagEventQueueEmpty(hLooper)){
+    while(!(MagEventQueueEmpty(hLooper) && !hLooper->mEventInExecuting)){
         usleep(4000);
     }
     return MAG_NO_ERROR;
@@ -315,6 +322,7 @@ MagLooperHandle createLooper(const char *pName){
         
         pLooper->mHandlerTreeRoot   = NULL;
         pLooper->mDelayEvtTreeRoot  = NULL;
+        pLooper->mEventInExecuting  = MAG_FALSE;
         
         INIT_LIST(&pLooper->mNoDelayEvtQueue);
         INIT_LIST(&pLooper->mFreeEvtQueue);

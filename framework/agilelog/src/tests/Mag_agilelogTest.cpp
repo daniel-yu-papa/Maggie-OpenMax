@@ -74,5 +74,14 @@ int main(){
     int num = 0;
     //loadComponentRecursive(dir, loadComponentLib, (void *)&num);
     AGILE_LOGI("%d files are found", num);
+
+    void *p, *pp;
+    p = malloc(10);
+    printf("malloc p = 0x%p\n", p);
+    
+    pp = realloc(p, 100);
+    printf("realloc pp = 0x%p\n", pp);
+    // free(pp);
+    free(p);
     return 0;
 }

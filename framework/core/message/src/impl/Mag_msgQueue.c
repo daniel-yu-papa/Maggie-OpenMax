@@ -37,10 +37,11 @@ void MagMsgQueue_get(Mag_MsgQueueHandle h, MagMessageHandle *msg){
     }else{
         pMsg = (Mag_MsgQueueNode_t *)list_entry(tmpNode, Mag_MsgQueueNode_t, node); 
         *msg = pMsg->msg;
+        AGILE_LOGD("get message: %d", pMsg->msg->what(pMsg->msg));
         list_del(tmpNode);
         list_add(tmpNode, &h->mFreeHead);
     }
-
+    
     Mag_ReleaseMutex(h->mLock);
 }
 
@@ -53,6 +54,7 @@ void MagMsgQueue_put(Mag_MsgQueueHandle h, MagMessageHandle msg){
     
     node = getFreeMsg(h);
     node->msg = msg;
+    AGILE_LOGD("put message: %d", msg->what(msg));
     list_add_tail(&node->node, &h->mQueueHead);
 
     Mag_ReleaseMutex(h->mLock);

@@ -381,7 +381,7 @@ int main(){
     msg5 = obj->createMessage(Comp_A::Msg_Test_5, 4);
     msg5->setString(msg5, "msg", "Msg_Test_5");
     reply = replyObj->createMessage(Comp_B::Msg_reply, 0);
-    msg5->setMessage(msg5, "reply", reply);
+    msg5->setMessage(msg5, "reply", reply, MAG_TRUE);
     
     obj->start();
     replyObj->start();
@@ -412,14 +412,22 @@ int main(){
     
     obj->waitOnAllDone();
     
+    AGILE_LOGD("begin to destroy the messages!");
     destroyMagMessage(msg1);
+    AGILE_LOGD("111");
     destroyMagMessage(msg2);
+    AGILE_LOGD("222");
     destroyMagMessage(msg3);
+    AGILE_LOGD("333");
     destroyMagMessage(msg4);
+    AGILE_LOGD("444");
     destroyMagMessage(msg5);
-    //destroyMagMessage(reply);
+    // AGILE_LOGD("before destroyMagMessage(reply)");
+    // destroyMagMessage(reply);
+    // AGILE_LOGD("after destroyMagMessage(reply)");
     delete obj;
     delete replyObj;
+    AGILE_LOGD("exit!");
     return 0;
 }
 

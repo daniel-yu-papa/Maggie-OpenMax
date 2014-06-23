@@ -413,7 +413,7 @@ void *magMemPoolGetBuffer(magMempoolHandle hMemPool, unsigned int bytes){
     }
     
 find:
-    AGILE_LOGV("[0x%x]: find the matching buffer - 0x%x", hMemPool, getBuffer);
+    // AGILE_LOGV("[0x%x]: find the matching buffer - 0x%x", hMemPool, getBuffer);
     pthread_mutex_unlock(&hMemPool->mutex);
     return (void *)getBuffer;
 }

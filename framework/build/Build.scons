@@ -204,9 +204,21 @@ else:
 #  
 AGILELOG_LIB_PATH = 'agilelog/Targets/'+env['target']+'/'+env['build_config']
 
-FRAMEWORK_COMMON_INC_PATH = "inc agilelog/inc agilelog/external/tinyxml2"
-FRAMEWORK_CORE_INC_PATH = "core/base/inc core/db/inc core/event/inc core/hashtable/inc core/looper/inc core/message/inc core/ooc/inc"
-FRAMEWORK_PLATFORM_INC_PATH = "platform/hal/inc platform/memory/inc platform/thread/inc"
+FRAMEWORK_COMMON_INC_PATH = """inc 
+                               agilelog/inc 
+                               agilelog/external/tinyxml2"""
+
+FRAMEWORK_CORE_INC_PATH = """core/base/inc 
+                             core/db/inc 
+                             core/event/inc 
+                             core/hashtable/inc 
+                             core/looper/inc 
+                             core/message/inc 
+                             core/ooc/inc"""
+
+FRAMEWORK_PLATFORM_INC_PATH = """platform/hal/inc 
+                                 platform/memory/inc 
+                                 platform/thread/inc"""
 
 LibraryModule(name                  = 'MagCore_Base',
               build_source_dirs     = ['core/base/src/impl'],
@@ -273,8 +285,8 @@ Application(name    = 'MagPlatform_HashTableTest',
                 install = True)
 
 Application(name    = 'MagPlatform_LooperTest', 
-                dir     = 'core/hashtable/src/test', 
-                deps    = [ 'MagCore_Looper', 'MagCore_Base', 'MagPlatform_Hal',],
+                dir     = 'core/looper/src/test', 
+                deps    = [ 'MagCore_Looper', 'MagPlatform_Thread', 'MagCore_Event', 'MagCore_Base', 'MagPlatform_Hal',],
                 extra_link_flags = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
                 install = True)
 

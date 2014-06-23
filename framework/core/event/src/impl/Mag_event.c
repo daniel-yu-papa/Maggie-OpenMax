@@ -442,7 +442,8 @@ static MagErr_t Mag_EventStatusCheck(MagEventGroupHandle evtGrphandle, MAG_EVENT
             
         if (MAG_EG_OR == op){ /*event1 OR event2 OR event3 is true*/
             if (pEventCommon->signal == MAG_TRUE)
-                signalEvtNum++;
+                signalEvtNum++;
+
         }else{ /*event1 AND event2 AND event3 is true*/
             if (pEventCommon->signal == MAG_TRUE)
                 signalEvtNum++;   
