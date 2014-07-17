@@ -47,7 +47,8 @@ typedef struct mag_event_scheduler_obj{
     List_t              entry;
 
     List_t              listHead[MAG_EVT_PRIO_MAX];
-
+    
+    /*for default priority event list*/
     List_t              cbTimeStampListH;
     List_t              cbTimeStampFreeListH;
     
@@ -57,10 +58,13 @@ typedef struct mag_event_scheduler_obj{
     
     pthread_t           schedThread;
     MAG_BOOL_t          sTExited;
+
+    MAG_BOOL_t          bSignal;
 }Mag_EventScheduler_t;
 
 typedef Mag_EventScheduler_t *MagEventSchedulerHandle;
 
+/*lock: prevent the unregister action in the callback executing*/
 typedef struct mag_event_callback_obj{
     List_t          exeEntry;
     ui32            exeNum;
@@ -83,14 +87,14 @@ typedef struct mag_event_common_obj{
     List_t              entry;
 
     MagEventGroupHandle hEventGroup;
-    pthread_mutex_t     lock;            /* mutex for protecting signal and conditional variables */
+    // pthread_mutex_t     lock;            /* mutex for protecting signal and conditional variables */
     MAG_BOOL_t          signal;          /* >0: the event is really triggered. =0: not triggered*/
 }Mag_EventCommon_t;
 
 typedef struct mag_event_callback_t{
     List_t                  entry;
 
-    pthread_mutex_t         lock;            /* mutex for protecting the object handling */
+    // pthread_mutex_t         lock;            /* mutex for protecting the object handling */
     unsigned int            armed;          /* >0: the event callback is armed. =0: not armed*/
     MAG_EVENT_PRIO_t        priority;
 

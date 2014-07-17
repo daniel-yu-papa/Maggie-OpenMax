@@ -5,6 +5,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
@@ -57,7 +58,7 @@ static void loadComponentRecursive(char *loadPath,
 int main(){
     int i = 9;
     char str[30] = "Hello world - AgileLog";
-    char dir[30] = "/home/yujun/testdir/";
+    // char dir[30] = "/home/yujun/testdir/";
     
     AGILE_LOGD("debug log: %s - %d", str, i);
     usleep(10000);

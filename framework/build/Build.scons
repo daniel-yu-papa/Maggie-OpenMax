@@ -218,7 +218,8 @@ FRAMEWORK_CORE_INC_PATH = """core/base/inc
 
 FRAMEWORK_PLATFORM_INC_PATH = """platform/hal/inc 
                                  platform/memory/inc 
-                                 platform/thread/inc"""
+                                 platform/thread/inc 
+                                 version"""
 
 LibraryModule(name                  = 'MagCore_Base',
               build_source_dirs     = ['core/base/src/impl'],

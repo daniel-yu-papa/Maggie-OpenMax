@@ -334,7 +334,7 @@ static void sortMemPoolList(magMempoolHandle hMemPool){
         l1 = l1->next;
     }
 }
-magMempoolHandle magMemPoolCreate(unsigned int bytes){
+magMempoolHandle magMemPoolCreate(unsigned int bytes, ui32 flags){
     magMempoolHandle hMP = NULL;
     magMempoolInternal_t *pInterMP = NULL;
     int rc = 0;
@@ -347,6 +347,11 @@ magMempoolHandle magMemPoolCreate(unsigned int bytes){
     INIT_LIST(&hMP->allocatedMBListHead);
     INIT_LIST(&hMP->unusedMBListHead);
     INIT_LIST(&hMP->memPoolListHead);
+    if (flags == 0)
+        hMP->ctrlFlag = NO_AUTO_EXPANDING;
+    else
+        hMP->ctrlFlag = AUTO_EXPANDING;
+
     rc = pthread_mutex_init(&hMP->mutex, NULL /* default attributes */);
     if (rc != 0)
         goto failure;   
@@ -394,22 +399,25 @@ void *magMemPoolGetBuffer(magMempoolHandle hMemPool, unsigned int bytes){
         
         tmpNodeOuter = tmpNodeOuter->next;
     }
-    AGILE_LOGD("[0x%x]: failed to find suitable size mb for size(%d) in exised mempool. create another mempool", 
-                hMemPool, bytes);
 
-    /*reorder the mempool list in the index descending*/
-    sortMemPoolList(hMemPool);
-    
-    /*create new memory pool with 4 x "required buffer size"*/
-    mpInter = createMemPoolInter(hMemPool, BUF_ALIGN((bytes < 4*1024 ? 4*4*1024 : 4*bytes), 4*1024));
-    if (MAG_ErrNone == allocateBuffer(hMemPool, mpInter, bytes, &getBuffer)){
-        if (getBuffer)
-            goto find;
-        else
-            AGILE_LOGE("[0x%x]: Should not be here. the newly created mem pool should always meet the requirments", hMemPool);
-    }else{ 
-        pthread_mutex_unlock(&hMemPool->mutex);
-        return NULL;
+    if (hMemPool->ctrlFlag == AUTO_EXPANDING){
+        AGILE_LOGD("[0x%x]: failed to find suitable size mb for size(%d) in exised mempool. create another mempool", 
+                    hMemPool, bytes);
+
+        /*reorder the mempool list in the index descending*/
+        sortMemPoolList(hMemPool);
+        
+        /*create new memory pool with 4 x "required buffer size"*/
+        mpInter = createMemPoolInter(hMemPool, BUF_ALIGN((bytes < 4*1024 ? 4*4*1024 : 4*bytes), 4*1024));
+        if (MAG_ErrNone == allocateBuffer(hMemPool, mpInter, bytes, &getBuffer)){
+            if (getBuffer)
+                goto find;
+            else
+                AGILE_LOGE("[0x%x]: Should not be here. the newly created mem pool should always meet the requirments", hMemPool);
+        }else{ 
+            pthread_mutex_unlock(&hMemPool->mutex);
+            return NULL;
+        }
     }
     
 find:

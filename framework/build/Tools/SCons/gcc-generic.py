@@ -14,6 +14,8 @@ def generate(env, gcc_cross_prefix=None, gcc_strict=True, gcc_stop_on_warning=No
     env.AppendUnique(CCFLAGS  = compiler_defines)
     env.AppendUnique(CPPFLAGS = compiler_defines)
     
+    env.AppendUnique(LINKFLAGS = ['-lpthread', '-lrt'])
+
     if env['build_config'] == 'Debug':
         env.AppendUnique(CCFLAGS = '-g')
     else:

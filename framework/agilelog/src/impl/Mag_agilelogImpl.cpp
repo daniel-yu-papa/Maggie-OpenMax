@@ -11,7 +11,9 @@
 
 namespace MAGAGILELOG {
 
-#define DEFAULT_CONFIG_FILE_PATH "/system/etc"
+FILE *MagAgileLog::mLogFile = NULL;
+
+#define DEFAULT_CONFIG_FILE_PATH "/etc/mag"
 
 MagAgileLog *MagAgileLog::sInstance = NULL;
 pthread_mutex_t MagAgileLog::mMutex    = PTHREAD_MUTEX_INITIALIZER;
@@ -25,6 +27,15 @@ MagAgileLog *MagAgileLog::getInstance(){
     return sInstance;
 }
 
+void MagAgileLog::destroy(){
+    pthread_mutex_lock(&mMutex);
+    if (NULL != sInstance){
+        delete sInstance;
+        sInstance = NULL;
+    }
+    pthread_mutex_unlock(&mMutex);
+}
+
 MagAgileLog::MagAgileLog(){
     mConfigFile.exists = 0;
 
@@ -36,22 +47,38 @@ MagAgileLog::MagAgileLog(){
     mConfigValue.pModules  = NULL;
 
     mpModuleHashT = NULL;
-    
+    mLogFile = NULL;
+
     init();
     printConfig();
 }
 
 MagAgileLog::~MagAgileLog(){
+    if (mLogFile){
+        printf("~MagAgileLog: close log file\n");
+        fclose(mLogFile);
+    }
+
     destroyMagStrHashTable(mpModuleHashT);
 }
 
 Error_t MagAgileLog::parseGlobalConfigElement(XMLElement *ele){ 
-    const char *type = ele->FirstChildElement( "output" )->GetText();
+    const char *type = ele->FirstChildElement( "output" )->Attribute("type");
 
     if(XML_SUCCESS == mXMLParsedDoc.ErrorID()){
         if (!strcmp(type, "file")){
             mConfigValue.config_output.type = OUTPUT_FILE;  
-            strcpy(mConfigValue.config_output.filePath, ele->FirstChildElement( "output" )->FirstChildElement("path")->GetText());
+            strcpy(mConfigValue.config_output.filePath, ele->FirstChildElement( "output" )->FirstChildElement("path")->Attribute("name"));
+            if (mLogFile != NULL){
+                printf("mLogFile is opened, to close the log file\n");
+                fclose(mLogFile);
+            }
+            mLogFile = fopen(mConfigValue.config_output.filePath, "wb+");
+            if (NULL == mLogFile){
+                printf("Failed to open the log file: %s\n\n", mConfigValue.config_output.filePath);
+            }else{
+                printf("Create the log file: %s -- OK!", mConfigValue.config_output.filePath);
+            }
             mWriteToLogFunc = WriteToFile;
         }else if (!strcmp(type, "logcat")){
             mConfigValue.config_output.type = OUTPUT_LOGCAT;
@@ -234,23 +261,26 @@ void MagAgileLog::printConfig(){
 
     
 }
-void MagAgileLog::WriteToLogcat(int prio, const char *module, const char *buffer){
+void MagAgileLog::WriteToLogcat(int prio, char level, const char *module, const char *buffer){
 #ifdef ANDROID
     __android_log_print(prio, module, "%s", buffer);
 #endif
 }
 
-void MagAgileLog::WriteToFile(int prio, const char *module, const char *buffer){
-
+void MagAgileLog::WriteToFile(int prio, char level, const char *module, const char *buffer){
+    char logBuf[2048];
+    sprintf(logBuf, "[%s/%c]\t%s\n", module, level, buffer);
+    fwrite(logBuf, 1, strlen(logBuf), mLogFile);
+    fflush(mLogFile);
 }
 
-void MagAgileLog::WriteToStdOut(int prio, const char *module, const char *buffer){
+void MagAgileLog::WriteToStdOut(int prio, char level, const char *module, const char *buffer){
     char logBuf[2048];
-    sprintf(logBuf, "[%s]\t%s\n", module, buffer);
+    sprintf(logBuf, "[%s/%c]\t%s\n", module, level, buffer);
     printf("%s", logBuf);
 }
 
-void MagAgileLog::WriteToSocket(int prio, const char *module, const char *buffer){
+void MagAgileLog::WriteToSocket(int prio, char level, const char *module, const char *buffer){
 
 }
 
@@ -293,17 +323,36 @@ void MagAgileLog::printLog(int prio, const char *module, const char *caller, int
     
     strcat(logBuf, printData);
     if (mWriteToLogFunc)
-        mWriteToLogFunc(prio, module, logBuf);   
+        mWriteToLogFunc(prio, getPriorityLevel(prio), module, logBuf);   
 }
 
 void MagAgileLog::setDefaultValue(){
     mConfigValue.config_output.type  = OUTPUT_STDOUT;
     mWriteToLogFunc = WriteToStdOut;
-    mConfigValue.config_debug_level  = DEBUG_LEVEL_VERBOSE;
+    mConfigValue.config_debug_level  = DEBUG_LEVEL_ERROR;
     mConfigValue.config_timestamp_on = true;
 
     mConfigValue.moduleNum = 0;
     mConfigValue.pModules  = NULL;
+}
+
+char MagAgileLog::getPriorityLevel(int prio){
+    switch (prio){
+        case DEBUG_LEVEL_VERBOSE:
+            return 'V';
+        case DEBUG_LEVEL_DEBUG:
+            return 'D';
+        case DEBUG_LEVEL_INFO:
+            return 'I';
+        case DEBUG_LEVEL_WARNING:
+            return 'W';
+        case DEBUG_LEVEL_ERROR:
+            return 'E';
+        case DEBUG_LEVEL_FATAL:
+            return 'E';
+        default:
+            return 'V';
+    }
 }
 
 }

@@ -58,7 +58,7 @@ int main(){
     pthread_t fillBufThread;
     magMempoolHandle memPoolHandle;
     
-    memPoolHandle = magMemPoolCreate(8*1024);
+    memPoolHandle = magMemPoolCreate(8*1024, 1);
 
     Mag_MsgChannelCreate(&hMsgChanl);
     

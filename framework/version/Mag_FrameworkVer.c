@@ -1,8 +1,6 @@
 #include "Mag_FrameworkVer.h"
-#include <string.h>
 
-#define kFrameworkVersion "v0.0.1"
-
-void Mag_getFrameWorkVer(char **ppVer){
-	strcpy(*ppVer, kFrameworkVersion);
+ui32 Mag_getFrameWorkVer(void){
+	AGILE_LOGI("%s", LIBMAGFW_IDENT);
+	return (LIBMAGFW_VERSION_INT);
 }

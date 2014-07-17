@@ -1,4 +1,4 @@
-LoadTool('gcc-generic', env, gcc_cross_prefix='arm-linux')
+LoadTool('gcc-generic', env, gcc_cross_prefix='arm-marvell-linux-gnueabi')
 
 ### Specific System choices
 env['FRAMEWORK_EXTRA_LIBS']=['pthread']

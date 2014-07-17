@@ -138,6 +138,7 @@ typedef struct MagLooper{
 
     i32 mFreeNodeNum;
     boolean mEventInExecuting;
+    boolean mMergeSameTypeMsg;
     
     void (*registerHandler)(struct MagLooper *self, const MagHandler_t *handler);
     _status_t (*unregisterHandler)(struct MagLooper *self, i32 handlerID);
@@ -148,6 +149,7 @@ typedef struct MagLooper{
 
     ui32 (*getHandlerID)(struct MagLooper *self);
     _status_t (*waitOnAllDone)(struct MagLooper *self);
+    void (*setMergeMsg)(struct MagLooper *self);
 }MagLooper_t;
 
 typedef MagLooper_t* MagLooperHandle;

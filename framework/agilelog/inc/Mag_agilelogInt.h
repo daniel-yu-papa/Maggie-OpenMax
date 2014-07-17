@@ -13,10 +13,11 @@ typedef enum agilelog_LogPriority {
     AGILE_LOG_INFO    = 4,
     AGILE_LOG_WARN    = 5,
     AGILE_LOG_ERROR   = 6,
-    AGILE_LOG_FATAL   = 7,
+    AGILE_LOG_FATAL   = 7
 }agilelog_LogPriority;
 
 void Mag_agilelogPrint(int prio, const char *module, const char *fmt, ...);
+void Mag_agilelogDestroy();
 
 #ifdef __cplusplus
 }

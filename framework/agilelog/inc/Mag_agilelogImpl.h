@@ -66,7 +66,7 @@ typedef struct {
     ModuleConfig_t *pModules;
 }ConfigTable_t;
 
-typedef void (*fnWriteToLog)(int prio, const char *module, const char *buffer);
+typedef void (*fnWriteToLog)(int prio, char level, const char *module, const char *buffer);
 
 class MagAgileLog{
 public:
@@ -76,6 +76,7 @@ public:
     void printLog(int prio, const char *module, const char *caller, int line, const char *printData);
 
     static MagAgileLog *getInstance();
+    static void destroy();
     
 private:
     static MagAgileLog *sInstance;
@@ -88,17 +89,21 @@ private:
     Error_t parseGlobalConfigElement(XMLElement *ele);
     Error_t parseModuleConfigElement(XMLElement *ele);
 
-    static void WriteToLogcat(int prio, const char *module, const char *buffer);
-    static void WriteToFile(int prio, const char *module, const char *buffer);
-    static void WriteToStdOut(int prio, const char *module, const char *buffer);
-    static void WriteToSocket(int prio, const char *module, const char *buffer);
+    static void WriteToLogcat(int prio, char level, const char *module, const char *buffer);
+    static void WriteToFile(int prio, char level, const char *module, const char *buffer);
+    static void WriteToStdOut(int prio, char level, const char *module, const char *buffer);
+    static void WriteToSocket(int prio, char level, const char *module, const char *buffer);
     
+    char getPriorityLevel(int prio);
+
     LogConfigFile_t mConfigFile;
     ConfigTable_t mConfigValue;
     XMLDocument mXMLParsedDoc;
     HashTableHandle mpModuleHashT;
 
     fnWriteToLog mWriteToLogFunc;
+
+    static FILE *mLogFile; 
 };
 
 }

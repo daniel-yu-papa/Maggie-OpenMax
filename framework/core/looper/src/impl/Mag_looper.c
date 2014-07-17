@@ -54,21 +54,42 @@ static void putFreeEvent(MagLooperHandle hLooper, MagLooperEvent_t *pEvent){
 }
 
 static MagLooperEvent_t *getNoDelayMessage(MagLooperHandle hLooper){
-    List_t *tmpNode;
+    List_t *currentNode;
     MagLooperEvent_t *pEvent = NULL;
     
-    tmpNode = hLooper->mNoDelayEvtQueue.next;
+    currentNode = hLooper->mNoDelayEvtQueue.next;
 
-    if(tmpNode == &hLooper->mNoDelayEvtQueue){
+    if(currentNode == &hLooper->mNoDelayEvtQueue){
         AGILE_LOGV("mNoDelayEvtQueue is empty!");
         return NULL;
     }else{
-        list_del(tmpNode);
-        pEvent = (MagLooperEvent_t *)list_entry(tmpNode, MagLooperEvent_t, node);  
-        if (NULL == pEvent)
-            AGILE_LOGV("pEvent is NULL!");
-        return pEvent;
+        if (hLooper->mMergeSameTypeMsg == MAG_FALSE){
+            list_del(currentNode);
+            pEvent = (MagLooperEvent_t *)list_entry(currentNode, MagLooperEvent_t, node);  
+            if (NULL == pEvent)
+                AGILE_LOGV("pEvent is NULL!");
+        }else{
+            ui32 msg_key;
+            List_t *nextNode;
+            MagLooperEvent_t *tmpEvent = NULL;
+
+            pEvent = (MagLooperEvent_t *)list_entry(currentNode, MagLooperEvent_t, node);
+            msg_key = pEvent->mMessage->mWhat;
+            nextNode = currentNode->next;
+
+            while(nextNode != &hLooper->mNoDelayEvtQueue){
+                tmpEvent = (MagLooperEvent_t *)list_entry(nextNode, MagLooperEvent_t, node);
+                if (tmpEvent->mMessage->mWhat == msg_key){
+                    list_del(currentNode);
+                    currentNode = nextNode;
+                    pEvent = tmpEvent;
+                }
+                nextNode = nextNode->next;
+            }
+            list_del(currentNode);
+        }
     }
+    return pEvent;
 }
 
 static MagHandlerHandle getHandler(MagLooperHandle hLooper, ui32 id){
@@ -310,6 +331,11 @@ static _status_t MagLooper_waitOnAllDone(MagLooperHandle hLooper){
     return MAG_NO_ERROR;
 }
 
+static void MagLooper_setMergeMsg(MagLooperHandle hLooper){
+    /*if it is set, all same type of the messages would be merged to the latest one in the queue for executing*/
+    hLooper->mMergeSameTypeMsg = MAG_TRUE;
+}
+
 MagLooperHandle createLooper(const char *pName){
     MagLooperHandle pLooper;
     char threadName[64];
@@ -323,7 +349,8 @@ MagLooperHandle createLooper(const char *pName){
         pLooper->mHandlerTreeRoot   = NULL;
         pLooper->mDelayEvtTreeRoot  = NULL;
         pLooper->mEventInExecuting  = MAG_FALSE;
-        
+        pLooper->mMergeSameTypeMsg  = MAG_FALSE;
+
         INIT_LIST(&pLooper->mNoDelayEvtQueue);
         INIT_LIST(&pLooper->mFreeEvtQueue);
         Mag_CreateMutex(&pLooper->mLock);
@@ -351,7 +378,8 @@ MagLooperHandle createLooper(const char *pName){
         pLooper->getHandlerID      = MagLooper_getHandlerID;
         pLooper->waitOnAllDone     = MagLooper_waitOnAllDone;
         pLooper->clear             = MagLooper_clear;
-        
+        pLooper->setMergeMsg       = MagLooper_setMergeMsg;
+
         ui32 i;
         MagLooperEvent_t *pEvent;
         for (i = 0; i < NUM_PRE_ALLOCATED_EVENTS; i++){

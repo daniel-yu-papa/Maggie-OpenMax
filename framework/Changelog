@@ -1,0 +1,14 @@
+Entries are sorted chronologically from oldest to youngest within each release,
+Releases are sorted from youngest to oldest.
+
+version 0.1: initial release
+2014-07-15
+
+- miniDB module:    To store the int/uint/string/pointer/float/double date in key:value pair
+- event module:     To implement the event group and event callback based on Linux pthread facilities
+- hashtable module: To implement the string key hashtable
+- looper module:    To implement the message posting and processing logic
+- message module:   To implement the message queue and message channel 
+- ooc module:       The object-oriented C++ class implementation based on C
+- memory module:    The wrapper layer for low level memory operations
+- thread module:    The abstract thread lib

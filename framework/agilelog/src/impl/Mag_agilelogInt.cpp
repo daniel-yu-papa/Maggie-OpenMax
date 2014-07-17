@@ -21,6 +21,10 @@ void Mag_agilelogPrint(int prio, const char *module, const char *caller, int lin
     MagAgileLog::getInstance()->printLog(prio, module, caller, line, buf);
 }
 
+void Mag_agilelogDestroy(){
+	MagAgileLog::destroy();
+}
+
 #ifdef __cplusplus
 }
 #endif
