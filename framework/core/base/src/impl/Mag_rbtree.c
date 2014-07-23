@@ -9,7 +9,6 @@
 #define MODULE_TAG "magFramework-RBTree"
 
 
-static int gLoopNum = 0;
 static int gRepeatKeyNum = 0;
 
 static RBTreeNodeHandle rbtree_get_priv(RBTreeNodeHandle root, i64 key){
@@ -130,7 +129,7 @@ static RBTreeNodeHandle rbtree_delete_priv(RBTreeNodeHandle root, i64 key, RBTre
     return fixup(root);
 }
 
-int rbtree_delete(RBTreeNodeHandle *root, i64 key){
+i32 rbtree_delete(RBTreeNodeHandle *root, i64 key){
     RBTreeNodeHandle deleteNode;
     if (rbtree_get_priv(*root, key) != NULL){
         *root = rbtree_delete_priv(*root, key, &deleteNode);
@@ -147,25 +146,43 @@ int rbtree_delete(RBTreeNodeHandle *root, i64 key){
 }
 
 /*pre-order traverse the binary tree*/
-static void rbtree_dump_priv(RBTreeNodeHandle root, i32 print_flag){
+static void rbtree_dump_priv(RBTreeNodeHandle root, i32 print_flag, i32 *num){
     if (NULL == root)
         return;
 
-    rbtree_dump_priv(root->left, print_flag);
-    if (print_flag)
-        AGILE_LOGI("node %d: [key:%d - value:%d - color:%s]", ++gLoopNum, root->key, *((int *)root->value), isRed(root) ? "RED" : "BLACK");
-    else
-        ++gLoopNum;
-    rbtree_dump_priv(root->right, print_flag);
+    rbtree_dump_priv(root->left, print_flag, num);
+    *num = *num + 1;
+    if (print_flag){
+        AGILE_LOGI("node %d: [key: %lld - color: %s]", *num, root->key, (isRed(root) ? "RED" : "BLACK"));
+    }
+    rbtree_dump_priv(root->right, print_flag, num);
 }
 
-int rbtree_dump(RBTreeNodeHandle root, i32 print_flag){
-    gLoopNum = 0;
-    rbtree_dump_priv(root, print_flag);
-    return gLoopNum;
+i32 rbtree_dump(RBTreeNodeHandle root, i32 print_flag){
+    i32 node_num = 0;
+    rbtree_dump_priv(root, print_flag, &node_num);
+    return node_num;
 }
 
-int rbtree_debug_getRepeatNum(void){
+static void rbtree_handleAllNodes_priv(RBTreeNodeHandle root, void (*handler)(void *pValue, void *pParam), void *pArg, i32 *num){
+    i32 ret;
+
+    if (NULL == root)
+        return;
+
+    rbtree_handleAllNodes_priv(root->left, handler, pArg, num);
+    *num = *num + 1;
+    handler(root->value, pArg);
+    rbtree_handleAllNodes_priv(root->right, handler, pArg, num);
+}
+
+i32 rbtree_handleAllNodes(RBTreeNodeHandle root, void (*handler)(void *pValue, void *pParam), void *pArg){
+    i32 node_num = 0;
+    rbtree_handleAllNodes_priv(root, handler, pArg, &node_num);
+    return node_num;
+}
+
+i32 rbtree_debug_getRepeatNum(void){
     return gRepeatKeyNum;
 }
 

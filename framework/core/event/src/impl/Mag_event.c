@@ -210,6 +210,29 @@ MagErr_t  Mag_SetEvent(MagEventHandle evtHandle){
     return ret;
 }
 
+void     Mag_ClearEvent(MagEventHandle evtHandle){
+    i32 rc;
+    MagEventGroupHandle evtGrp;
+
+    if (NULL == evtHandle)
+        return;
+        
+    evtGrp = evtHandle->pEvtCommon->hEventGroup;
+
+    if(NULL != evtGrp){
+        rc = pthread_mutex_lock(&evtGrp->lock);
+        MAG_ASSERT(0 == rc);
+        
+        evtHandle->pEvtCommon->signal = MAG_FALSE;
+        
+        rc = pthread_mutex_unlock(&evtGrp->lock);
+        MAG_ASSERT(0 == rc);
+    }else{
+        evtHandle->pEvtCommon->signal = MAG_FALSE;
+        AGILE_LOGV("The event element(0x%lx) is not Added into the event group!", (unsigned long)evtHandle);
+    }
+}
+
 MagErr_t Mag_RegisterEventCallback(MagEventSchedulerHandle schedHandle, MagEventHandle evtHandle, void (*pCallback)(void *), void *pContext){
     MagErr_t ret = MAG_ErrNone;
     i32 rc;

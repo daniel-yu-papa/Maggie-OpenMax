@@ -113,7 +113,7 @@ typedef MagEvent_t            *MagEventHandle;
 MagErr_t Mag_CreateEvent(MagEventHandle *evtHandle, MAG_EVENT_PRIO_t prio);
 MagErr_t Mag_DestroyEvent(MagEventHandle evtHandle);
 MagErr_t Mag_SetEvent(MagEventHandle evtHandle);
-
+void     Mag_ClearEvent(MagEventHandle evtHandle);
 
 MagErr_t Mag_CreateEventGroup(MagEventGroupHandle *evtGrphandle);
 void     Mag_DestroyEventGroup(MagEventGroupHandle evtGrphandle);

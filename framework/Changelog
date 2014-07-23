@@ -1,6 +1,12 @@
 Entries are sorted chronologically from oldest to youngest within each release,
 Releases are sorted from youngest to oldest.
 
+version 0.2: initial release
+2014-07-23
+
+- add the event clear method to reset the event signal value to avoid the wrong trigger
+
+**************************************
 version 0.1: initial release
 2014-07-15
 

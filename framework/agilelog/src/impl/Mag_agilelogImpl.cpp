@@ -13,7 +13,7 @@ namespace MAGAGILELOG {
 
 FILE *MagAgileLog::mLogFile = NULL;
 
-#define DEFAULT_CONFIG_FILE_PATH "/etc/mag"
+#define DEFAULT_CONFIG_FILE_PATH "/data/etc/mag"
 
 MagAgileLog *MagAgileLog::sInstance = NULL;
 pthread_mutex_t MagAgileLog::mMutex    = PTHREAD_MUTEX_INITIALIZER;

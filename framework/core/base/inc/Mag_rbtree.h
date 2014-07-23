@@ -139,10 +139,11 @@ static inline RBTreeNodeHandle deleteMin(RBTreeNodeHandle h, RBTreeNodeHandle *d
 void *rbtree_get(RBTreeNodeHandle root, i64 key);
 void rbtree_getMinValue(RBTreeNodeHandle root, i64 *key, void **value);
 RBTreeNodeHandle rbtree_insert(RBTreeNodeHandle root, i64 key, void *value);
-int rbtree_delete(RBTreeNodeHandle *root, i64 key);
-int rbtree_dump(RBTreeNodeHandle root, i32 print_flag);
+i32 rbtree_delete(RBTreeNodeHandle *root, i64 key);
+i32 rbtree_dump(RBTreeNodeHandle root, i32 print_flag);
+i32 rbtree_handleAllNodes(RBTreeNodeHandle root, void (*handler)(void *pValue, void *pParam), void *pArg);
 
-int rbtree_debug_getRepeatNum(void);
+i32 rbtree_debug_getRepeatNum(void);
 
 #ifdef __cplusplus
 }
