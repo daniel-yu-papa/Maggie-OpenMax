@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <fcntl.h>
 
 #include "Mag_agilelogImpl.h"
 
@@ -10,8 +11,6 @@
 #endif
 
 namespace MAGAGILELOG {
-
-FILE *MagAgileLog::mLogFile = NULL;
 
 #define DEFAULT_CONFIG_FILE_PATH "/data/etc/mag"
 
@@ -47,16 +46,24 @@ MagAgileLog::MagAgileLog(){
     mConfigValue.pModules  = NULL;
 
     mpModuleHashT = NULL;
-    mLogFile = NULL;
+    mLogFile1 = -1;
+    mLogFile2 = -1;
+    mUsingLogFile = -1;
+    mWriteSize = 0;
 
     init();
     printConfig();
 }
 
 MagAgileLog::~MagAgileLog(){
-    if (mLogFile){
-        printf("~MagAgileLog: close log file\n");
-        fclose(mLogFile);
+    if (mLogFile1 > 0){
+        printf("~MagAgileLog: close log file 1\n");
+        close(mLogFile1);
+    }
+
+    if (mLogFile2 > 0){
+        printf("~MagAgileLog: close log file 2\n");
+        close(mLogFile2);
     }
 
     destroyMagStrHashTable(mpModuleHashT);
@@ -64,21 +71,34 @@ MagAgileLog::~MagAgileLog(){
 
 Error_t MagAgileLog::parseGlobalConfigElement(XMLElement *ele){ 
     const char *type = ele->FirstChildElement( "output" )->Attribute("type");
+    int logSize = 0;
+    XMLElement *child;
+    XMLError res;
 
     if(XML_SUCCESS == mXMLParsedDoc.ErrorID()){
         if (!strcmp(type, "file")){
+            char filePath[512];
             mConfigValue.config_output.type = OUTPUT_FILE;  
             strcpy(mConfigValue.config_output.filePath, ele->FirstChildElement( "output" )->FirstChildElement("path")->Attribute("name"));
-            if (mLogFile != NULL){
-                printf("mLogFile is opened, to close the log file\n");
-                fclose(mLogFile);
-            }
-            mLogFile = fopen(mConfigValue.config_output.filePath, "wb+");
-            if (NULL == mLogFile){
-                printf("Failed to open the log file: %s\n\n", mConfigValue.config_output.filePath);
+
+            sprintf(filePath, "%s_1.log", mConfigValue.config_output.filePath);
+            mLogFile1 = open(filePath, O_CREAT | O_RDWR | O_TRUNC);
+            if (-1 == mLogFile1){
+                printf("Failed to open the log file 1: %s\n\n", filePath);
             }else{
-                printf("Create the log file: %s -- OK!", mConfigValue.config_output.filePath);
+                printf("Create the log file 1: %s -- OK!\n", filePath);
             }
+
+            sprintf(filePath, "%s_2.log", mConfigValue.config_output.filePath);
+            mLogFile2 = open(filePath, O_CREAT | O_RDWR | O_TRUNC);
+            if (-1 == mLogFile2){
+                printf("Failed to open the log file 2: %s\n\n", filePath);
+            }else{
+                printf("Create the log file 2: %s -- OK!\n", filePath);
+            }
+
+            mUsingLogFile = mLogFile1;
+            mWriteSize = 0;
             mWriteToLogFunc = WriteToFile;
         }else if (!strcmp(type, "logcat")){
             mConfigValue.config_output.type = OUTPUT_LOGCAT;
@@ -124,6 +144,25 @@ Error_t MagAgileLog::parseGlobalConfigElement(XMLElement *ele){
         mConfigValue.config_timestamp_on = false;
     }
 
+    if (ele->FirstChildElement( "log" )->Attribute("on", "true")){
+        mConfigValue.log_on = true;
+    }else{
+        mConfigValue.log_on = false;
+    }
+
+    child = ele->FirstChildElement( "log_size" );
+    if (child){
+        res = child->QueryIntText( &logSize );
+        if (XML_SUCCESS == res){
+            mConfigValue.log_size = logSize * 1024 * 1024;
+        }else{
+            printf("failed to get the value of the element: log_size\n");
+            return FAILURE;;
+        }
+    }else{
+        printf("failed to get the element: log_size\n");
+        return FAILURE;
+    }
     return NO_ERROR;
 }
 
@@ -250,6 +289,8 @@ void MagAgileLog::printConfig(){
     printf("\t      |-port = %d\n", mConfigValue.config_output.port);
     printf("\t  |-debug level = %d\n", mConfigValue.config_debug_level);
     printf("\t  |-add timestamp = %d\n", mConfigValue.config_timestamp_on);
+    printf("\t  |-add log = %d\n", mConfigValue.log_on);
+    printf("\t  |-add log_size = %d MB\n", mConfigValue.log_size);
     printf("\tModules [%d]:\n", mConfigValue.moduleNum);
 
     for (int i = 0; i < mConfigValue.moduleNum; i++){
@@ -261,26 +302,58 @@ void MagAgileLog::printConfig(){
 
     
 }
-void MagAgileLog::WriteToLogcat(int prio, char level, const char *module, const char *buffer){
+void MagAgileLog::WriteToLogcat(int prio, char level, const char *module, const char *buffer, void *thiz){
 #ifdef ANDROID
     __android_log_print(prio, module, "%s", buffer);
 #endif
 }
 
-void MagAgileLog::WriteToFile(int prio, char level, const char *module, const char *buffer){
+void MagAgileLog::WriteToFile(int prio, char level, const char *module, const char *buffer, void *thiz){
     char logBuf[2048];
+    int length;
+    MagAgileLog *obj = static_cast<MagAgileLog *>(thiz);
+
     sprintf(logBuf, "[%s/%c]\t%s\n", module, level, buffer);
-    fwrite(logBuf, 1, strlen(logBuf), mLogFile);
-    fflush(mLogFile);
+    length = strlen(logBuf);
+    obj->mWriteSize += length;
+
+    if (obj->mWriteSize > obj->mConfigValue.log_size){
+        int ret;
+        obj->mWriteSize = 0;
+        if (obj->mUsingLogFile == obj->mLogFile1){
+            lseek(obj->mLogFile2, 0, SEEK_SET);
+            ret = ftruncate(obj->mLogFile2, 0);
+            if (ret == -1){
+                printf("failed to truncate the log file 2 to 0\n");
+            }
+            // else{
+            //     printf("To truncate the log file 2 OK!\n");
+            // }
+            obj->mUsingLogFile = obj->mLogFile2;
+        }else if (obj->mUsingLogFile == obj->mLogFile2){
+            lseek(obj->mLogFile1, 0, SEEK_SET);
+            ret = ftruncate(obj->mLogFile1, 0);
+            if (ret == -1){
+                printf("failed to truncate the log file 1 to 0\n");
+            }
+            // else{
+            //     printf("To truncate the log file 1 OK!\n");
+            // }
+            obj->mUsingLogFile = obj->mLogFile1;
+        }
+        
+    }
+    if (obj->mUsingLogFile > 0)
+        write(obj->mUsingLogFile, logBuf, length);
 }
 
-void MagAgileLog::WriteToStdOut(int prio, char level, const char *module, const char *buffer){
+void MagAgileLog::WriteToStdOut(int prio, char level, const char *module, const char *buffer, void *thiz){
     char logBuf[2048];
     sprintf(logBuf, "[%s/%c]\t%s\n", module, level, buffer);
     printf("%s", logBuf);
 }
 
-void MagAgileLog::WriteToSocket(int prio, char level, const char *module, const char *buffer){
+void MagAgileLog::WriteToSocket(int prio, char level, const char *module, const char *buffer, void *thiz){
 
 }
 
@@ -293,7 +366,10 @@ void MagAgileLog::printLog(int prio, const char *module, const char *caller, int
     struct tm *tm;
 
     //printf("enter printLog: prio = %d, module = %s, printData = %s\n", prio, module, printData);
-    
+    if (!mConfigValue.log_on){
+        return;
+    }
+
     if(mConfigValue.moduleNum > 0){
         pM = (ModuleConfig_t *)mpModuleHashT->getItem(mpModuleHashT, module);
         //print nothing
@@ -323,7 +399,7 @@ void MagAgileLog::printLog(int prio, const char *module, const char *caller, int
     
     strcat(logBuf, printData);
     if (mWriteToLogFunc)
-        mWriteToLogFunc(prio, getPriorityLevel(prio), module, logBuf);   
+        mWriteToLogFunc(prio, getPriorityLevel(prio), module, logBuf, static_cast<void *>(this));   
 }
 
 void MagAgileLog::setDefaultValue(){

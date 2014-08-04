@@ -61,12 +61,14 @@ typedef struct {
     Output_t     config_output;
     DebugLevel_t config_debug_level;
     bool         config_timestamp_on;
+    bool         log_on;
+    int          log_size;
 
     int            moduleNum;
     ModuleConfig_t *pModules;
 }ConfigTable_t;
 
-typedef void (*fnWriteToLog)(int prio, char level, const char *module, const char *buffer);
+typedef void (*fnWriteToLog)(int prio, char level, const char *module, const char *buffer, void *thiz);
 
 class MagAgileLog{
 public:
@@ -78,6 +80,12 @@ public:
     static MagAgileLog *getInstance();
     static void destroy();
     
+    int mLogFile1; 
+    int mLogFile2;
+    int mUsingLogFile;
+    unsigned int mWriteSize;
+    
+    LogConfigFile_t mConfigFile;
 private:
     static MagAgileLog *sInstance;
     static pthread_mutex_t mMutex;
@@ -89,21 +97,18 @@ private:
     Error_t parseGlobalConfigElement(XMLElement *ele);
     Error_t parseModuleConfigElement(XMLElement *ele);
 
-    static void WriteToLogcat(int prio, char level, const char *module, const char *buffer);
-    static void WriteToFile(int prio, char level, const char *module, const char *buffer);
-    static void WriteToStdOut(int prio, char level, const char *module, const char *buffer);
-    static void WriteToSocket(int prio, char level, const char *module, const char *buffer);
+    static void WriteToLogcat(int prio, char level, const char *module, const char *buffer, void *thiz);
+    static void WriteToFile(int prio, char level, const char *module, const char *buffer, void *thiz);
+    static void WriteToStdOut(int prio, char level, const char *module, const char *buffer, void *thiz);
+    static void WriteToSocket(int prio, char level, const char *module, const char *buffer, void *thiz);
     
     char getPriorityLevel(int prio);
 
-    LogConfigFile_t mConfigFile;
     ConfigTable_t mConfigValue;
     XMLDocument mXMLParsedDoc;
     HashTableHandle mpModuleHashT;
 
     fnWriteToLog mWriteToLogFunc;
-
-    static FILE *mLogFile; 
 };
 
 }

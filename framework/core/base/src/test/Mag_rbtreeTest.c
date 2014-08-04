@@ -5,7 +5,7 @@
 static int deleteNum = 0;
 int main()  
 {  
-    int i, count = 10;  
+    int i, count = 30;  
     key_t key;  
     RBTreeNodeHandle root = NULL, node = NULL;  
     int test_addr = 0;
@@ -61,11 +61,17 @@ int main()
             AGILE_LOGI("****** After delete: node number: %d", rbtree_dump(root, 0));
             //return 0;
         } 
-        AGILE_LOGI("before rbtree_dump");
-        rbtree_dump(root, 1);
-        AGILE_LOGI("after rbtree_dump");
+
+        // rbtree_dump(root, 1);
+
     }  
     
+    RBTreeNodeHandle n;
+    i = 0;
+    for (n = rbtree_first(root); n; n = rbtree_next(n)) {
+        AGILE_LOGI("index %d: key - %lld", i, n->key);
+        i++;
+    }
     return 0;  
 }  
 

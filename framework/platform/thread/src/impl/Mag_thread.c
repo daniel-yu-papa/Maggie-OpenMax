@@ -29,13 +29,12 @@ static _status_t loopEntryWrapper(void *userData){
         if (ret != MAG_TRUE || user->mExitPending){
             user->mExitPending = MAG_TRUE;
             user->mRunning     = MAG_FALSE;
+            Mag_SetEvent(user->mExitEvt);
             AGILE_LOGD("exit thread %s!", user->mName);
             break;
         }
     }while(1);
-
-    Mag_SetEvent(user->mExitEvt);
-    
+    AGILE_LOGD("exit thread %s truely!!!", user->mName);
     return 0;
 }
 
@@ -163,6 +162,8 @@ _status_t MagThread_requestExitAndWait(MagThread_t *self, i32 timeout){
     if (self->mRunning){
         Mag_AcquireMutex(self->mLock);
         if (self){
+            /*make sure the exit event is set after get the mExitPending signal*/
+            Mag_ClearEvent(self->mExitEvt);
             self->mExitPending= MAG_TRUE;
         }else{
             ret = MAG_NO_INIT;

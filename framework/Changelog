@@ -1,6 +1,12 @@
 Entries are sorted chronologically from oldest to youngest within each release,
 Releases are sorted from youngest to oldest.
 
+version 0.2.1: initial release
+2014-07-26
+
+- fixed the bug of wrong action in the  thread library requestExitAndWait()
+
+**************************************
 version 0.2: initial release
 2014-07-23
 

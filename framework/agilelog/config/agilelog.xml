@@ -13,6 +13,12 @@
 
                 <!-- add the timestamp for each log item or NOT -->
                 <timestamp on = "true"/>
+
+                <!-- write log out: on or off -->
+                <log on = "true"/>
+                
+                <!-- the size of log file: XX MB -->
+                <log_size>2</log_size>
 	</global_config>
 
         <module_config>

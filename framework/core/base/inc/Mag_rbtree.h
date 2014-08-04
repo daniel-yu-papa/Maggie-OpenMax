@@ -31,6 +31,8 @@ typedef struct rbtree_node_t{
        */
     RBTREE_BOOL  color;
     
+    struct rbtree_node_t *parent;
+
     struct rbtree_node_t *left;
     struct rbtree_node_t *right;   
 }RBTREE_NODE_t;
@@ -51,6 +53,12 @@ static inline RBTreeNodeHandle rotateLeft(RBTreeNodeHandle h){
     x->left = h;
     x->color = h->color;
     h->color = RBTREE_TRUE;
+
+    x->parent = h->parent;
+    h->parent = x;
+    if (h->right)
+        h->right->parent = h;
+
     return x;
 }
 
@@ -61,6 +69,12 @@ static inline RBTreeNodeHandle rotateRight(RBTreeNodeHandle h){
     x->right = h;
     x->color = h->color;
     h->color = RBTREE_TRUE;
+
+    x->parent = h->parent;
+    h->parent = x;
+    if (h->left)
+        h->left->parent = h;
+
     return x;
 }
 
@@ -141,8 +155,8 @@ void rbtree_getMinValue(RBTreeNodeHandle root, i64 *key, void **value);
 RBTreeNodeHandle rbtree_insert(RBTreeNodeHandle root, i64 key, void *value);
 i32 rbtree_delete(RBTreeNodeHandle *root, i64 key);
 i32 rbtree_dump(RBTreeNodeHandle root, i32 print_flag);
-i32 rbtree_handleAllNodes(RBTreeNodeHandle root, void (*handler)(void *pValue, void *pParam), void *pArg);
-
+RBTreeNodeHandle rbtree_first(const RBTreeNodeHandle root);
+RBTreeNodeHandle rbtree_next(RBTreeNodeHandle node);
 i32 rbtree_debug_getRepeatNum(void);
 
 #ifdef __cplusplus
