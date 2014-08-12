@@ -10,7 +10,7 @@ extern "C" {
 #endif
 #define LIBMAGFW_VERSION_MAJOR 0
 #define LIBMAGFW_VERSION_MINOR 2
-#define LIBMAGFW_VERSION_MICRO 2
+#define LIBMAGFW_VERSION_MICRO 3
 
 #define LIBMAGFW_VERSION_INT MAG_VERSION_INT(LIBMAGFW_VERSION_MAJOR, \
                                                  LIBMAGFW_VERSION_MINOR, \
