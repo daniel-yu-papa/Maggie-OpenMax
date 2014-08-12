@@ -36,11 +36,18 @@ typedef struct mag_thread{
 
     MagEventGroupHandle mExitEvtGroup;
     MagEventHandle      mExitEvt;
+
+    boolean             mSuspendRequest;
+    MagEventGroupHandle mSuspendEvtGroup;
+    MagEventHandle      mSuspendEvt;
     
     _status_t (*run)(struct mag_thread *self);
     _status_t (*setFunc_readyToRun)(struct mag_thread *self, fnReadyToRun fn);
     _status_t (*setParm_Priority)(struct mag_thread *self, MagThread_Priority_t priority);
     _status_t (*setParm_StackSize)(struct mag_thread *self, _size_t stackSize);
+
+    _status_t (*suspend)(struct mag_thread *self);
+    _status_t (*resume)(struct mag_thread *self);
 
     _status_t (*requestExit)(struct mag_thread *self);
     _status_t (*requestExitAndWait)(struct mag_thread *self, i32 timeout);
