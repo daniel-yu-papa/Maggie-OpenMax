@@ -267,6 +267,20 @@ static _status_t MagLooper_stop(MagLooperHandle hLooper){
     return MAG_NO_ERROR;
 }
 
+static _status_t MagLooper_suspend(MagLooperHandle hLooper){
+    if (hLooper->mLooperThread == NULL)
+        return MAG_INVALID_OPERATION;
+
+    return hLooper->mLooperThread->suspend(hLooper->mLooperThread);
+}
+
+static _status_t MagLooper_resume(MagLooperHandle hLooper){
+    if (hLooper->mLooperThread == NULL)
+        return MAG_INVALID_OPERATION;
+
+    return hLooper->mLooperThread->resume(hLooper->mLooperThread);
+}
+
 static void MagLooper_clear(MagLooperHandle hLooper){
     clearMessageQueue(hLooper);
     
@@ -374,6 +388,8 @@ MagLooperHandle createLooper(const char *pName){
         pLooper->unregisterHandler = MagLooper_unregisterHandler;
         pLooper->start             = MagLooper_start;
         pLooper->stop              = MagLooper_stop;
+        pLooper->suspend           = MagLooper_suspend;
+        pLooper->resume            = MagLooper_resume;
         pLooper->postMessage       = MagLooper_postMessage;
         pLooper->getHandlerID      = MagLooper_getHandlerID;
         pLooper->waitOnAllDone     = MagLooper_waitOnAllDone;
