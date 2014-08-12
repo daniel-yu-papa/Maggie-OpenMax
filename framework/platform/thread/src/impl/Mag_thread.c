@@ -18,6 +18,10 @@ static _status_t loopEntryWrapper(void *userData){
     
     boolean first = MAG_TRUE;
     do {
+        if (user->mSuspendRequest){
+            Mag_WaitForEventGroup(user->mSuspendEvtGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
+        }
+
         if (first){
             first = MAG_FALSE;
             if (user->mfnReadyToRun)
@@ -141,12 +145,49 @@ _status_t MagThread_setParm_StackSize(MagThread_t *self, _size_t stackSize){
     return ret;
 }
 
+_status_t MagThread_suspend(struct mag_thread *self){
+    _status_t ret = MAG_NO_ERROR;
+
+    Mag_AcquireMutex(self->mLock);
+    if (self){
+        if (!self->mSuspendRequest){
+            Mag_ClearEvent(self->mSuspendEvt);
+            self->mSuspendRequest = MAG_TRUE;
+        }
+    }else{
+        ret = MAG_NO_INIT;
+    }
+    Mag_ReleaseMutex(self->mLock);
+    return ret;
+}
+
+_status_t MagThread_resume(struct mag_thread *self){
+    _status_t ret = MAG_NO_ERROR;
+
+    Mag_AcquireMutex(self->mLock);
+    if (self){
+        if (self->mSuspendRequest){
+            Mag_SetEvent(self->mSuspendEvt);
+            self->mSuspendRequest = MAG_FALSE;
+        }
+    }else{
+        ret = MAG_NO_INIT;
+    }
+    Mag_ReleaseMutex(self->mLock);
+
+    return ret;
+}
+
 _status_t  MagThread_requestExit(MagThread_t *self){
     _status_t ret = MAG_NO_ERROR;
 
     if (self->mRunning){
         Mag_AcquireMutex(self->mLock);
         if (self){
+            if (self->mSuspendRequest){
+                Mag_SetEvent(self->mSuspendEvt);
+                self->mSuspendRequest = MAG_FALSE;
+            }
             self->mExitPending= MAG_TRUE;
         }else{
             ret = MAG_NO_INIT;
@@ -162,6 +203,10 @@ _status_t MagThread_requestExitAndWait(MagThread_t *self, i32 timeout){
     if (self->mRunning){
         Mag_AcquireMutex(self->mLock);
         if (self){
+            if (self->mSuspendRequest){
+                Mag_SetEvent(self->mSuspendEvt);
+                self->mSuspendRequest = MAG_FALSE;
+            }
             /*make sure the exit event is set after get the mExitPending signal*/
             Mag_ClearEvent(self->mExitEvt);
             self->mExitPending= MAG_TRUE;
@@ -192,10 +237,16 @@ MagThreadHandle Mag_CreateThread(const char* name, fnThreadLoop fn, void *priv){
         if (MAG_ErrNone == Mag_CreateEvent(&thread->mExitEvt, 0))
             Mag_AddEventGroup(thread->mExitEvtGroup, thread->mExitEvt);
 
+        Mag_CreateEventGroup(&thread->mSuspendEvtGroup);
+        if (MAG_ErrNone == Mag_CreateEvent(&thread->mSuspendEvt, 0))
+            Mag_AddEventGroup(thread->mSuspendEvtGroup, thread->mSuspendEvt);
+
         thread->run = MagThread_Run;
         thread->setFunc_readyToRun = MagThread_readyToRun;
         thread->setParm_Priority   = MagThread_setParm_Priority;
         thread->setParm_StackSize  = MagThread_setParm_StackSize;
+        thread->suspend            = MagThread_suspend;
+        thread->resume             = MagThread_resume;
         thread->requestExit        = MagThread_requestExit;
         thread->requestExitAndWait = MagThread_requestExitAndWait;
     }
@@ -211,6 +262,8 @@ void Mag_DestroyThread(MagThreadHandle self){
 
     Mag_DestroyEvent(self->mExitEvt);
     Mag_DestroyEventGroup(self->mExitEvtGroup);
+    Mag_DestroyEvent(self->mSuspendEvt);
+    Mag_DestroyEventGroup(self->mSuspendEvtGroup);
     mag_free(self->mName);
     mag_free(self);
 }
