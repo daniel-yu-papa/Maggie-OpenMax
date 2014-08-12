@@ -1,13 +1,19 @@
 Entries are sorted chronologically from oldest to youngest within each release,
 Releases are sorted from youngest to oldest.
 
-version 0.2.1: initial release
+version 0.2.3
+2014-08-12
+
+- add the suspend/resume interfaces into thread module
+
+**************************************
+version 0.2.1
 2014-07-26
 
 - fixed the bug of wrong action in the  thread library requestExitAndWait()
 
 **************************************
-version 0.2: initial release
+version 0.2
 2014-07-23
 
 - add the event clear method to reset the event signal value to avoid the wrong trigger
