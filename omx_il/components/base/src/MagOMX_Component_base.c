@@ -2,7 +2,8 @@
 
 AllocateClass(MagOmxComponent, Base);
 
-static MagOmxComponent getBase(OMX_HANDLETYPE hComponent) {
+static MagOmxComponent getBase(OMX_HANDLETYPE hComponent) {
+
     MagOmxComponent base;
     base = ooc_cast(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, MagOmxComponent);
     return base;
@@ -232,6 +233,32 @@ static OMX_ERRORTYPE FillThisBufferWrapper(
     }
 }
 
+static OMX_ERRORTYPE SetCallbacksWrapper(
+                OMX_IN  OMX_HANDLETYPE hComponent,
+                OMX_IN  OMX_CALLBACKTYPE* pCallbacks, 
+                OMX_IN  OMX_PTR pAppData){
+
+    if ( !MagOmxComponentVirtual(getBase(hComponent))->SetCallbacks ){
+        AGILE_LOGE("The component(0x%p): SetCallbacks() is not implemented", hComponent);
+        return OMX_ErrorNotImplemented;
+    }else{
+        return MagOmxComponentVirtual(getBase(hComponent))->SetCallbacks(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, 
+                                                                         pCallbacks,
+                                                                         pAppData);
+    }
+}
+
+static OMX_ERRORTYPE ComponentDeInitWrapper(
+                OMX_IN  OMX_HANDLETYPE hComponent){
+
+    if ( !MagOmxComponentVirtual(getBase(hComponent))->ComponentDeInit ){
+        AGILE_LOGE("The component(0x%p): ComponentDeInit() is not implemented", hComponent);
+        return OMX_ErrorNotImplemented;
+    }else{
+        return MagOmxComponentVirtual(getBase(hComponent))->ComponentDeInit(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate);
+    }
+}
+
 static OMX_ERRORTYPE UseEGLImageWrapper(
                 OMX_IN  OMX_HANDLETYPE hComponent,
                 OMX_INOUT OMX_BUFFERHEADERTYPE** ppBufferHdr,
@@ -251,21 +278,24 @@ static OMX_ERRORTYPE UseEGLImageWrapper(
     }
 }
 
-static OMX_ERRORTYPE SetCallbacksWrapper(
-                OMX_IN  OMX_HANDLETYPE hComponent,
-                OMX_IN  OMX_CALLBACKTYPE* pCallbacks, 
-                OMX_IN  OMX_PTR pAppData){
+static OMX_ERRORTYPE ComponentRoleEnumWrapper(
+                OMX_IN OMX_HANDLETYPE hComponent,
+                OMX_OUT OMX_U8 *cRole,
+                OMX_IN OMX_U32 nIndex){
 
-    if ( !MagOmxComponentVirtual(getBase(hComponent))->SetCallbacks ){
-        AGILE_LOGE("The component(0x%p): SetCallbacks() is not implemented", hComponent);
+    if ( !MagOmxComponentVirtual(getBase(hComponent))->ComponentRoleEnum ){
+        AGILE_LOGE("The component(0x%p): ComponentRoleEnum() is not implemented", hComponent);
         return OMX_ErrorNotImplemented;
     }else{
-        return MagOmxComponentVirtual(getBase(hComponent))->SetCallbacks(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, 
-                                                                         pCallbacks,
-                                                                         pAppData);
+        return MagOmxComponentVirtual(getBase(hComponent))->ComponentRoleEnum(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate,
+                                                                                cRole,
+                                                                                nIndex);
     }
 }
 
+static OMX_COMPONENTTYPE *MagOmxComponent_getComponentObj(MagOmxComponent self){
+    return self->mpComponentObject;
+}
 
 /****************************
  *Member function implementation
@@ -276,11 +306,11 @@ OMX_COMPONENTTYPE *virtual_MagOmxComponent_Create(
 
     OMX_COMPONENTTYPE* comp = NULL;
     if (NULL == pBase){
-        AGILE_LOGE("the input MagOmxComponent is NULL!");
+        AGILE_LOGE("the MagOmxComponent parameter is NULL!");
         return NULL;
     }
     
-    comp = &pBase->mComponentObject;
+    comp = pBase->mpComponentObject;
 
     comp->nSize                    = sizeof(OMX_COMPONENTTYPE);
     comp->nVersion.s.nVersionMajor = kVersionMajor;
@@ -304,8 +334,10 @@ OMX_COMPONENTTYPE *virtual_MagOmxComponent_Create(
     comp->FreeBuffer               = FreeBufferWrapper;
     comp->EmptyThisBuffer          = EmptyThisBufferWrapper;
     comp->FillThisBuffer           = FillThisBufferWrapper;
-    comp->UseEGLImage              = UseEGLImageWrapper;
     comp->SetCallbacks             = SetCallbacksWrapper;
+    comp->ComponentDeInit          = ComponentDeInitWrapper;
+    comp->UseEGLImage              = UseEGLImageWrapper;
+    comp->ComponentRoleEnum        = ComponentRoleEnumWrapper;
     
     return comp;
 }
@@ -344,11 +376,15 @@ static void MagOmxComponent_constructor(MagOmxComponent thiz, const void *params
     MAG_ASSERT(ooc_isInitialized(MagOmxComponent));
     chain_constructor(MagOmxComponent, thiz, params);
     
-    memset(&thiz->mComponentObject, 0, sizeof(OMX_COMPONENTTYPE));
+    thiz->getComponentObj   = MagOmxComponent_getComponentObj;
+
+    thiz->mpComponentObject = (OMX_COMPONENTTYPE *)mag_mallocz(sizeof(OMX_COMPONENTTYPE));
+    MAG_ASSERT(thiz->mpComponentObject);
 }
 
 static void MagOmxComponent_destructor(MagOmxComponent thiz, MagOmxComponentVtable vtab){
     AGILE_LOGV("Enter!");
+    mag_freep(&thiz->mpComponentObject);
 }
 
 

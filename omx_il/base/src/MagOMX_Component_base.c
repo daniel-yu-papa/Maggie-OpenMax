@@ -1,4 +1,6 @@
 
+#define LOOPER_NAME "MagCompBaseLooper"
+
 AllocateClass(MagOmxComponent, Base);
 
 static MagOmxComponent *getBase(OMX_HANDLETYPE hComponent) {
@@ -6,41 +8,154 @@ static MagOmxComponent *getBase(OMX_HANDLETYPE hComponent) {
       ((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate;
 }
 
-/*Running in the thread space*/
-void MagOmxComponent_CmdProcessEntry(void *msg, void *priv){
-    OMX_ERRORTYPE ret;
-    MagOmxCmdMsg_t *pCmdMsg = (MagOmxCmdMsg_t *)msg;
-    MagOmxComponent compClass = (MagOmxComponent)priv;
-    OMX_COMPONENTTYPE *compHandle = compClass->mComponentHandle;
-        
-    switch (pCmdMsg->Cmd)
-    {
-        case OMX_CommandStateSet :
-            OMX_STATETYPE targetST = (OMX_STATETYPE)pCmdMsg->nParam;
-            
-            ret = compClass->setState(compClass, targetST);
-            compClass->postEvent(compClass, OMX_EventCmdComplete, OMX_CommandStateSet, targetST, (OMX_PTR)&ret);
+static void MagOmxComponent_onMessageReceived(const MagMessageHandle msg, void *priv){
+    MagOmxComponent thiz = (MagOmxComponent)(priv);
+
+    switch (msg->what(msg)) {
+        case MagOmxCompMsg_CmdStateSet:
+            thiz->onCmdStateSet(msg);
             break;
 
-        case OMX_CommandPortDisable :
+        case MagOmxCompMsg_CmdPortAction:
+            thiz->onCmdPortAction(msg);
+            break;
 
+        case MagOmxCompMsg_CmdFlush:
+            thiz->onCmdFlush(msg);
             break;
-            
-        case OMX_CommandPortEnable :
 
+        case MagOmxCompMsg_CmdMarkBuffer:
+            thiz->onCmdMarkBuffer(msg);
             break;
-            
-        case OMX_CommandFlush :
 
+        default:
             break;
-            
-        case OMX_CommandMarkBuffer :
-            break;
-            
-        default :
-            AGILE_LOGE("unhandled command : %d\n", pCmdMsg->Cmd);
-            break;
+}
+
+static void MagOmxComponent_onCmdStateSet(MagOmxComponent pBase, MagMessageHandle msg){
+    boolean ret;
+    ui32 state;
+    OMX_PTR pCmdData;
+    OMX_ERRORTYPE res = OMX_ErrorNone;
+
+    ret = msg->findUInt32(msg, "state", &state);
+    if (!ret){
+        AGILE_LOGE("failed to find the state object!");
+        return;
+    }else{
+        AGILE_LOGV("transit to target state: %s", OmxCompState2String(state));
     }
+
+    ret = msg->findPointer(msg, "cmd_data", &pCmdData);
+    if (!ret){
+        AGILE_LOGE("failed to find the cmd_data object!");
+    }
+
+    res = pBase->setState(pBase, state);
+    if (res != OMX_ErrorNone){
+        AGILE_LOGE("failed to transit the state! res = 0x%x", res);
+    }
+}
+
+static void enablePort(void *port, void *param){
+    MagOmxPort omxPort = (MagOmxPort)port;
+    MagOmxComponent omxComp = (MagOmxComponent)param;
+
+    omxPort->enablePort(omxPort);
+}
+
+static void disablePort(void *port, void *param){
+    MagOmxPort omxPort = (MagOmxPort)port;
+    MagOmxComponent omxComp = (MagOmxComponent)param;
+
+    omxPort->disablePort(omxPort);
+}
+
+static void flushPort(void *port, void *param){
+    MagOmxPort omxPort = (MagOmxPort)port;
+    MagOmxComponent omxComp = (MagOmxComponent)param;
+
+    omxPort->flushPort(omxPort);
+}
+
+static void MagOmxComponent_onCmdPortAction(MagOmxComponent pBase, MagMessageHandle msg){
+    boolean ret;
+    ui32 port_index;
+    ui32 enable;
+    OMX_PTR pCmdData;
+
+    ret = msg->findUInt32(msg, "enable", &enable);
+    if (!ret){
+        AGILE_LOGE("failed to find the enable object!");
+        return;
+    }
+
+    ret = msg->findUInt32(msg, "port_index", &port_index);
+    if (!ret){
+        AGILE_LOGE("failed to find the port_index object!");
+        return;
+    }
+    
+    AGILE_LOGD("%s the port %d", enable ? "Enable" : "Disable", port_index);
+
+    ret = msg->findPointer(msg, "cmd_data", &pCmdData);
+    if (!ret){
+        AGILE_LOGE("failed to find the cmd_data object!");
+    }
+
+    if (port_index == OMX_ALL){
+        if (enable)
+            rbtree_handleAllNodes(pBase->mPortTreeRoot, enablePort, (void *)pBase);
+        else
+            rbtree_handleAllNodes(pBase->mPortTreeRoot, disablePort, (void *)pBase);
+    }else{
+        void *pport;
+        pport = rbtree_get(pBase->mPortTreeRoot, port_index);
+        if (pport){
+            if (enable)
+                enablePort(pport, (void *)pBase);
+            else
+                disablePort(pport, (void *)pBase);
+        }else{
+            AGILE_LOGE("failed to find the port with index %d", port_index);
+        }
+    }
+
+    // if (ret != OMX_ErrorNone){
+    //     AGILE_LOGE("failed to %s the port[%d]", enable ? "Enable" : "Disable", port_index);
+    // }
+}
+
+static void MagOmxComponent_onCmdFlush(MagOmxComponent pBase, MagMessageHandle msg){
+    boolean ret;
+    ui32 port_index;
+    OMX_PTR pCmdData;
+
+    ret = msg->findUInt32(msg, "port_index", &port_index);
+    if (!ret){
+        AGILE_LOGE("failed to find the port_index object!");
+        return;
+    }
+
+    ret = msg->findPointer(msg, "cmd_data", &pCmdData);
+    if (!ret){
+        AGILE_LOGE("failed to find the cmd_data object!");
+    }
+
+    if (port_index == OMX_ALL){
+        rbtree_handleAllNodes(pBase->mPortTreeRoot, flushPort, (void *)pBase);
+    }else{
+        void *pport;
+        pport = rbtree_get(pBase->mPortTreeRoot, port_index);
+        if (pport){
+            flushPort(pport, (void *)pBase);
+        }else{
+            AGILE_LOGE("failed to find the port with index %d", port_index);
+        }
+    }
+}
+
+static void MagOmxComponent_onCmdMarkBuffer(MagOmxComponent pBase, MagMessageHandle msg){
 
 }
 
@@ -242,19 +357,78 @@ OMX_ERRORTYPE virtual_MagOmxComponent_SendCommand(
                 OMX_IN  OMX_COMMANDTYPE Cmd,
                 OMX_IN  OMX_U32 nParam1,
                 OMX_IN  OMX_PTR pCmdData){
-    MagOmxCmdMsg_t *msg;
-    
     if (NULL == hComponent){
         return OMX_ErrorBadParameter;
     }
-    
-    msg = (MagOmxCmdMsg_t *)malloc(sizeof(MagOmxCmdMsg_t));
 
-    msg->Cmd      = Cmd;
-    msg->nParam   = nParam1;
-    msg->pCmdData = pCmdData;
+    switch (Cmd)
+    {
+        case OMX_CommandStateSet:
+            if (hComponent->mCmdStateSetMsg == NULL){
+                hComponent->mCmdStateSetMsg = hComponent->createMessage(hComponent, MagOmxCompMsg_CmdStateSet);
+            }
 
-    Mag_MsgChannelSend(hComponent->mCmdEvtChannel, msg, sizeof(MagOmxCmdMsg_t));
+            if (hComponent->mCmdStateSetMsg){
+                hComponent->mCmdStateSetMsg->setUInt32(hComponent->mCmdStateSetMsg, "state", nParam1);
+                hComponent->mCmdStateSetMsg->setPointer(hComponent->mCmdStateSetMsg, "cmd_data", pCmdData);
+                hComponent->mCmdStateSetMsg->postMessage(hComponent->mCmdStateSetMsg, 0);
+            }else{
+                AGILE_LOGE("failed to create the message: CmdStateSet");
+            }
+            break;
+
+        case OMX_CommandPortDisable:
+        case OMX_CommandPortEnable:
+            if (hComponent->mCmdPortActionMsg == NULL){
+                hComponent->mCmdPortActionMsg = hComponent->createMessage(hComponent, MagOmxCompMsg_CmdPortAction);
+            }
+
+            if (hComponent->mCmdPortActionMsg){
+                if (Cmd == OMX_CommandPortDisable){
+                    hComponent->mCmdPortActionMsg->setUInt32(hComponent->mCmdPortActionMsg, "enable", 0);
+                }else{
+                    hComponent->mCmdPortActionMsg->setUInt32(hComponent->mCmdPortActionMsg, "enable", 1);
+                }
+                hComponent->mCmdPortActionMsg->setUInt32(hComponent->mCmdPortActionMsg, "port_index", nParam1);
+                hComponent->mCmdPortActionMsg->setPointer(hComponent->mCmdPortActionMsg, "cmd_data", pCmdData);
+                hComponent->mCmdPortActionMsg->postMessage(hComponent->mCmdPortActionMsg, 0);
+            }else{
+                AGILE_LOGE("failed to create the message: CmdPortAction");
+            }
+            break;
+            
+        case OMX_CommandFlush:
+            if (hComponent->mCmdFlushMsg == NULL){
+                hComponent->mCmdFlushMsg = hComponent->createMessage(hComponent, MagOmxCompMsg_CmdFlush);
+            }
+
+            if (hComponent->mCmdFlushMsg){
+                hComponent->mCmdFlushMsg->setUInt32(hComponent->mCmdFlushMsg, "port_index", nParam1);
+                hComponent->mCmdFlushMsg->setPointer(hComponent->mCmdFlushMsg, "cmd_data", pCmdData);
+                hComponent->mCmdFlushMsg->postMessage(hComponent->mCmdFlushMsg, 0);
+            }else{
+                AGILE_LOGE("failed to create the message: CmdFlush");
+            }
+            break;
+            
+        case OMX_CommandMarkBuffer:
+            if (hComponent->mCmdMarkBufferMsg == NULL){
+                hComponent->mCmdMarkBufferMsg = hComponent->createMessage(hComponent, MagOmxCompMsg_CmdMarkBuffer);
+            }
+
+            if (hComponent->mCmdMarkBufferMsg){
+                hComponent->mCmdMarkBufferMsg->setUInt32(hComponent->mCmdMarkBufferMsg, "port_index", nParam1);
+                hComponent->mCmdMarkBufferMsg->setPointer(hComponent->mCmdMarkBufferMsg, "mark_type", pCmdData);
+                hComponent->mCmdMarkBufferMsg->postMessage(hComponent->mCmdMarkBufferMsg, 0);
+            }else{
+                AGILE_LOGE("failed to create the message: CmdMarkBuffer");
+            }
+            break;
+            
+        default :
+            AGILE_LOGE("wrong command : %d\n", Cmd);
+            break;
+    }
 }
 
 OMX_ERRORTYPE virtual_MagOmxComponent_GetParameter(
@@ -584,6 +758,44 @@ MagOmxPort MagOmxComponent_getPort(MagOmxComponent pBase, OMX_U32 nPortIndex){
     return (MagOmxPort)rbtree_get(pBase->mPortTreeRoot, nPortIndex);
 }
 
+static MagMessageHandle MagOmxComponent_createMessage(MagOmxComponent pBase, ui32 what) {
+    pBase->getLooper();
+    
+    MagMessageHandle msg = createMagMessage(pBase->mLooper, what, pBase->mMsgHandler->id(pBase->mMsgHandler));
+    if (msg == NULL){
+        AGILE_LOGE("failed to create the message");
+    }
+    return msg;
+}
+
+static OMX_ERRORTYPE MagOmxComponent_getLooper(MagOmxComponent pBase){
+    if ((NULL != pBase->mLooper) && (NULL != pBase->mMsgHandler)){
+        return OMX_ErrorNone;
+    }
+    
+    if (NULL == pBase->mLooper){
+        pBase->mLooper = createLooper(LOOPER_NAME);
+        AGILE_LOGV("looper handler: 0x%x", pBase->mLooper);
+    }
+    
+    if (NULL != pBase->mLooper){
+        if (NULL == pBase->mMsgHandler){
+            pBase->mMsgHandler = createHandler(pBase->mLooper, MagOmxComponent_onMessageReceived, (void *)pBase);
+
+            if (NULL != pBase->mMsgHandler){
+                pBase->mLooper->registerHandler(pBase->mLooper, pBase->mMsgHandler);
+                pBase->mLooper->start(pBase->mLooper);
+            }else{
+                AGILE_LOGE("failed to create Handler");
+                return OMX_ErrorInsufficientResources;
+            }
+        }
+    }else{
+        AGILE_LOGE("failed to create Looper: %s", LOOPER_NAME);
+        return OMX_ErrorInsufficientResources;
+    }
+    return OMX_ErrorNone;
+}
 
 /*Class Constructor/Destructor*/
 static void MagOmxComponent_initialize(Class this){
@@ -618,8 +830,6 @@ static void MagOmxComponent_initialize(Class this){
 }
 
 static void MagOmxComponent_constructor(MagOmxComponent thiz, const void *params){
-    MagErr_t mc_ret;
-    
     AGILE_LOGV("Enter!");
     
     MAG_ASSERT(ooc_isInitialized(MagOmxComponent));
@@ -638,15 +848,23 @@ static void MagOmxComponent_constructor(MagOmxComponent thiz, const void *params
     thiz->setState            = MagOmxComponent_setState;
     thiz->addPort             = MagOmxComponent_addPort;
     thiz->getPort             = MagOmxComponent_getPort;
-    
-    mc_ret = Mag_MsgChannelCreate(&(thiz->mCmdEvtChannel));
-    if (MAG_ErrNone == mc_ret){
-        Mag_MsgChannelReceiverAttach(thiz->mCmdEvtChannel, MagOmxComponent_CmdProcessEntry, thiz);
-    }  
+    thiz->getLooper           = MagOmxComponent_getLooper;
+    thiz->createMessage       = MagOmxComponent_createMessage;
+    thiz->onCmdStateSet       = MagOmxComponent_onCmdStateSet;
+    thiz->onCmdPortDisable    = MagOmxComponent_onCmdPortDisable;
+    thiz->onCmdPortEnable     = MagOmxComponent_onCmdPortEnable;
+    thiz->onCmdFlush          = MagOmxComponent_onCmdFlush;
+    thiz->onCmdMarkBuffer     = MagOmxComponent_onCmdMarkBuffer;
+
+    thiz->mCmdStateSetMsg     = NULL;
+    thiz->mCmdPortDisableMsg  = NULL;
+    thiz->mCmdPortEnableMsg   = NULL;
+    thiz->mCmdFlushMsg        = NULL;
+    thiz->mCmdMarkBufferMsg   = NULL;
 }
 
-static void MagOmxComponent_destructor(MagOmxComponent thiz, TriangleVtable vtab){
+static void MagOmxComponent_destructor(MagOmxComponent thiz, MagOmxComponentVtable vtab){
     AGILE_LOGV("Enter!");
 }
 
-
+#undef LOOPER_NAME

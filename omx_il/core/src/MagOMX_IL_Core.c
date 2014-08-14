@@ -31,9 +31,9 @@ static OMX_S32 addComponentList(const OMX_STRING  fileName,
         
         list_add_tail(&entry->node, &gOmxCore->LoadedCompListHead);
 
-        do{
+        for (u = 0; u < regInfo->roles_num; u++){
             gOmxCore->roleToComponentTable->addItem(gOmxCore->roleToComponentTable, entry, regInfo->roles[u]);
-        }while(regInfo->roles[u++]);
+        }
 
         gOmxCore->componentToRoleTable->addItem(gOmxCore->componentToRoleTable, entry, regInfo->name);
         
@@ -69,8 +69,8 @@ static void loadComponentLib(const OMX_STRING file, OMX_PTR arg){
 }
 
 static void loadComponentRecursive(OMX_STRING loadPath,
-                                            void (*loader)(const OMX_STRING file, OMX_PTR arg),
-                                            OMX_PTR arg){
+                                    void (*loader)(const OMX_STRING file, OMX_PTR arg),
+                                    OMX_PTR arg){
     DIR *dir;
     struct dirent *fileInfo;
     char dirPathFull[PATH_MAX];
@@ -86,18 +86,18 @@ static void loadComponentRecursive(OMX_STRING loadPath,
         fileInfo = readdir(dir);
 
         if (NULL == fileInfo){
-            //AGILE_LOGE("failed to read the dir: %s (err = %s)", loadPath, strerror(errno));
+            AGILE_LOGE("failed to read the dir: %s (err = %s)", loadPath, strerror(errno));
             continue;
         }
         
         if( (fileInfo->d_type == DT_DIR) && 
             !(!strcmp(fileInfo->d_name, ".") || !strcmp(fileInfo->d_name, ".."))){
             sprintf(dirPathFull, "%s/%s", loadPath, fileInfo->d_name);
-            //AGILE_LOGI("find dir: %s", dirPathFull);
+            AGILE_LOGI("find dir: %s", dirPathFull);
             loadComponentRecursive(dirPathFull, loader, arg);
         }else if ((fileInfo->d_type == DT_REG) || (fileInfo->d_type == DT_LNK)){
             sprintf(dirPathFull, "%s/%s", loadPath, fileInfo->d_name);
-            //AGILE_LOGI("find file: %s", dirPathFull);
+            AGILE_LOGI("find file: %s", dirPathFull);
             (*loader)(dirPathFull, arg);
         }
     }while (fileInfo != NULL);
@@ -116,6 +116,11 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_Init(void){
     char    loadPath[PATH_MAX];
     OMX_U32 num;
     
+    if (gOmxCore != NULL){
+        AGILE_LOGW("MagOMX IL Core has been initialized!");
+        return OMX_ErrorNone;
+    }
+
     gOmxCore = mag_mallocz(sizeof(MagOMX_IL_Core_t));
     if (NULL != gOmxCore){
         INIT_LIST(&gOmxCore->LoadedCompListHead);
@@ -160,6 +165,7 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_Deinit(void){
 
     while (tmpNode != &gOmxCore->LoadedCompListHead){
         comp = (Component_Entry_t *)list_entry(tmpNode, Component_Entry_t, node);
+        ((OMX_COMPONENTTYPE *)comp->compHandle)->ComponentDeInit(comp->compHandle);
         list_del(tmpNode);
         if (NULL != comp->deregFunc){
             comp->deregFunc();
@@ -187,19 +193,15 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_ComponentNameEnum(
     Component_Entry_t *comp;
 
     if (!gOmxCore){
-        AGILE_LOGE("the OMX_Init() is not done yet! quit...");
-        return OMX_ErrorInsufficientResources;
-    }
-    
-    if (!gOmxCore){
-        AGILE_LOGE("the OMX_Init() is not done yet! quit...");
+        AGILE_LOGE("the OMX_Init() has not been done yet! quit...");
         return OMX_ErrorInsufficientResources;
     }
 
+    tmpNode = &gOmxCore->LoadedCompListHead;
     do {
-        tmpNode = gOmxCore->LoadedCompListHead.next;
+        tmpNode = tmpNode->next;
         if (tmpNode == &gOmxCore->LoadedCompListHead){
-            return OMX_ErrorBadParameter;
+            return OMX_ErrorNoMore;
         }
     }while((nIndex > 0) && nIndex--);
     
@@ -237,8 +239,14 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_GetHandle(
 
                 if (ret == OMX_ErrorNone){
                     comp->compHandle = *pHandle;
+                    ret = OMX_SendCommand(*pHandle, OMX_CommandStateSet, OMX_StateLoaded, NULL);
+                    if (ret == OMX_ErrorNone){
+                        AGILE_LOGI("Successful!");
+                    }else{
+                        AGILE_LOGE("Failed to set the state to OMX_StateLoaded, ret = 0x%x", ret);
+                    }
                 }else{
-                    AGILE_LOGE("failed to initialize the component(%s)", cComponentName);
+                    AGILE_LOGE("Failed to initialize the component(%s)", cComponentName);
                 }
 
                 Mag_ReleaseMutex(gOmxCore->lock);
@@ -246,7 +254,7 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_GetHandle(
             }
         }
     }
-    AGILE_LOGE("failed to find the component: %s", cComponentName);
+    AGILE_LOGE("Failed to find the component: %s", cComponentName);
     Mag_ReleaseMutex(gOmxCore->lock);
     
     return OMX_ErrorComponentNotFound;
@@ -257,7 +265,7 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_FreeHandle(
 
     List_t *tmpNode;
     Component_Entry_t *comp;
-    OMX_ERRORTYPE ret;
+    OMX_ERRORTYPE ret = OMX_ErrorNone;
 
     if (!gOmxCore){
         AGILE_LOGE("the OMX_Init() is not done yet! quit...");
@@ -275,7 +283,8 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_FreeHandle(
             ret = ((OMX_COMPONENTTYPE *)hComponent)->ComponentDeInit(hComponent);
 
             if (ret != OMX_ErrorNone){
-                AGILE_LOGE("failed to do (0x%p)->ComponentDeInit()", hComponent);
+                AGILE_LOGE("Failed to do (0x%p)->ComponentDeInit(), ret = 0x%x", hComponent, ret);
+                goto out;
             }
 
             list_del(tmpNode);
@@ -284,16 +293,15 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_FreeHandle(
             }
             dlclose(comp->libHandle);
             mag_freep(&comp);
-
-            Mag_ReleaseMutex(gOmxCore->lock);
-            return ret;
+            goto out;
         }
     }
+    ret = OMX_ErrorComponentNotFound;
+    AGILE_LOGE("Failed to find the component: 0x%p", hComponent);
 
-    AGILE_LOGE("failed to find the component: 0x%p", hComponent);
+out:
     Mag_ReleaseMutex(gOmxCore->lock);
-    
-    return OMX_ErrorComponentNotFound;
+    return ret;
 }
 
 OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_SetupTunnel(
@@ -325,15 +333,22 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_SetupTunnel(
     tunnelSetup.eSupplier    = OMX_BufferSupplyUnspecified;
     tunnelSetup.nTunnelFlags = 0;
 
-    ret = comp_in->ComponentTunnelRequest(comp_in, nPortInput, comp_out, nPortOutput, &tunnelSetup);
+    ret = comp_out->ComponentTunnelRequest(comp_out, nPortOutput, comp_in, nPortInput, &tunnelSetup);
     if (ret == OMX_ErrorNone){
-        ret = comp_out->ComponentTunnelRequest(comp_out, nPortOutput, comp_in, nPortInput, &tunnelSetup);
-
+        ret = comp_in->ComponentTunnelRequest(comp_in, nPortInput, comp_out, nPortOutput, &tunnelSetup);
         if (ret == OMX_ErrorNone){
-            AGILE_LOGD("connect the in_comp[0x%p:%d] --> out_comp[0x%p:%d] OK!!!", comp_in, nPortInput, comp_out, nPortOutput);
+            AGILE_LOGD("connect the in_comp[0x%p:%d] <--> out_comp[0x%p:%d] OK!!!", comp_in, nPortInput, comp_out, nPortOutput);
         }else{
             AGILE_LOGE("failed to do ComponentTunnelRequest() of comp_out (connect the in_comp[0x%p:%d] --> out_comp[0x%p:%d])",
                         comp_in, nPortInput, comp_out, nPortOutput);
+
+            /*Tear down the tunnel on Output Port*/
+            ret = comp_out->ComponentTunnelRequest(comp_out, nPortOutput, NULL, kInvalidCompPortNumber, NULL);
+            if (ret == OMX_ErrorNone){
+                AGILE_LOGD("To tear down the component[0x%p, %d] tunnel OK!!!", comp_out, nPortOutput);
+            }else{
+                AGILE_LOGE("Failed to tear down the component[0x%p, %d] tunnel)", comp_out, nPortOutput);
+            }
             Mag_ReleaseMutex(gOmxCore->lock);
             return ret;
         }
@@ -382,15 +397,15 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_TeardownTunnel(
         ret = comp_out->ComponentTunnelRequest(comp_out, nPortOutput, NULL, kInvalidCompPortNumber, &tunnelSetup);
 
         if (ret == OMX_ErrorNone){
-            AGILE_LOGD("Tear down the in_comp[0x%p:%d] -\-> out_comp[0x%p:%d] OK!!!", comp_in, nPortInput, comp_out, nPortOutput);
+            AGILE_LOGD("Tear down the in_comp[0x%p:%d] -/-> out_comp[0x%p:%d] OK!!!", comp_in, nPortInput, comp_out, nPortOutput);
         }else{
-            AGILE_LOGE("failed to do ComponentTunnelRequest() of comp_out (Tear down the in_comp[0x%p:%d] -\-> out_comp[0x%p:%d])",
+            AGILE_LOGE("failed to do ComponentTunnelRequest() of comp_out (Tear down the in_comp[0x%p:%d] -/-> out_comp[0x%p:%d])",
                         comp_in, nPortInput, comp_out, nPortOutput);
             Mag_ReleaseMutex(gOmxCore->lock);
             return ret;
         }
     }else{
-        AGILE_LOGE("failed to do ComponentTunnelRequest() of comp_in (Tear down the in_comp[0x%p:%d] -\-> out_comp[0x%p:%d])",
+        AGILE_LOGE("failed to do ComponentTunnelRequest() of comp_in (Tear down the in_comp[0x%p:%d] -/-> out_comp[0x%p:%d])",
                     comp_in, nPortInput, comp_out, nPortOutput);
         Mag_ReleaseMutex(gOmxCore->lock);
         return ret;
@@ -432,7 +447,7 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_ComponentOfRoleEnum(
 }
 
 /* 
- * one role only has one component name depending on the adding time during OMX_Init(). 
+ * The role only has one component name depending on the adding time during OMX_Init(). 
  * It only keep the latest one.
  */
 OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_RoleOfComponentEnum(

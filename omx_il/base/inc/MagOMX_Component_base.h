@@ -11,6 +11,23 @@ typedef struct{
     OMX_PTR         pCmdData;
 }MagOmxCmdMsg_t;
 
+enum{
+    MagOmxCompMsg_CmdStateSet = 0,
+    MagOmxCompMsg_CmdPortAction,
+    MagOmxCompMsg_CmdFlush,
+    MagOmxCompMsg_CmdMarkBuffer
+};
+
+static inline const char *OmxCompState2String(ui32 state) {
+    switch (state) {
+        STRINGIFY(OMX_StateLoaded);
+        STRINGIFY(OMX_StateIdle);
+        STRINGIFY(OMX_StateExecuting);
+        STRINGIFY(OMX_StatePause);
+        STRINGIFY(OMX_StateWaitForResources);
+        default: return "state - unknown";
+    }
+}
 
 DeclareClass(MagOmxComponent, Base);
 
@@ -141,13 +158,25 @@ ClassMembers(MagOmxComponent, Base, \
     OMX_ERRORTYPE      (*postEmptyBufferDone)(MagOmxComponent pBase, OMX_BUFFERHEADERTYPE* pBuffer); \
     OMX_ERRORTYPE      (*setState)(MagOmxComponent pBase, OMX_STATETYPE targetState); \
     OMX_ERRORTYPE      (*addPort)(MagOmxComponent pBase, OMX_U32 nPortIndex, MagOmxPort pPort); \
-    MagOmxPort         (*getPort)(MagOmxComponent pBase, OMX_U32 nPortIndex); \ 
+    MagOmxPort         (*getPort)(MagOmxComponent pBase, OMX_U32 nPortIndex); \
+    OMX_ERRORTYPE      (*getLooper)(MagOmxComponent pBase); \ 
+    MagMessageHandle   (*createMessage)(MagOmxComponent pBase, ui32 what); \
+    void               (*onCmdStateSet)(MagOmxComponent pBase, MagMessageHandle msg); \
+    void               (*onCmdPortAction)(MagOmxComponent pBase, MagMessageHandle msg); \
+    void               (*onCmdFlush)(MagOmxComponent pBase, MagMessageHandle msg); \
+    void               (*onCmdMarkBuffer)(MagOmxComponent pBase, MagMessageHandle msg); \
 )
     OMX_COMPONENTTYPE      *mComponentHandle;  /*OMX spec defined Component handle*/
     OMX_CALLBACKTYPE       *mCallbacks;        /*the registered callbacks from OMX IL client*/
     OMX_PTR                mAppData;           /*the OMX IL client specific DATA for component callbacks using */
+    
+    MagMessageHandle       mCmdStateSetMsg;
+    MagMessageHandle       mCmdPortActionMsg;
+    MagMessageHandle       mCmdFlushMsg;
+    MagMessageHandle       mCmdMarkBufferMsg;
 
-    MagMsgChannelHandle    mCmdEvtChannel;     /*command message dispatching logic*/
+    MagLooperHandle        mLooper;
+    MagHandlerHandle       mMsgHandler;     
 
     OMX_STATETYPE          mState;             /*current component state*/
 

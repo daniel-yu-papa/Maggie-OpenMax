@@ -15,12 +15,16 @@ typedef enum{
 }MagOMX_Component_Type_t;
 
 enum{
-    MagOmxComponentBase_CommandStateSet,
-    MagOmxComponentBase_CommandFlush,
-    MagOmxComponentBase_CommandPortDisable,
-    MagOmxComponentBase_CommandPortEnable,
-    MagOmxComponentBase_CommandMarkBuffer,
+    MagOmxComponentImpl_CommandStateSetMsg,
+    MagOmxComponentImpl_CommandFlushMsg,
+    MagOmxComponentImpl_CommandPortDisableMsg,
+    MagOmxComponentImpl_CommandPortEnableMsg,
+    MagOmxComponentImpl_CommandMarkBufferMsg,
+
+    MagOmxComponentImpl_PortDataFlowMsg = 10
+    /*MagOmxComponentImpl_PortDataFlowMsg + port index: the data flow message for each port*/
 };
+
 
 typedef OMX_ERRORTYPE (*doStateTransition)(OMX_IN OMX_HANDLETYPE hComponent);
 
@@ -29,28 +33,13 @@ inline OMX_U32 toIndex(OMX_STATETYPE state){
 }
 
 
-DeclareClass(MagOmxComponentBase, MagOmxComponent);
+DeclareClass(MagOmxComponentImpl, MagOmxComponent);
 
-Virtuals(MagOmxComponentBase, MagOmxComponent) 
+Virtuals(MagOmxComponentImpl, MagOmxComponent) 
     OMX_COMPONENTTYPE *(*Create)(
                     OMX_IN OMX_HANDLETYPE hComponent, 
                     OMX_IN OMX_PTR pAppData,
                     OMX_IN OMX_CALLBACKTYPE *pCallbacks);
-
-    OMX_ERRORTYPE (*sendEvents)(
-                        OMX_IN MagOmxComponentBase hComponent,
-                        OMX_IN OMX_EVENTTYPE eEvent,
-                        OMX_IN OMX_U32 nData1,
-                        OMX_IN OMX_U32 nData2,
-                        OMX_IN OMX_PTR pEventData);
-
-    OMX_ERRORTYPE (*sendEmptyBufferDoneEvent)(
-                        OMX_IN MagOmxComponentBase hComponent,
-                        OMX_IN OMX_BUFFERHEADERTYPE* pBuffer);
-
-    OMX_ERRORTYPE (*sendFillBufferDoneEvent)(
-                        OMX_IN MagOmxComponentBase hComponent,
-                        OMX_IN OMX_BUFFERHEADERTYPE* pBuffer);
     
     /*Pure virtual functions. Must be overrided by sub-components*/
     OMX_ERRORTYPE (*MagOMX_GetComponentUUID)(
@@ -75,6 +64,9 @@ Virtuals(MagOmxComponentBase, MagOmxComponent)
     OMX_ERRORTYPE (*MagOMX_Resume)(
                     OMX_IN  OMX_HANDLETYPE hComponent);
 
+    OMX_ERRORTYPE (*MagOMX_Deinit)(
+                    OMX_IN  OMX_HANDLETYPE hComponent);
+
     OMX_ERRORTYPE (*MagOMX_FreeResources)(
                     OMX_IN  OMX_HANDLETYPE hComponent);
 
@@ -90,19 +82,47 @@ Virtuals(MagOmxComponentBase, MagOmxComponent)
                     OMX_IN  OMX_HANDLETYPE hComponent, 
                     OMX_IN  OMX_INDEXTYPE nIndex,
                     OMX_IN  OMX_PTR pComponentParameterStructure);
+
+    OMX_ERRORTYPE (*MagOMX_ComponentRoleEnum)(
+                    OMX_IN OMX_HANDLETYPE hComponent,
+                    OMX_OUT OMX_U8 *cRole,
+                    OMX_IN OMX_U32 nIndex);
+
+    /*proceed the input data buffer and output the cooked data*/
+    OMX_ERRORTYPE (*MagOMX_ProceedBuffer)(
+                    OMX_IN  OMX_HANDLETYPE hComponent, 
+                    OMX_IN  OMX_INDEXTYPE nPortIndex,
+                    OMX_IN  OMX_BUFFERHEADERTYPE *bufHeader);
     
 EndOfVirtuals;
 
-ClassMembers(MagOmxComponentBase, MagOmxComponent, \
-    MagMessageHandle (*createMessage)(OMX_HANDLETYPE handle, OMX_U32 what);  \
-    _status_t        (*getLooper)(OMX_HANDLETYPE handle);                           \  
+ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
+    MagMessageHandle (*createMessage)(OMX_HANDLETYPE handle, OMX_U32 what);     \
+    _status_t        (*getLooper)(OMX_HANDLETYPE handle);                       \  
 
     OMX_ERRORTYPE    (*setState)(OMX_HANDLETYPE handle, OMX_STATETYPE state);   \
     OMX_ERRORTYPE    (*flushPort)(OMX_HANDLETYPE handle, OMX_U32 port_index);   \
     OMX_ERRORTYPE    (*enablePort)(OMX_HANDLETYPE handle, OMX_U32 port_index);  \
     OMX_ERRORTYPE    (*disablePort)(OMX_HANDLETYPE handle, OMX_U32 port_index); \
-    void             (*addPort)(MagOmxComponentBase hComponent, OMX_U32 portIndex, OMX_HANDLETYPE hPort);       \
-    MagOmxPort       (*getPort)(MagOmxComponentBase hComponent, OMX_U32 portIndex); \
+    void             (*addPort)(MagOmxComponentImpl hComponent, OMX_U32 portIndex, OMX_HANDLETYPE hPort);  \
+    MagOmxPort       (*getPort)(MagOmxComponentImpl hComponent, OMX_U32 portIndex); \
+    
+    OMX_ERRORTYPE    (*sendEvents)(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN OMX_EVENTTYPE eEvent,
+                        OMX_IN OMX_U32 nData1,
+                        OMX_IN OMX_U32 nData2,
+                        OMX_IN OMX_PTR pEventData);  \
+    OMX_ERRORTYPE    (*sendEmptyBufferDoneEvent)(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN OMX_BUFFERHEADERTYPE* pBuffer); \
+    OMX_ERRORTYPE    (*sendFillBufferDoneEvent)(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN OMX_BUFFERHEADERTYPE* pBuffer); \
+    OMX_ERRORTYPE    (*setupPortDataFlow)(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN MagOmxPort inPort,
+                        OMX_IN MagOmxPort outPort); \
 )
     MagLooperHandle  mLooper;
     MagHandlerHandle mMsgHandler;
@@ -117,13 +137,17 @@ ClassMembers(MagOmxComponentBase, MagOmxComponent, \
     doStateTransition mStateTransitTable[5][5]; /*[current state][target state]*/
     
     MagMiniDBHandle  mParametersDB;
-    RBTreeNodeHandle mPortsTable;
+    RBTreeNodeHandle mPortTreeRoot;
     OMX_U32          mPortsNumber;
     
-    MagMutexHandle   mhParamMutex;
+    /*synchronize the state setting and OMX API calling*/
+    MagMutexHandle   mhMutex;
 
     OMX_CALLBACKTYPE *mpCallbacks;
     OMX_PTR          mpAppData;
+
+    MagMessageHandle *mPortDataMsgList;
+
 EndOfClassMembers;
 
 

@@ -53,7 +53,7 @@ typedef OMX_ERRORTYPE (*MagOMX_Component_Init)(OMX_OUT OMX_HANDLETYPE *hComponen
 typedef struct
 {
     OMX_STRING        name;      /*OMX IL standard component name*/
-    OMX_STRING        *roles;    /*OMX IL standard component roles, end with NULL string*/
+    OMX_STRING        *roles;    /*OMX IL standard component roles*/
     OMX_U32           roles_num; /*the number of the component roles*/
     OMX_VERSIONTYPE   version;   /*OMX IL component version*/
     OMX_ComponentInit init;      /*OMX IL component constructor. */
