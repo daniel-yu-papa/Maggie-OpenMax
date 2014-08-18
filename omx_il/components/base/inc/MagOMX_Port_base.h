@@ -8,7 +8,7 @@
 /*specifies the minimum number of buffers that the port requires*/
 #define kPortBuffersMinNum       2
 #define kPortBufferSize         (1024 * 1024)
-#define kInvalidPortIndex       (0x7fffffff);
+#define kInvalidPortIndex       (0x7FFFFFFF);
 
 typedef enum{
   kSharedBuffer,
@@ -25,6 +25,13 @@ typedef enum{
   kTunneledPortStatusEvt,
   kBufferPopulatedEvt
 }MagOmxPort_Event_t;
+
+typedef enum{
+  kState_Stopped,
+  kState_Paused,
+  kState_Running,
+  kState_Flushing
+}MagOmxPort_State_t;
 
 DeclareClass(MagOmxPort, Base);
 
@@ -98,6 +105,9 @@ Virtuals(MagOmxPort, Base)
 
     /*Get Shared buffer message*/
     MagMessageHandle (*GetSharedBufferMsg)(OMX_HANDLETYPE hPort);
+
+    /*Get the output buffer message that holds the generated data from the Component*/
+    MagMessageHandle (*GetOutputBufferMsg)(OMX_HANDLETYPE hPort);
 EndOfVirtuals;
 
 
@@ -117,7 +127,9 @@ ClassMembers(MagOmxPort, Base, \
     OMX_U32       (*getDef_BufferSize)(MagOmxPort root); \
     OMX_BOOL      (*getDef_Populated)(MagOmxPort root); \
     OMX_BOOL      (*getDef_Enabled)(MagOmxPort root); \
+
     MagOmxPort_BufferPolicy_t (*getBufferPolicy)(MagOmxPort root); \
+    MagOmxPort_State_t (*getState)(MagOmxPort root); \
 
     void          (*setTunneledFlag)(MagOmxPort hPort, OMX_BOOL setting); \
     void          (*setDef_BufferCountActual)(MagOmxPort root, OMX_U32 cnt); \
@@ -125,6 +137,8 @@ ClassMembers(MagOmxPort, Base, \
     void          (*setDef_Populated)(MagOmxPort root, OMX_BOOL flag); \
     void          (*setDef_Enabled)(MagOmxPort root, OMX_BOOL flag); \
     void          (*setBufferPolicy)(MagOmxPort root, MagOmxPort_BufferPolicy_t policy); \
+    void          (*setState)(MagOmxPort root, MagOmxPort_State_t st); \
+
     void          (*resetBufferSupplier)(MagOmxPort root); \
 )
     OMX_PARAM_PORTDEFINITIONTYPE *mpPortDefinition;
@@ -137,6 +151,7 @@ ClassMembers(MagOmxPort, Base, \
 
     OMX_BOOL                     mIsTunneled;
     MagOmxPort_BufferPolicy_t    mBufferPolicy;
+    MagOmxPort_State_t           mState;
 
 EndOfClassMembers;
 

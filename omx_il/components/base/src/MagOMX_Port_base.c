@@ -171,6 +171,14 @@ void MagOmxPort_setBufferPolicy(MagOmxPort root, MagOmxPort_BufferPolicy_t polic
     mBufferPolicy = policy;
 }
 
+MagOmxPort_State_t MagOmxPort_getState(MagOmxPort root){
+    return mState;
+}
+
+void MagOmxPort_setState(MagOmxPort root, MagOmxPort_State_t st){
+    mState = st;
+}
+
 /*Class Constructor/Destructor*/
 static void MagOmxPort_initialize(Class this){
     MagOmxPortVtableInstance.Start                 = NULL;
@@ -190,6 +198,7 @@ static void MagOmxPort_initialize(Class this){
     MagOmxPortVtableInstance.SetupTunnel           = NULL;
     MagOmxPortVtableInstance.RegisterBufferHandler = NULL;
     MagOmxPortVtableInstance.GetSharedBufferMsg    = NULL;
+    MagOmxPortVtableInstance.GetOutputBufferMsg    = NULL;
 }
 
 /*
@@ -218,12 +227,15 @@ static void MagOmxPort_constructor(MagOmxPort thiz, const void *params){
     thiz->getDef_BufferSize        = MagOmxPort_getDef_BufferSize;
     thiz->getDef_Populated         = MagOmxPort_getDef_Populated;
     thiz->getDef_Enabled           = MagOmxPort_getDef_Enabled;
+    thiz->getBufferPolicy          = MagOmxPort_getBufferPolicy;
+    thiz->getState                 = MagOmxPort_getState;
 
     thiz->setTunneledFlag          = MagOmxPort_setTunneledFlag;
     thiz->setDef_BufferCountActual = MagOmxPort_setDef_BufferCountActual;
     thiz->setDef_BufferSize        = MagOmxPort_setDef_BufferSize;
     thiz->setDef_Populated         = MagOmxPort_setDef_Populated;
     thiz->setDef_Enabled           = MagOmxPort_setDef_Enabled;
+    thiz->setState                 = MagOmxPort_setState;
     thiz->resetBufferSupplier      = MagOmxPort_resetBufferSupplier;
     
     thiz->mpPortDefinition = (OMX_PARAM_PORTDEFINITIONTYPE *)mag_mallocz(sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
@@ -253,8 +265,9 @@ static void MagOmxPort_constructor(MagOmxPort thiz, const void *params){
     thiz->mpPortDefinition->bBuffersContiguous = OMX_FALSE;
     thiz->mpPortDefinition->nBufferAlignment   = 4; /*4 bytes*/
 
-    thiz->mIsTunneled  = OMX_FALSE;
+    thiz->mIsTunneled   = OMX_FALSE;
     thiz->mBufferPolicy = kNoneSharedBuffer;
+    thiz->mState        = kState_Stopped;
 
     Mag_CreateMutex(&thiz->mhMutex);
     Mag_CreateMutex(&thiz->mhParamMutex);

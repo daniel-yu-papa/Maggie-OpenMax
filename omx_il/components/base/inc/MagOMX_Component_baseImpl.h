@@ -100,6 +100,9 @@ ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
     MagMessageHandle (*createMessage)(OMX_HANDLETYPE handle, OMX_U32 what);     \
     _status_t        (*getLooper)(OMX_HANDLETYPE handle);                       \  
 
+    MagMessageHandle (*createBufferMessage)(OMX_HANDLETYPE handle, OMX_U32 what);     \
+    _status_t        (*getBufferLooper)(OMX_HANDLETYPE handle); 
+    
     OMX_ERRORTYPE    (*setState)(OMX_HANDLETYPE handle, OMX_STATETYPE state);   \
     OMX_ERRORTYPE    (*flushPort)(OMX_HANDLETYPE handle, OMX_U32 port_index);   \
     OMX_ERRORTYPE    (*enablePort)(OMX_HANDLETYPE handle, OMX_U32 port_index);  \
@@ -127,6 +130,9 @@ ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
     MagLooperHandle  mLooper;
     MagHandlerHandle mMsgHandler;
 
+    MagLooperHandle  mBufferLooper;
+    MagHandlerHandle mBufferMsgHandler;
+
     MagMessageHandle mCmdSetStateMsg;
     MagMessageHandle mCmdPortDisableMsg;
     MagMessageHandle mCmdPortEnableMsg;
@@ -147,7 +153,8 @@ ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
     OMX_PTR          mpAppData;
 
     MagMessageHandle *mPortDataMsgList;
-
+    OMX_U32          mFlushingPorts;
+    
 EndOfClassMembers;
 
 

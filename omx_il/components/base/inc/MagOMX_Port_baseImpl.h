@@ -10,7 +10,8 @@ enum{
     MagOmxPortImpl_EmptyThisBufferMsg,
     MagOmxPortImpl_FillThisBufferMsg,
     MagOmxPortImpl_ReturnThisBufferMsg,
-    MagOmxPortImpl_SharedBufferMsg
+    MagOmxPortImpl_SharedBufferMsg,
+    MagOmxPortImpl_OutputBufferMsg
 };
 
 typedef enum{
@@ -43,6 +44,7 @@ Virtuals(MagOmxPortImpl, MagOmxPort)
     OMX_ERRORTYPE (*MagOMX_FreeBuffer)(MagOmxPortImpl port, OMX_U8 *pBuffer);
     OMX_ERRORTYPE (*MagOMX_EmptyThisBuffer)(MagOmxPortImpl port, OMX_BUFFERHEADERTYPE* pBufHeader);
     OMX_ERRORTYPE (*MagOMX_FillThisBuffer)(MagOmxPortImpl port, OMX_BUFFERHEADERTYPE* pBufHeader);
+    OMX_ERRORTYPE (*MagOMX_GetOutputBuffer)(MagOmxPortImpl port, OMX_BUFFERHEADERTYPE **ppBufHeader);
 EndOfVirtuals;
 
 
@@ -79,6 +81,7 @@ ClassMembers(MagOmxPortImpl, MagOmxPort, \
     MagMessageHandle       mFillThisBufferMsg;
     MagMessageHandle       mReturnThisBufferMsg;
     MagMessageHandle       mSharedBufferMsg;
+    MagMessageHandle       mOutputBufferMsg;
 
     OMX_BUFFERSUPPLIERTYPE mBufSupplierType;
     OMX_HANDLETYPE         mTunneledComponent;
