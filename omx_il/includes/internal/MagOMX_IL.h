@@ -30,6 +30,11 @@ typedef struct  {
     OMX_U32 nGroupID;
 } MagOMX_Param_PRIORITYMGMTTYPE_t;
 
+typedef struct{
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+}MagOMX_Port_Header_t;
 
 /** construct and initialize component
  * This is called only upon @ref OMX_GetHandle(), to instantiate component.
@@ -45,18 +50,17 @@ typedef struct  {
  *        OpenMAX IL return code.
  */
 typedef OMX_ERRORTYPE (*MagOMX_Component_Init)(OMX_OUT OMX_HANDLETYPE *hComponent,  
-                                                    OMX_IN  OMX_PTR pAppData,
-                                                    OMX_IN  OMX_CALLBACKTYPE* pCallBacks);
+                                               OMX_IN  OMX_PTR pAppData,
+                                               OMX_IN  OMX_CALLBACKTYPE* pCallBacks);
 
 
 /** MagOMX component registration data structure. */
 typedef struct
 {
-    OMX_STRING        name;      /*OMX IL standard component name*/
-    OMX_STRING        *roles;    /*OMX IL standard component roles*/
-    OMX_U32           roles_num; /*the number of the component roles*/
-    OMX_VERSIONTYPE   version;   /*OMX IL component version*/
-    OMX_ComponentInit init;      /*OMX IL component constructor. */
+    OMX_STRING            name;      /*OMX IL standard component name*/
+    OMX_STRING            *roles;    /*OMX IL standard component roles*/
+    OMX_U32               roles_num; /*the number of the component roles*/
+    MagOMX_Component_Init init;      /*OMX IL component constructor. */
 } MagOMX_Component_Registration_t;
 
 /*do component registration. 
@@ -88,6 +92,12 @@ static inline void initHeader(void *obj, OMX_U32 size){
     header->s.nVersionMinor = kVersionMinor;
     header->s.nRevision     = kVersionRevision;
     header->s.nStep         = kVersionStep;
+}
+
+static inline OMX_U32 getPortIndex(OMX_PTR *pStruct){
+    MagOMX_Port_Header_t *h = (MagOMX_Port_Header_t *)pStruct;
+
+    return h->nPortIndex;
 }
 
 static inline OMX_STRING OmxState2String(OMX_STATETYPE state) {

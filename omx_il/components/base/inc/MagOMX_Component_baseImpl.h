@@ -67,7 +67,7 @@ Virtuals(MagOmxComponentImpl, MagOmxComponent)
     OMX_ERRORTYPE (*MagOMX_Deinit)(
                     OMX_IN  OMX_HANDLETYPE hComponent);
 
-    OMX_ERRORTYPE (*MagOMX_FreeResources)(
+    OMX_ERRORTYPE (*MagOMX_Reset)(
                     OMX_IN  OMX_HANDLETYPE hComponent);
 
     MagOMX_Component_Type_t (*MagOMX_getType)(
@@ -91,8 +91,8 @@ Virtuals(MagOmxComponentImpl, MagOmxComponent)
     /*proceed the input data buffer and output the cooked data*/
     OMX_ERRORTYPE (*MagOMX_ProceedBuffer)(
                     OMX_IN  OMX_HANDLETYPE hComponent, 
-                    OMX_IN  OMX_INDEXTYPE nPortIndex,
-                    OMX_IN  OMX_BUFFERHEADERTYPE *bufHeader);
+                    OMX_IN  OMX_BUFFERHEADERTYPE *srcbufHeader,
+                    OMX_IN  OMX_BUFFERHEADERTYPE *destbufHeader);
     
 EndOfVirtuals;
 
@@ -108,7 +108,7 @@ ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
     OMX_ERRORTYPE    (*enablePort)(OMX_HANDLETYPE handle, OMX_U32 port_index);  \
     OMX_ERRORTYPE    (*disablePort)(OMX_HANDLETYPE handle, OMX_U32 port_index); \
     void             (*addPort)(MagOmxComponentImpl hComponent, OMX_U32 portIndex, OMX_HANDLETYPE hPort);  \
-    MagOmxPort       (*getPort)(MagOmxComponentImpl hComponent, OMX_U32 portIndex); \
+    OMX_HANDLETYPE   (*getPort)(MagOmxComponentImpl hComponent, OMX_U32 portIndex); \
     
     OMX_ERRORTYPE    (*sendEvents)(
                         OMX_IN MagOmxComponentImpl hComponent,
@@ -144,7 +144,8 @@ ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
     
     MagMiniDBHandle  mParametersDB;
     RBTreeNodeHandle mPortTreeRoot;
-    OMX_U32          mPortsNumber;
+    OMX_U32          mStartPortNumber;
+    OMX_U32          mPorts;
     
     /*synchronize the state setting and OMX API calling*/
     MagMutexHandle   mhMutex;

@@ -5,7 +5,7 @@
 #include "MagOMX_IL.h"
 
 typedef MagOMX_Component_Registration_t *(*comp_reg_func_t) ();
-typedef void (*comp_dereg_func_t) (void);
+typedef void (*comp_dereg_func_t) (OMX_HANDLETYPE hComponent);
 
 typedef struct {
     List_t            node;

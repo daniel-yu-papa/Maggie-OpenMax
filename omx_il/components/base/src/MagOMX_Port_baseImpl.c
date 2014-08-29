@@ -16,19 +16,22 @@ static MagOmxPort getRoot(OMX_HANDLETYPE hPort){
     return root;
 }
 
-static OMX_ERRORTYPE FreeTunnelBufferInternal(MagOmxPort supplierPort, MagOmxPort noSupplierPort){
+static OMX_ERRORTYPE FreeTunnelBufferInternal(OMX_HANDLETYPE hSupplierPort, OMX_HANDLETYPE hNoneSupplierPort){
     List_t *pNode;
     MagOMX_Port_Buffer_t *item;
     OMX_BUFFERHEADERTYPE *pBufferHeader;
-    MagOmxPortImpl supplierPortImpl   = ooc_cast(MagOmxPortImpl, supplierPort);
-    MagOmxPortImpl noSupplierPortImpl = ooc_cast(MagOmxPortImpl, noSupplierPort);
+    MagOmxPort     supplierPort       = ooc_cast(hSupplierPort, MagOmxPort);
+    MagOmxPortImpl supplierPortImpl   = ooc_cast(hSupplierPort, MagOmxPortImpl);
+    MagOmxPort     noSupplierPort     = ooc_cast(hNoneSupplierPort, MagOmxPort);
+    MagOmxPortImpl noSupplierPortImpl = ooc_cast(hNoneSupplierPort, MagOmxPortImpl);
 
     Mag_AcquireMutex(supplierPortImpl->mhMutex);
     pNode = supplierPortImpl->mBufferList.next;
     while (pNode != &supplierPortImpl->mBufferList){
         item = (MagOMX_Port_Buffer_t *)list_entry(pNode, MagOMX_Port_Buffer_t, node);
+        list_del(pNode);
         pBufferHeader = item->pOmxBufferHeader;
-        MagOmxPortVirtual(supplierPort)->FreeBuffer(supplierPort, pBufferHeader);
+        MagOmxPortVirtual(supplierPort)->FreeBuffer(hSupplierPort, pBufferHeader);
         pNode = supplierPortImpl->mBufferList.next;
     }
     Mag_ReleaseMutex(supplierPortImpl->mhMutex);
@@ -37,8 +40,9 @@ static OMX_ERRORTYPE FreeTunnelBufferInternal(MagOmxPort supplierPort, MagOmxPor
     pNode = noSupplierPortImpl->mBufferList.next;
     while (pNode != &noSupplierPortImpl->mBufferList){
         item = (MagOMX_Port_Buffer_t *)list_entry(pNode, MagOMX_Port_Buffer_t, node);
+        list_del(pNode);
         pBufferHeader = item->pOmxBufferHeader;
-        MagOmxPortVirtual(noSupplierPort)->FreeBuffer(noSupplierPort, pBufferHeader);
+        MagOmxPortVirtual(noSupplierPort)->FreeBuffer(hNoneSupplierPort, pBufferHeader);
         pNode = noSupplierPortImpl->mBufferList.next;
     }
     Mag_ReleaseMutex(noSupplierPortImpl->mhMutex);
@@ -105,6 +109,10 @@ static OMX_ERRORTYPE allocateBufferInternal(
     bufNode->bufferOwner       = MagOmxPortImpl_OwnedByThisPort;
     bufNode->bufferHeaderOwner = MagOmxPortImpl_OwnedByThisPort;
     list_add_tail(&bufNode->node, &base->mBufferList);
+    /*
+     * To leave mRunningBufferList empty and mOutputBufferList is not used
+     * OMX_FillThisBuffer()/OMX_EmptyThisBuffer() adds the node into mRunningBufferList
+     */
 
     *ppBufferHdr = pPortBufHeader;
     if (++base->mBuffersTotal == root->getDef_BufferCountActual(root)){
@@ -183,7 +191,7 @@ static OMX_ERRORTYPE freeBufferInternal(
     OMX_U8 *pBuffer;
     MagOmxPortImpl base;
     MagOmxPort     root;
-    OMX_ERRORTYPE ret;
+    OMX_ERRORTYPE  ret = OMX_ErrorNone;
     MagOMX_Port_Buffer_t *pBufNode;
 
     if ((NULL == hPort) || (NULL == pBufferHdr))
@@ -198,7 +206,6 @@ static OMX_ERRORTYPE freeBufferInternal(
         ret = MagOmxPortImplVirtual(base)->MagOMX_FreeBuffer(base, pBufferHdr->pBuffer);
         if (ret != OMX_ErrorNone){
             AGILE_LOGE("failed to free the pBuffer: 0x%p", pBufferHdr->pBuffer);
-            return ret;
         }
     }
 
@@ -211,7 +218,7 @@ static OMX_ERRORTYPE freeBufferInternal(
     list_del(&pBufNode->node);
     mag_free(pBufNode);
 
-    return OMX_ErrorNone;
+    return ret;
 }
 
 static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
@@ -248,11 +255,12 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
 
                     /*step #2: proceed the returned buffer*/
                     if ((portSt == kState_Running) || (portSt == kState_Paused)){
-                        if (MagOmxPortImplVirtual(base)->MagOMX_EmptyThisBuffer){
+                        if (MagOmxPortImplVirtual(base)->MagOMX_ProceedReturnedBuffer){
                             /*Do base->putRunningNode(base, bufHeader) below if it is needed*/
-                            MagOmxPortImplVirtual(base)->MagOMX_EmptyThisBuffer(base, bufHeader);
+                            MagOmxPortImplVirtual(base)->MagOMX_ProceedReturnedBuffer(priv, bufHeader);
+                            base->putOutputNode(base, bufHeader);
                         }else{
-                            AGILE_LOGE("pure virtual MagOMX_EmptyThisBuffer() must be overrided!");
+                            AGILE_LOGE("pure virtual MagOMX_ProceedReturnedBuffer() must be overrided!");
                         }
                     }else{
                         /*Directly return the buffer header in flushing or stopped state*/
@@ -262,7 +270,9 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
                     return;
                 }
             }else{
+                Mag_AcquireMutex(base->mhMutex);
                 base->mFreeBuffersNum--;
+                Mag_ReleaseMutex(base->mhMutex);
             }
 
             base->dispatchBuffers(base, bufHeader);
@@ -280,7 +290,8 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
                     if ((portSt == kState_Running) || (portSt == kState_Paused)){
                         if (MagOmxPortImplVirtual(base)->MagOMX_FillThisBuffer){
                             /*Do base->putRunningNode(base, bufHeader) below if it is needed*/
-                            MagOmxPortImplVirtual(base)->MagOMX_FillThisBuffer(base, bufHeader);
+                            MagOmxPortImplVirtual(base)->MagOMX_ProceedReturnedBuffer(priv, bufHeader);
+                            base->putOutputNode(base, bufHeader);
                         }else{
                             AGILE_LOGE("pure virtual MagOMX_FillThisBuffer() must be overrided!");
                         }
@@ -292,7 +303,9 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
                     return;
                 }
             }else{
+                Mag_AcquireMutex(base->mhMutex);
                 base->mFreeBuffersNum--;
+                Mag_ReleaseMutex(base->mhMutex);
             }
 
             base->dispatchBuffers(base, bufHeader);
@@ -325,11 +338,15 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
                     hCompImpl->sendFillBufferDoneEvent(hCompImpl, bufHeader);
                 }
 
+                Mag_AcquireMutex(base->mhMutex);
                 base->mFreeBuffersNum++;
+                Mag_ReleaseMutex(base->mhMutex);
+                
                 if (base->mWaitOnBuffers){
                     if (base->mFreeBuffersNum == base->mBuffersTotal){
                         AGILE_LOGD("[non-tunneled port]: All buffers are returned!");
                         Mag_SetEvent(base->mAllBufReturnedEvent); 
+                        base->mWaitOnBuffers = false;
                     }
                 }
             }
@@ -352,6 +369,12 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
             }
             break;
 
+        case MagOmxPortImpl_OutputBufferMsg:
+            if (bufHeader){
+                base->putRunningNode(base, bufHeader);
+            }
+            break;
+
         default:
             AGILE_LOGE("Wrong commands(%d)!", cmd);
             break;
@@ -361,7 +384,7 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
 /*
  * Virtual Functions Implementation
  */
-static OMX_ERRORTYPE virtual_Enable(OMX_HANDLETYPE hPort, OMX_PTR AppData){
+static OMX_ERRORTYPE virtual_Enable(OMX_HANDLETYPE hPort){
     MagOmxPortImpl base;
     MagOmxPort     root;
     OMX_ERRORTYPE ret;
@@ -372,18 +395,17 @@ static OMX_ERRORTYPE virtual_Enable(OMX_HANDLETYPE hPort, OMX_PTR AppData){
     if (!root->getDef_Enabled(root)){
         if (!root->getDef_Populated(root)){
             if (root->isTunneled(root)){
-                ret = root->AllocateTunnelBuffer(root);
+                ret = root->AllocateTunnelBuffer(hPort);
                 if (ret == OMX_ErrorNone){
-                    root->setDef_Enabled(hPort, OMX_TRUE);
+                    root->setDef_Enabled(root, OMX_TRUE);
                 }
             }else{
                 AGILE_LOGE("the port is not tunneled. Need IL Client to do AllocateBuffer() before enabling it");
                 return OMX_ErrorPortUnpopulated;
             }
         }else{
-            root->setDef_Enabled(hPort, OMX_TRUE);
+            root->setDef_Enabled(root, OMX_TRUE);
         }
-        
     }else{
         AGILE_LOGD("the port has already been enabled!");
     }
@@ -405,20 +427,22 @@ static OMX_ERRORTYPE virtual_Disable(OMX_HANDLETYPE hPort){
     if (root->getDef_Enabled(root)){
         if (root->getDef_Populated(root)){
             if (root->isTunneled(root)){
-                root->FreeTunnelBuffer(root);
+                root->FreeTunnelBuffer(hPort);
             }else{
-                Mag_AcquireMutex(supplierPortImpl->mhMutex);
+                Mag_AcquireMutex(base->mhMutex);
                 pNode = base->mBufferList.next;
                 while (pNode != &base->mBufferList){
                     item = (MagOMX_Port_Buffer_t *)list_entry(pNode, MagOMX_Port_Buffer_t, node);
+                    list_del(pNode);
                     pBufferHeader = item->pOmxBufferHeader;
-                    MagOmxPortVirtual(root)->FreeBuffer(root, pBufferHeader);
+                    MagOmxPortVirtual(root)->FreeBuffer(hPort, pBufferHeader);
                     pNode = base->mBufferList.next;
                 }
-                Mag_ReleaseMutex(supplierPortImpl->mhMutex);
+                Mag_ReleaseMutex(base->mhMutex);
             }
         }
-        root->setDef_Enabled(hPort, OMX_FALSE);
+        root->setDef_Populated(root, OMX_FALSE);
+        root->setDef_Enabled(root, OMX_FALSE);
     }else{
         AGILE_LOGD("the port has already been disabled!");
     }
@@ -431,6 +455,7 @@ static OMX_ERRORTYPE virtual_Run(OMX_HANDLETYPE hPort){
     MagOmxPort     root;
     MagOmxPortImpl base;
     OMX_BUFFERHEADERTYPE *buffer;
+    OMX_U32 status;
 
     root = getRoot(hPort);
     base = getBase(hPort);
@@ -463,12 +488,12 @@ recheck:
             MagOmxComponentImpl tunnelComp;
             MagOmxPort          tunneledPort;
 
-            tunnelComp = ooc_cast(mTunneledComponent, MagOmxComponentImpl); 
-            tunneledPort = tunnelComp->getPort(tunnelComp, mTunneledPortIndex);
+            tunnelComp = ooc_cast(base->mTunneledComponent, MagOmxComponentImpl); 
+            tunneledPort = ooc_cast(tunnelComp->getPort(tunnelComp, base->mTunneledPortIndex), MagOmxPort);
 
-            tunneledPort->setParameter(bufSupplier, 
-                                  OMX_IndexConfigTunneledPortStatus, 
-                                  OMX_PORTSTATUS_ACCEPTBUFFEREXCHANGE);
+            tunneledPort->setParameter(tunneledPort, 
+                                       OMX_IndexConfigTunneledPortStatus, 
+                                       OMX_PORTSTATUS_ACCEPTBUFFEREXCHANGE);
             tunneledPort->setState(tunneledPort, kState_Running);
         }
     }
@@ -482,6 +507,7 @@ static OMX_ERRORTYPE virtual_Flush(OMX_HANDLETYPE hPort){
     MagOmxPortImpl base;
 
     MagOmxComponentImpl tunnelComp;
+    OMX_HANDLETYPE      hTunneledPort;
     MagOmxPort          tunneledPort;
 
     OMX_BUFFERHEADERTYPE *buffer;
@@ -491,12 +517,13 @@ static OMX_ERRORTYPE virtual_Flush(OMX_HANDLETYPE hPort){
     base = getBase(hPort);
 
     tunnelComp = ooc_cast(base->mTunneledComponent, MagOmxComponentImpl); 
-    tunneledPort = tunnelComp->getPort(tunnelComp, base->mTunneledPortIndex);
+    hTunneledPort = tunnelComp->getPort(tunnelComp, base->mTunneledPortIndex);
+    tunneledPort = ooc_cast(hTunneledPort, MagOmxPort);
 
     root->setState(root, kState_Flushing);
     if (root->isTunneled(root)){
         if (root->isBufferSupplier(root)){
-            MagOmxPortVirtual(tunneledPort)->Flush(tunneledPort);
+            MagOmxPortVirtual(tunneledPort)->Flush(hTunneledPort);
             diff = base->mBuffersTotal - base->mFreeBuffersNum;
             if (diff > 0){
                 base->mWaitOnBuffers = OMX_TRUE;
@@ -536,8 +563,10 @@ static OMX_ERRORTYPE virtual_Pause(OMX_HANDLETYPE hPort){
     base = getBase(hPort);
 
     if (root->getDef_Enabled(root)){
-        return base->mLooper->suspend(base->mLooper);
+        base->mLooper->suspend(base->mLooper);
     }
+
+    return OMX_ErrorNone;
 }
 
 static OMX_ERRORTYPE virtual_Resume(OMX_HANDLETYPE hPort){
@@ -548,12 +577,14 @@ static OMX_ERRORTYPE virtual_Resume(OMX_HANDLETYPE hPort){
     base = getBase(hPort);
 
     if (root->getDef_Enabled(root)){
-        return base->mLooper->resume(base->mLooper);
+        base->mLooper->resume(base->mLooper);
     }
+
+    return OMX_ErrorNone;
 }
 
 static OMX_ERRORTYPE virtual_MarkBuffer(OMX_HANDLETYPE hPort, OMX_MARKTYPE * mark){
-
+    return OMX_ErrorNone;
 }
 
 /*request the component to allocate a new buffer and buffer header*/
@@ -578,23 +609,18 @@ static OMX_ERRORTYPE virtual_AllocateBuffer(
 
 static OMX_ERRORTYPE virtual_AllocateTunnelBuffer(
                    OMX_HANDLETYPE hPort){
-    OMX_ERRORTYPE ret;
-    OMX_ERRORTYPE err;
+    OMX_ERRORTYPE  err;
     MagOmxPort     root;
     MagOmxPortImpl base;
 
     MagOmxComponentImpl tunnelComp;
+    OMX_HANDLETYPE      hTunneledPort;
     MagOmxPort          tunneledPort;
 
     OMX_BUFFERHEADERTYPE *bufferHeader;
     OMX_U8 *pBuffer;
 
-    MagOmxPort     bufSupplier;
-    MagOmxPortImpl bufSupplierImpl;
-    MagOmxPort     non_bufSupplier;
     MagOMX_Port_Buffer_t *bufNode;
-
-    OMX_BOOL isSupplier = OMX_FALSE;
 
     root = getRoot(hPort);
     base = getBase(hPort);
@@ -604,8 +630,9 @@ static OMX_ERRORTYPE virtual_AllocateTunnelBuffer(
         return OMX_ErrorPortsNotConnected;
     }
 
-    tunnelComp = ooc_cast(mTunneledComponent, MagOmxComponentImpl); 
-    tunneledPort = tunnelComp->getPort(tunnelComp, mTunneledPortIndex);
+    tunnelComp = ooc_cast(base->mTunneledComponent, MagOmxComponentImpl); 
+    hTunneledPort = tunnelComp->getPort(tunnelComp, base->mTunneledPortIndex);
+    tunneledPort = ooc_cast(hTunneledPort, MagOmxPort);
 
     if (root->getDef_Populated(root) && tunneledPort->getDef_Populated(tunneledPort)){
         AGILE_LOGD("the tunneled ports are all polulated!");
@@ -614,11 +641,9 @@ static OMX_ERRORTYPE virtual_AllocateTunnelBuffer(
 
     /*find the buffer supplier port within tunneled ports*/
     if (root->isBufferSupplier(root)){
+        /*buffer supplier port*/
         OMX_U32 status;
-
-        bufSupplier = root;
-        non_bufSupplier = tunneledPort;
-        isSupplier = OMX_TRUE;
+        OMX_U32 i = 0;
 
 recheck:
         if (root->getParameter(root, OMX_IndexConfigTunneledPortStatus, &status) == OMX_ErrorNone){
@@ -632,51 +657,42 @@ recheck:
             Mag_WaitForEventGroup(mTunneledBufStEvtGrp, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
             goto recheck;
         }
-    }else if (tunneledPort->isBufferSupplier(tunneledPort)){
-        tunneledPort->setParameter(bufSupplier, 
-                                  OMX_IndexConfigTunneledPortStatus, 
-                                  OMX_PORTSTATUS_ACCEPTUSEBUFFER);
-    }else{
-        AGILE_LOGE("None of the ports[0x%p - 0x%p] is buffer supplier", 
-                    root, tunneledPort);
-        return OMX_ErrorNotImplemented;
-    }
 
-    if (isSupplier){
-        bufSupplierImpl = ooc_cast(bufSupplier, MagOmxPortImpl);
-
-        for (i = 0; i < bufSupplier->getDef_BufferCountActual(bufSupplier), i++){
-            ret = bufSupplierImpl->MagOMX_AllocateBuffer(bufSupplierImpl, 
-                                                         &pBuffer, 
-                                                         bufSupplier->getDef_BufferSize(bufSupplier));
-            if (ret == OMX_ErrorNone){
-                err = MagOmxPortVirtual(non_bufSupplier)->UseBuffer(non_bufSupplier, 
-                                                 &bufferHeader, 
-                                                 NULL, 
-                                                 bufSupplier->getDef_BufferSize(bufSupplier), 
-                                                 pBuffer);
+        for (i = 0; i < root->getDef_BufferCountActual(root), i++){
+            err = MagOmxPortImplVirtual(base)->MagOMX_AllocateBuffer(hPort, 
+                                                                     &pBuffer, 
+                                                                     root->getDef_BufferSize(root));
+            if (err == OMX_ErrorNone){
+                err = MagOmxPortVirtual(tunneledPort)->UseBuffer(hTunneledPort, 
+                                                                 &bufferHeader, 
+                                                                 NULL, 
+                                                                 root->getDef_BufferSize(root), 
+                                                                 pBuffer);
 
                 if (err == OMX_ErrorNone){
-                    bufNode = bufSupplierImpl->allocBufferNode(bufferHeader);
+                    bufNode = base->allocBufferNode(bufferHeader);
                     bufNode->bufferOwner = MagOmxPortImpl_OwnedByThisPort;
-                    list_add_tail(&bufNode->node, &bufSupplierImpl->mBufferList);
-                    Mag_AcquireMutex(bufSupplierImpl->mhMutex);
-                    list_add_tail(&bufNode->runNode, &bufSupplierImpl->mRunningBufferList);
-                    Mag_ReleaseMutex(bufSupplierImpl->mhMutex);
+                    Mag_AcquireMutex(base->mhMutex);
+                    list_add_tail(&bufNode->node, &base->mBufferList);
+                    list_add_tail(&bufNode->runNode, &base->mRunningBufferList);
+                    Mag_ReleaseMutex(base->mhMutex);
                 }else{
-                    FreeTunnelBufferInternal(bufSupplier, non_bufSupplier);
+                    FreeTunnelBufferInternal(hPort, hTunneledPort);
                     AGILE_LOGE("failed to do UseBuffer(0x%p)", non_bufSupplier);
                     return err;
                 }
             }
         }
-    }
 
-    if (isSupplier){
-        if (i == bufSupplier->getDef_BufferCountActual(bufSupplier)){
-            bufSupplier->setDef_Populated(bufSupplier, OMX_TRUE);
+        if (i == root->getDef_BufferCountActual(root)){
+            root->setDef_Populated(root, OMX_TRUE);
         }
     }else{
+        /*none buffer supplier port*/
+        tunneledPort->setParameter(tunneledPort, 
+                                  OMX_IndexConfigTunneledPortStatus, 
+                                  OMX_PORTSTATUS_ACCEPTUSEBUFFER);
+
         if (!root->getDef_Populated(root)){
             Mag_WaitForEventGroup(mBufPopulatedEvtGrp, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
         }else{
@@ -713,9 +729,7 @@ static OMX_ERRORTYPE virtual_FreeBuffer(
 
     OMX_ERRORTYPE ret;
     
-    Mag_AcquireMutex(getBase(hPort)->mhMutex);
     ret = freeBufferInternal(hPort, pBuffer);
-    Mag_ReleaseMutex(getBase(hPort)->mhMutex);
     return ret;
 }
 
@@ -723,15 +737,16 @@ OMX_ERRORTYPE virtual_FreeAllBuffers(OMX_HANDLETYPE hPort){
     List_t *pNode;
     MagOMX_Port_Buffer_t *item;
     OMX_BUFFERHEADERTYPE *pBufferHeader;
-    MagOmxPortImpl PortImpl   = ooc_cast(MagOmxPortImpl, hPort);
-    MagOmxPort     Port       = ooc_cast(MagOmxPort, hPort);
+    MagOmxPortImpl PortImpl   = ooc_cast(hPort, MagOmxPortImpl);
+    MagOmxPort     Port       = ooc_cast(hPort, MagOmxPort);
 
     Mag_AcquireMutex(PortImpl->mhMutex);
     pNode = PortImpl->mBufferList.next;
     while (pNode != &PortImpl->mBufferList){
         item = (MagOMX_Port_Buffer_t *)list_entry(pNode, MagOMX_Port_Buffer_t, node);
+        list_del(pNode);
         pBufferHeader = item->pOmxBufferHeader;
-        MagOmxPortVirtual(Port)->FreeBuffer(Port, pBufferHeader);
+        MagOmxPortVirtual(Port)->FreeBuffer(hPort, pBufferHeader);
         pNode = PortImpl->mBufferList.next;
     }
     Mag_ReleaseMutex(PortImpl->mhMutex);
@@ -746,6 +761,7 @@ static OMX_ERRORTYPE virtual_FreeTunnelBuffer(
     MagOmxPortImpl base;
 
     MagOmxComponentImpl tunnelComp;
+    OMX_HANDLETYPE      hTunneledPort;
     MagOmxPort          tunneledPort;
 
     root = getRoot(hPort);
@@ -757,22 +773,21 @@ static OMX_ERRORTYPE virtual_FreeTunnelBuffer(
     }
 
     tunnelComp = ooc_cast(mTunneledComponent, MagOmxComponentImpl); 
-    tunneledPort = tunnelComp->getPort(tunnelComp, mTunneledPortIndex);
+    hTunneledPort = tunnelComp->getPort(tunnelComp, mTunneledPortIndex);
+    tunneledPort = ooc_cast(hTunneledPort, MagOmxPort);
 
     if (root->isBufferSupplier(root)){
         /*supplier port: wait for all buffers returning*/
-        root->Flush(root);
-        FreeTunnelBufferInternal(root, tunneledPort);
+        MagOmxPortVirtual(root)->Flush(hPort);
+        FreeTunnelBufferInternal(hPort, hTunneledPort);
         root->setDef_Populated(root, OMX_FALSE);
-    }else if (tunneledPort->isBufferSupplier(tunneledPort)){
+    }
+
+    if (tunneledPort->isBufferSupplier(tunneledPort)){
         /*supplier port: wait for all buffers returning*/
-        tunneledPort->Flush(tunneledPort);
-        FreeTunnelBufferInternal(tunneledPort, root);
+        tunneledPort->Flush(hTunneledPort);
+        FreeTunnelBufferInternal(hTunneledPort, hPort);
         tunneledPort->setDef_Populated(tunneledPort, OMX_FALSE);
-    }else{
-        AGILE_LOGE("None of the ports[0x%p - 0x%p] is buffer supplier", 
-                    root, tunneledPort);
-        return OMX_ErrorNotImplemented;
     }
 
     return OMX_ErrorNone;
@@ -866,6 +881,7 @@ static OMX_ERRORTYPE virtual_SetupTunnel(
     MagOmxPort          root;
     MagOmxPortImpl      base;
     MagOmxComponentImpl tunneledComp; 
+    OMX_HANDLETYPE      hTunneledPort;
     MagOmxPort          tunneledPort;
 
     OMX_PARAM_PORTDEFINITIONTYPE outPortDef;
@@ -905,7 +921,8 @@ static OMX_ERRORTYPE virtual_SetupTunnel(
 
         /*Input Port*/
         tunneledComp = ooc_cast(hTunneledComp, MagOmxComponentImpl);
-        tunneledPort = tunneledComp->getPort(tunneledComp, nTunneledPortIndex);
+        hTunneledPort = tunneledComp->getPort(tunneledComp, nTunneledPortIndex);
+        tunneledPort = ooc_cast(hTunneledPort, MagOmxPort);
 
         tunneledPort->getPortDefinition(tunneledPort, &outPortDef);
         root->getPortDefinition(root, &inPortDef);
@@ -977,7 +994,7 @@ OMX_ERRORTYPE virtual_RegisterBufferHandler(OMX_HANDLETYPE hPort,
 }
 
 static void virtual_SendEvent(OMX_HANDLETYPE hPort,
-                       MagOmxPort_Event_t evtType){
+                              MagOmxPort_Event_t evtType){
     switch (evtType){
         case kTunneledPortStatusEvt:
             Mag_SetEvent(mTunneledBufStEvt); 
@@ -1010,28 +1027,32 @@ MagMessageHandle virtual_GetSharedBufferMsg(OMX_HANDLETYPE hPort){
 MagMessageHandle virtual_GetOutputBufferMsg(OMX_HANDLETYPE hPort){
     MagOmxPortImpl hPortImpl = NULL;
     OMX_BUFFERHEADERTYPE *pBufHeader;
+    OMX_ERRORTYPE ret;
 
     if (NULL == hPort){
         return NULL;
     }
 
     hPortImpl = ooc_cast(hPort, MagOmxPortImpl);
-    if (hPortImpl->mOutputBufferMsg == NULL){
-        hPortImpl->mOutputBufferMsg = hPortImpl->createMessage(hPortImpl, MagOmxPortImpl_OutputBufferMsg);
-    }
 
-    if (MagOmxPortImplVirtual(base)->MagOMX_GetOutputBuffer){
-        /*get the buffer header, which could be the filled buffer OR the empty buffer.*/
-        ret = MagOmxPortImplVirtual(hPortImpl)->MagOMX_GetOutputBuffer(hPortImpl, &pBufHeader);
-        if (ret != OMX_ErrorNone){
-            AGILE_LOGE("failed to do MagOMX_GetOutputBuffer(), ret = 0x%x", ret);
-            return NULL;
+    ret = hPortImpl->getOutputNode(hPortImpl, &pBufHeader);
+    if (ret != OMX_ErrorNone){
+        hPortImpl->mWaitOnOutputBuffer = OMX_TRUE;
+        Mag_ClearEvent(hPortImpl->mGetOutputBufferEvent);
+        Mag_WaitForEventGroup(hPortImpl->mOutputBufferEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
+        hPortImpl->getOutputNode(hPortImpl, &pBufHeader);
+    }
+    
+    if (pBufHeader){
+        if (hPortImpl->mOutputBufferMsg == NULL){
+            hPortImpl->mOutputBufferMsg = hPortImpl->createMessage(hPortImpl, MagOmxPortImpl_OutputBufferMsg);
         }
+
+        hPortImpl->mOutputBufferMsg->setPointer(hPortImpl->mOutputBufferMsg, "buffer_header", (void *)pBufHeader);
     }else{
-        AGILE_LOGE("pure virtual MagOMX_GetOutputBuffer() must be overrided!");
+        hPortImpl->mOutputBufferMsg->setPointer(hPortImpl->mOutputBufferMsg, "buffer_header", NULL);
         return NULL;
     }
-    hPortImpl->mOutputBufferMsg->setPointer(hPortImpl->mOutputBufferMsg, "output_buffer", (void *)pBufHeader);
 
     return hPortImpl->mOutputBufferMsg;
 }
@@ -1148,6 +1169,7 @@ static OMX_ERRORTYPE MagOmxPortImpl_putRunningNode(MagOmxPortImpl hPort, OMX_BUF
         if (hPort->mFreeBuffersNum == hPort->mBuffersTotal){
             AGILE_LOGD("[supplier port]: All buffers are returned!");
             Mag_SetEvent(hPort->mAllBufReturnedEvent); 
+            hPort->mWaitOnBuffers = false;
         }
     }
     Mag_ReleaseMutex(hPort->mhMutex);
@@ -1160,12 +1182,60 @@ static OMX_ERRORTYPE MagOmxPortImpl_getRunningNode(MagOmxPortImpl hPort, OMX_BUF
     List_t *pNode;
     MagOMX_Port_Buffer_t *item;
 
+    *ppBuffer = NULL;
     Mag_AcquireMutex(hPort->mhMutex);
     pNode = hPort->mRunningBufferList.next;
     if (pNode != &hPort->mRunningBufferList){
         item = (MagOMX_Port_Buffer_t *)list_entry(pNode, MagOMX_Port_Buffer_t, runNode);
         list_del(pNode);
         hPort->mFreeBuffersNum--;
+        *ppBuffer = item->pOmxBufferHeader;
+    }else{
+        Mag_ReleaseMutex(hPort->mhMutex);
+        AGILE_LOGE("No buffer is in the running list");
+        return OMX_ErrorUndefined;
+    }
+    Mag_ReleaseMutex(hPort->mhMutex);
+
+    return OMX_ErrorNone;
+}
+
+/*only called by buffer supplier port*/
+static OMX_ERRORTYPE MagOmxPortImpl_putOutputNode(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE* pBuffer){
+    List_t *pNode;
+    MagOMX_Port_Buffer_t *item;
+
+    item = (MagOMX_Port_Buffer_t *)pBuffer->pPlatformPrivate;
+    if (item == NULL){
+        AGILE_LOGE("wrong buffer pointer: NULL!!");
+        return OMX_ErrorBadParameter;
+    }
+
+    INIT_LIST(&item->runNode);
+
+    Mag_AcquireMutex(hPort->mhMutex);
+    list_add_tail(&item->runNode, &hPort->mOutputBufferList);
+    Mag_ReleaseMutex(hPort->mhMutex);
+
+    if (hPort->mWaitOnOutputBuffer){
+        AGILE_LOGD("The empty list gets the output buffer!");
+        Mag_SetEvent(hPort->mGetOutputBufferEvent); 
+        hPort->mWaitOnOutputBuffer = false;
+    }
+    return OMX_ErrorNone;
+}
+
+/*only called by buffer supplier port*/
+static OMX_ERRORTYPE MagOmxPortImpl_getOutputNode(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE **ppBuffer){
+    List_t *pNode;
+    MagOMX_Port_Buffer_t *item;
+
+    *ppBuffer = NULL;
+    Mag_AcquireMutex(hPort->mhMutex);
+    pNode = hPort->mOutputBufferList.next;
+    if (pNode != &hPort->mOutputBufferList){
+        item = (MagOMX_Port_Buffer_t *)list_entry(pNode, MagOMX_Port_Buffer_t, runNode);
+        list_del(pNode);
         *ppBuffer = item->pOmxBufferHeader;
     }else{
         Mag_ReleaseMutex(hPort->mhMutex);
@@ -1201,13 +1271,18 @@ static void MagOmxPortImpl_initialize(Class this){
     MagOmxPortImplVtableInstance.MagOmxPort.GetSharedBufferMsg    = virtual_GetSharedBufferMsg;
     MagOmxPortImplVtableInstance.MagOmxPort.GetOutputBufferMsg    = virtual_GetOutputBufferMsg;
 
-
-    MagOmxPortImplVtableInstance.MagOMX_AllocateBuffer      = NULL;
-    MagOmxPortImplVtableInstance.MagOMX_FreeBuffer          = NULL;
-    MagOmxPortImplVtableInstance.MagOMX_EmptyThisBuffer     = NULL;
-    MagOmxPortImplVtableInstance.MagOMX_FillThisBuffer      = NULL;
+    MagOmxPortImplVtableInstance.MagOMX_AllocateBuffer            = NULL;
+    MagOmxPortImplVtableInstance.MagOMX_FreeBuffer                = NULL;
+    MagOmxPortImplVtableInstance.MagOMX_EmptyThisBuffer           = NULL;
+    MagOmxPortImplVtableInstance.MagOMX_FillThisBuffer            = NULL;
 }
 
+/*
+ * param[0] = OMX_U32  portIndex;
+ * param[1] = OMX_BOOL isInput;
+ * param[2] = OMX_BUFFERSUPPLIERTYPE bufSupplier
+ * param[3] = OMX_U32  formatStruct
+ */
 static void MagOmxPortImpl_constructor(MagOmxPortImpl thiz, const void *params){
     MAG_ASSERT(ooc_isInitialized(MagOmxPortImpl));
     chain_constructor(MagOmxPortImpl, thiz, params);
@@ -1218,30 +1293,38 @@ static void MagOmxPortImpl_constructor(MagOmxPortImpl thiz, const void *params){
     thiz->allocBufferNode    = MagOmxPortImpl_allocBufferNode;
     thiz->putRunningNode     = MagOmxPortImpl_putRunningNode;
     thiz->getRunningNode     = MagOmxPortImpl_getRunningNode;
+    thiz->putOutputNode      = MagOmxPortImpl_putOutputNode;
+    thiz->getOutputNode      = MagOmxPortImpl_getOutputNode;
 
     Mag_CreateMutex(&thiz->mhMutex);
+
     INIT_LIST(&thiz->mBufferList);
     INIT_LIST(&thiz->mRunningBufferList);
+    INIT_LIST(&thiz->mOutputBufferList);
+    INIT_LIST(&thiz->mBufDispatcherList);
 
     thiz->mBuffersTotal        = 0;
     thiz->mFreeBuffersNum      = 0;
     thiz->mWaitOnBuffers       = OMX_FALSE;
+    thiz->mWaitOnOutputBuffer  = OMX_FALSE;
     thiz->mLooper              = NULL;
     thiz->mMsgHandler          = NULL;
     thiz->mEmptyThisBufferMsg  = NULL;
     thiz->mFillThisBufferMsg   = NULL;
     thiz->mReturnThisBufferMsg = NULL;
     thiz->mSharedBufferMsg     = NULL;
-
-    thiz->mBufSupplierType    = OMX_BufferSupplyUnspecified;
-    thiz->mTunneledComponent  = NULL;
-    thiz->mTunneledPortIndex  = kInvalidPortIndex;
-
-    INIT_LIST(&thiz->mBufDispatcherList);
+    thiz->mOutputBufferMsg     = NULL;
+    thiz->mBufSupplierType     = OMX_BufferSupplyUnspecified;
+    thiz->mTunneledComponent   = NULL;
+    thiz->mTunneledPortIndex   = kInvalidPortIndex;
 
     Mag_CreateEventGroup(&thiz->mBufferEventGroup);
     if (MAG_ErrNone == Mag_CreateEvent(&thiz->mAllBufReturnedEvent, MAG_EVT_PRIO_DEFAULT))
         Mag_AddEventGroup(thiz->mBufferEventGroup, thiz->mAllBufReturnedEvent);
+
+    Mag_CreateEventGroup(&thiz->mOutputBufferEventGroup);
+    if (MAG_ErrNone == Mag_CreateEvent(&thiz->mGetOutputBufferEvent, MAG_EVT_PRIO_DEFAULT))
+        Mag_AddEventGroup(thiz->mOutputBufferEventGroup, thiz->mGetOutputBufferEvent);
 
     Mag_CreateEventGroup(&thiz->mTunneledBufStEvtGrp);
     if (MAG_ErrNone == Mag_CreateEvent(&thiz->mTunneledBufStEvt, MAG_EVT_PRIO_DEFAULT))
@@ -1254,6 +1337,29 @@ static void MagOmxPortImpl_constructor(MagOmxPortImpl thiz, const void *params){
 
 static void MagOmxPortImpl_destructor(MagOmxPortImpl thiz, MagOmxPortImplVtable vtab){
     AGILE_LOGV("Enter!");
+
+    Mag_DestroyMutex(thiz->mhMutex);
+
+    destroyMagMessage(mEmptyThisBufferMsg);
+    destroyMagMessage(mFillThisBufferMsg);
+    destroyMagMessage(mReturnThisBufferMsg);
+    destroyMagMessage(mSharedBufferMsg);
+    destroyMagMessage(mOutputBufferMsg);
+
+    destroyLooper(thiz->mLooper);
+    destroyHandler(thiz->mMsgHandler);
+
+    Mag_DestroyEvent(thiz->mAllBufReturnedEvent);
+    Mag_DestroyEventGroup(thiz->mBufferEventGroup);
+
+    Mag_DestroyEvent(thiz->mGetOutputBufferEvent);
+    Mag_DestroyEventGroup(thiz->mOutputBufferEventGroup);
+
+    Mag_DestroyEvent(thiz->mTunneledBufStEvt);
+    Mag_DestroyEventGroup(thiz->mTunneledBufStEvtGrp);
+
+    Mag_DestroyEvent(thiz->mBufPopulatedEvt);
+    Mag_DestroyEventGroup(thiz->mBufPopulatedEvtGrp);
 }
 
 

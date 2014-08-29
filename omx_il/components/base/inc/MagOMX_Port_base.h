@@ -7,7 +7,7 @@
 
 /*specifies the minimum number of buffers that the port requires*/
 #define kPortBuffersMinNum       2
-#define kPortBufferSize         (1024 * 1024)
+#define kPortBufferSize         (64 * 1024)
 #define kInvalidPortIndex       (0x7FFFFFFF);
 
 typedef enum{
@@ -19,6 +19,7 @@ typedef struct{
     OMX_U32  portIndex;
     OMX_BOOL isInput;
     OMX_BUFFERSUPPLIERTYPE bufSupplier;
+    OMX_U32  formatStruct;
 }MagOmxPort_Constructor_Param_t;
 
 typedef enum{
@@ -36,7 +37,7 @@ typedef enum{
 DeclareClass(MagOmxPort, Base);
 
 Virtuals(MagOmxPort, Base) 
-    OMX_ERRORTYPE (*Enable)(OMX_HANDLETYPE hPort, OMX_PTR AppData);
+    OMX_ERRORTYPE (*Enable)(OMX_HANDLETYPE hPort);
     OMX_ERRORTYPE (*Disable)(OMX_HANDLETYPE hPort);
     OMX_ERRORTYPE (*Run)(OMX_HANDLETYPE hPort);
     OMX_ERRORTYPE (*Flush)(OMX_HANDLETYPE hPort);
@@ -108,12 +109,27 @@ Virtuals(MagOmxPort, Base)
 
     /*Get the output buffer message that holds the generated data from the Component*/
     MagMessageHandle (*GetOutputBufferMsg)(OMX_HANDLETYPE hPort);
+
+    /*Get the port domain tpye*/
+    OMX_PORTDOMAINTYPE (*GetDomainType)(OMX_HANDLETYPE hPort);
+
+    /*Set the specific port definition*/
+    OMX_ERRORTYPE (*SetPortSpecificDef)(OMX_HANDLETYPE hPort, void *pFormat);
+
+    /*Get the specific port definition*/
+    OMX_ERRORTYPE (*GetPortSpecificDef)(OMX_HANDLETYPE hPort, void *pFormat);
+
+    /*Set port parameters*/
+    OMX_ERRORTYPE (*SetParameter)(OMX_HANDLETYPE hPort, OMX_INDEXTYPE nIndex, OMX_PTR pPortParam);
+
+    /*Get port parameters*/
+    OMX_ERRORTYPE (*GetParameter)(OMX_HANDLETYPE hPort, OMX_INDEXTYPE nIndex, OMX_PTR pPortParam);
 EndOfVirtuals;
 
 
 ClassMembers(MagOmxPort, Base, \
-    void          (*getPortDefinition)(MagOmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *getDef); \
-    void          (*setPortDefinition)(MagOmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *setDef); \
+    OMX_ERRORTYPE (*getPortDefinition)(MagOmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *getDef); \
+    OMX_ERRORTYPE (*setPortDefinition)(MagOmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *setDef); \
     
     void          (*setParameter)(MagOmxPort hPort, OMX_INDEXTYPE nIndex, OMX_U32 value);       \
     OMX_ERRORTYPE (*getParameter)(MagOmxPort hPort, OMX_INDEXTYPE nIndex); \

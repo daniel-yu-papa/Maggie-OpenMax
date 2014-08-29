@@ -22,8 +22,10 @@ typedef enum{
 }MagOMX_Buffer_Owner_t;
 
 typedef struct{
-    List_t node;
-    List_t runNode;
+    List_t node;        /*add into the List: mBufferList*/
+    List_t runNode;     /*add into the List: mRunningBufferList*/
+    // List_t outputNode;  /*add into the List: mOutputBufferList*/
+
     /*bufferHeaderOwner: only could be OwnedByThisPort or OwnedByTunneledPort*/
     MagOMX_Buffer_Owner_t bufferHeaderOwner;
     /*bufferOwner: only could be OwnedByThisPort or OwnedByILClient*/
@@ -40,33 +42,42 @@ DeclareClass(MagOmxPortImpl, MagOmxPort);
 
 Virtuals(MagOmxPortImpl, MagOmxPort) 
     /*pure virtual functions and must be overrided by sub-component*/
-    OMX_ERRORTYPE (*MagOMX_AllocateBuffer)(MagOmxPortImpl port, OMX_U8 **ppBuffer, OMX_U32 nSizeBytes);
-    OMX_ERRORTYPE (*MagOMX_FreeBuffer)(MagOmxPortImpl port, OMX_U8 *pBuffer);
-    OMX_ERRORTYPE (*MagOMX_EmptyThisBuffer)(MagOmxPortImpl port, OMX_BUFFERHEADERTYPE* pBufHeader);
-    OMX_ERRORTYPE (*MagOMX_FillThisBuffer)(MagOmxPortImpl port, OMX_BUFFERHEADERTYPE* pBufHeader);
-    OMX_ERRORTYPE (*MagOMX_GetOutputBuffer)(MagOmxPortImpl port, OMX_BUFFERHEADERTYPE **ppBufHeader);
+    OMX_ERRORTYPE (*MagOMX_AllocateBuffer)(OMX_HANDLETYPE port, OMX_U8 **ppBuffer, OMX_U32 nSizeBytes);
+    OMX_ERRORTYPE (*MagOMX_FreeBuffer)(OMX_HANDLETYPE port, OMX_U8 *pBuffer);
+    OMX_ERRORTYPE (*MagOMX_ProceedReturnedBuffer)(OMX_HANDLETYPE port, OMX_BUFFERHEADERTYPE* pBufHeader);
 EndOfVirtuals;
 
 
 ClassMembers(MagOmxPortImpl, MagOmxPort, \
-    MagMessageHandle (*createMessage)(OMX_HANDLETYPE handle, OMX_U32 what);     \
-    _status_t        (*getLooper)(OMX_HANDLETYPE handle);                       \  
-    void             (*dispatchBuffers)(MagOmxPortImpl port, OMX_BUFFERHEADERTYPE *bufHeader); \
+    MagMessageHandle      (*createMessage)(OMX_HANDLETYPE handle, OMX_U32 what);     \
+    _status_t             (*getLooper)(OMX_HANDLETYPE handle);                       \  
+    void                  (*dispatchBuffers)(MagOmxPortImpl port, OMX_BUFFERHEADERTYPE *bufHeader); \
     MagOMX_Port_Buffer_t *(*allocBufferNode)(OMX_BUFFERHEADERTYPE* pBuffer);  \
-    OMX_ERRORTYPE (*putRunningNode)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE* pBuffer);  \
-    OMX_ERRORTYPE (*getRunningNode)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE **ppBuffer); \
+    OMX_ERRORTYPE         (*putRunningNode)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE* pBuffer);  \
+    OMX_ERRORTYPE         (*getRunningNode)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE **ppBuffer); \
+    OMX_ERRORTYPE         (*putOutputNode)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE* pBuffer);  \
+    OMX_ERRORTYPE         (*getOutputNode)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE **ppBuffer); \
 
 )
     MagMutexHandle         mhMutex;
 
+    /*list all buffer headers*/
     List_t                 mBufferList;
+    /*list the buffer headers that are ready to be sent out to tunneled port*/
     List_t                 mRunningBufferList;
+    /*list the buffer headers that are ready for the ports data transferring inside the component */
+    List_t                 mOutputBufferList;
+
     OMX_U32                mBuffersTotal;
     OMX_U32                mFreeBuffersNum;
 
     MagEventHandle         mAllBufReturnedEvent;
     MagEventGroupHandle    mBufferEventGroup;
     OMX_BOOL               mWaitOnBuffers;
+
+    MagEventHandle         mGetOutputBufferEvent;
+    MagEventGroupHandle    mOutputBufferEventGroup;
+    OMX_BOOL               mWaitOnOutputBuffer;
 
     MagEventHandle         mTunneledBufStEvt;
     MagEventGroupHandle    mTunneledBufStEvtGrp;

@@ -289,7 +289,7 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_FreeHandle(
 
             list_del(tmpNode);
             if (NULL != comp->deregFunc){
-                comp->deregFunc();
+                comp->deregFunc(hComponent);
             }
             dlclose(comp->libHandle);
             mag_freep(&comp);

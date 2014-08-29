@@ -300,7 +300,7 @@ static OMX_COMPONENTTYPE *MagOmxComponent_getComponentObj(MagOmxComponent self){
 /****************************
  *Member function implementation
  ****************************/
-OMX_COMPONENTTYPE *virtual_MagOmxComponent_Create(
+static OMX_COMPONENTTYPE *virtual_MagOmxComponent_Create(
                 OMX_IN MagOmxComponent pBase, 
                 OMX_IN OMX_PTR pAppData){
 
@@ -317,7 +317,6 @@ OMX_COMPONENTTYPE *virtual_MagOmxComponent_Create(
     comp->nVersion.s.nVersionMinor = kVersionMinor;
     comp->nVersion.s.nRevision     = kVersionRevision;
     comp->nVersion.s.nStep         = kVersionStep;
-    comp->pComponentPrivate        = pBase;
     comp->pApplicationPrivate      = pAppData;
 
     comp->GetComponentVersion      = GetComponentVersionWrapper;
