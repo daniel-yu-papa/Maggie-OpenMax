@@ -173,7 +173,8 @@ int main( int argc, char argv[] ){
         PolygonVirtual(parent)->getEdges(parent);
         AGILE_LOGD("after PolygonVirtual(parent)->getEdges()");
     }
-   
+    AGILE_LOGD("mTotalPrice=%d, mBasePrice=%d", goldTri->mTotalPrice, goldTri->mBasePrice);
+    
     ooc_delete((Object)goldTri);
 }
 

@@ -6,6 +6,10 @@
 
 DeclareClass(MagOmxComponentAudio, MagOmxComponentImpl);
 
+Virtuals(MagOmxComponentAudio, MagOmxComponentImpl) 
+   
+EndOfVirtuals;
+
 ClassMembers(MagOmxComponentAudio, MagOmxComponentImpl, \
 	
 )

@@ -71,7 +71,7 @@ MagOMX_Component_Registration_t *MagOMX_Component_Registration (void);
 /* revert the component registration
  * when implemented, this gets called upon OMX_Deinit().
  */
-void MagOMX_Component_Deregistration (void);
+void MagOMX_Component_Deregistration (OMX_HANDLETYPE hComponent);
 
 static inline void setSpecVersion(OMX_VERSIONTYPE* pSpecVersion) {
     pSpecVersion->s.nVersionMajor = kVersionMajor;
@@ -85,13 +85,13 @@ static inline void setComponentVersion(OMX_VERSIONTYPE* pComponentVersion) {
 }
 
 static inline void initHeader(void *obj, OMX_U32 size){
-    MagOMX_Param_Header_t *header = (MagOMX_Param_Header_t *obj);
+    MagOMX_Param_Header_t *header = (MagOMX_Param_Header_t *)obj;
 
     header->nSize = size;
-    header->s.nVersionMajor = kVersionMajor;
-    header->s.nVersionMinor = kVersionMinor;
-    header->s.nRevision     = kVersionRevision;
-    header->s.nStep         = kVersionStep;
+    header->nVersion.s.nVersionMajor = kVersionMajor;
+    header->nVersion.s.nVersionMinor = kVersionMinor;
+    header->nVersion.s.nRevision     = kVersionRevision;
+    header->nVersion.s.nStep         = kVersionStep;
 }
 
 static inline OMX_U32 getPortIndex(OMX_PTR *pStruct){

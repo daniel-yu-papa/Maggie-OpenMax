@@ -4,7 +4,7 @@ Releases are sorted from youngest to oldest.
 version 0.2.3
 2014-08-12
 
-- add the suspend/resume interfaces into thread module
+- add the suspend/resume interfaces into thread and looper module
 
 **************************************
 version 0.2.1

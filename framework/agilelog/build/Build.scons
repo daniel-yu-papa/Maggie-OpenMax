@@ -7,20 +7,20 @@ from glob import glob
 # reusable functions and data structures
 #######################################################
 def LoadTool(name, env, **kw):
-    config_path = GetBuildPath('#/build/Tools/SCons')
+    config_path = GetBuildPath('#/'+env['build_path_prefix']+'/build/Tools/SCons')
     file, path, desc = imp.find_module(name, [config_path])
     module = imp.load_module(name, file, path, desc)
     module.generate(env, **kw)
 
 def GlobSources(drct, patterns, excluded_files=[]):
-    root = GetBuildPath('#'+drct)
+    root = GetBuildPath('#/'+env['build_path_prefix']+'/'+drct)
     files = []
     for pattern in Split(patterns):
         files += glob(root+'/'+pattern)
     return [drct+'/'+os.path.basename(x) for x in  files if os.path.basename(x) not in excluded_files]
     
 def GetDirPath(dir):
-    return '#/'+dir
+    return '#/'+env['build_path_prefix']+'/'+dir
     
 def DeclareBuildDir(dir):
     env.VariantDir(dir, GetDirPath(dir), duplicate=0)
@@ -113,12 +113,14 @@ class LibraryModule(Module):
             libs = GetLibraries(Split(linked_modules))
             self.product = self.env.SharedLibrary(target=name, LIBS=libs, source=sources)
         self.env.Alias(name, self.product)
-        
+        Default(self.product)
+
         # copy to Targets folder
         if install is True:
-            inst = env.Install(dir=env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']), source=self.product)
+            inst = env.Install(dir=env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib'), source=self.product)
             if env['build_config'] == 'Release' and env.has_key('STRIP'):
                 env.AddPostAction(inst, env['STRIP']+' $TARGETS');
+            Default(inst)
       
 def Application(name, dir, deps, install = False):
     DeclareBuildDir(dir)
@@ -128,13 +130,14 @@ def Application(name, dir, deps, install = False):
     prog = env.Program(name, 
                        GlobSources(dir, ['*.c', '*.cpp']),
                        LIBS=libs, CPPPATH=cpp_path)
-    
+    Default(prog)
+
     # copy to Targets folder
     if install is True:
-        inst = env.Install(dir=env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']), source=prog)
+        inst = env.Install(dir=env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/bin'), source=prog)
         if env['build_config'] == 'Release' and env.has_key('STRIP'):
             env.AddPostAction(inst, env['STRIP']+' $TARGETS');
-           
+        Default(inst) 
                  
 #######################################################
 # Main Build
@@ -142,7 +145,7 @@ def Application(name, dir, deps, install = False):
 Import("env")
 
 ### try to read in any target specific configuration
-target_config_file = env.GetBuildPath('#/build/Targets/'+env['target']+'/Config.scons')
+target_config_file = env.GetBuildPath('#/'+env['build_path_prefix']+'/build/Targets/'+env['target']+'/Config.scons')
 if os.path.exists(target_config_file):
     # Load the target-specific config file    
     execfile(target_config_file)
@@ -201,6 +204,6 @@ LibraryModule(name                  = 'MagAgilelogStatic',
               build_include_dirs    = ['inc', 'external/tinyxml2', '../core/hashtable/inc'])
 
 Application(name    = 'MagAgilelogTest', 
-                dir     = 'src/tests', 
-                deps    = ['MagAgilelogStatic'],
-                install = True)
+            dir     = 'src/tests', 
+            deps    = ['MagAgilelogStatic'],
+            install = True)

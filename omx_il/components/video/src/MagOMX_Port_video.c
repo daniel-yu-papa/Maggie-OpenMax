@@ -14,7 +14,7 @@ static OMX_PORTDOMAINTYPE virtual_GetDomainType(OMX_HANDLETYPE hPort){
 }
 
 static OMX_ERRORTYPE virtual_SetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFormat){
-	MagOmxPortVideo *vPort;
+	MagOmxPortVideo vPort;
 	OMX_VIDEO_PORTDEFINITIONTYPE *pVideoDef = (OMX_VIDEO_PORTDEFINITIONTYPE *)pFormat;
 	List_t *next;
     MagOMX_Video_PortFormat_t *item = NULL;
@@ -27,7 +27,8 @@ static OMX_ERRORTYPE virtual_SetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFor
 
 	Mag_AcquireMutex(vPort->mhMutex);
 	next = vPort->mPortFormatList.next;
-    item = (MagOMX_Video_PortFormat_t *)list_entry(next, MagOMX_Video_PortFormat_t, node);
+	if (next != &vPort->mPortFormatList)
+	    item = (MagOMX_Video_PortFormat_t *)list_entry(next, MagOMX_Video_PortFormat_t, node);
 
     if (item){
     	item->xFramerate = pVideoDef->xFramerate;
@@ -42,7 +43,7 @@ static OMX_ERRORTYPE virtual_SetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFor
 }
 
 static OMX_ERRORTYPE virtual_GetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFormat){
-	MagOmxPortVideo *vPort;
+	MagOmxPortVideo vPort;
 	OMX_VIDEO_PORTDEFINITIONTYPE *pVideoDef = (OMX_VIDEO_PORTDEFINITIONTYPE *)pFormat;
 	List_t *next;
     MagOMX_Video_PortFormat_t *item = NULL;
@@ -55,7 +56,8 @@ static OMX_ERRORTYPE virtual_GetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFor
 
 	Mag_AcquireMutex(vPort->mhMutex);
 	next = vPort->mPortFormatList.next;
-    item = (MagOMX_Video_PortFormat_t *)list_entry(next, MagOMX_Video_PortFormat_t, node);
+	if (next != &vPort->mPortFormatList)
+    	item = (MagOMX_Video_PortFormat_t *)list_entry(next, MagOMX_Video_PortFormat_t, node);
 
 	memcpy(pVideoDef, vPort->mpPortDefinition, sizeof(OMX_VIDEO_PORTDEFINITIONTYPE));
     if (item){
@@ -80,7 +82,7 @@ static OMX_ERRORTYPE virtual_GetParameter(OMX_HANDLETYPE hPort, OMX_INDEXTYPE nI
 
 	vPort = getVideoPort(hPort);
 
-	swtich (nIndex){
+	switch (nIndex){
 		case OMX_IndexParamVideoPortFormat:
 		{
 			OMX_VIDEO_PARAM_PORTFORMATTYPE *pFormat = (OMX_VIDEO_PARAM_PORTFORMATTYPE *)pPortParam;
@@ -124,6 +126,8 @@ static void MagOmxPortVideo_addFormat(MagOmxPortVideo hPort, MagOMX_Video_PortFo
 
 /*Class Constructor/Destructor*/
 static void MagOmxPortVideo_initialize(Class this){
+	AGILE_LOGV("Enter!");
+
 	MagOmxPortVideoVtableInstance.MagOmxPortImpl.MagOmxPort.GetDomainType       = virtual_GetDomainType;
 	MagOmxPortVideoVtableInstance.MagOmxPortImpl.MagOmxPort.SetPortSpecificDef  = virtual_SetPortSpecificDef;
 	MagOmxPortVideoVtableInstance.MagOmxPortImpl.MagOmxPort.GetPortSpecificDef  = virtual_GetPortSpecificDef;
@@ -142,6 +146,8 @@ static void MagOmxPortVideo_constructor(MagOmxPortVideo thiz, const void *params
 	MagOMX_Video_PortFormat_t *pInputFormat;
 	MagOmxPort_Constructor_Param_t *lparam;
 
+	AGILE_LOGV("Enter!");
+
     MAG_ASSERT(ooc_isInitialized(MagOmxPortVideo));
     chain_constructor(MagOmxPortVideo, thiz, params);
     lparam  = (MagOmxPort_Constructor_Param_t *)(params);
@@ -153,14 +159,16 @@ static void MagOmxPortVideo_constructor(MagOmxPortVideo thiz, const void *params
     INIT_LIST(&thiz->mPortFormatList);
 
     thiz->mpPortDefinition = (OMX_VIDEO_PORTDEFINITIONTYPE *)mag_mallocz(sizeof(OMX_VIDEO_PORTDEFINITIONTYPE));
-    pFormat = (MagOMX_Video_PortFormat_t *)mag_mallocz(sizeof(MagOMX_Video_PortFormat_t));
-
-    pInputFormat = (MagOMX_Video_PortFormat_t *)(lparam->formatStruct);
-    INIT_LIST(&pFormat->node);
-    pFormat->xFramerate         = pInputFormat->xFramerate;
-    pFormat->eCompressionFormat = pInputFormat->eCompressionFormat;
-    pFormat->eColorFormat       = pInputFormat->eColorFormat;
-    list_add_tail(&pFormat->node, &thiz->mPortFormatList);
+    
+    if (lparam->formatStruct){
+	    pFormat = (MagOMX_Video_PortFormat_t *)mag_mallocz(sizeof(MagOMX_Video_PortFormat_t));
+	    pInputFormat = (MagOMX_Video_PortFormat_t *)(lparam->formatStruct);
+	    INIT_LIST(&pFormat->node);
+	    pFormat->xFramerate         = pInputFormat->xFramerate;
+	    pFormat->eCompressionFormat = pInputFormat->eCompressionFormat;
+	    pFormat->eColorFormat       = pInputFormat->eColorFormat;
+	    list_add_tail(&pFormat->node, &thiz->mPortFormatList);
+	}
 }
 
 static void MagOmxPortVideo_destructor(MagOmxPortVideo thiz, MagOmxPortVideoVtable vtab){

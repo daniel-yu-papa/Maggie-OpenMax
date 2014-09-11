@@ -1,4 +1,7 @@
 #include "MagOMX_Component_Vdec_Test.h"
+#include "MagOMX_Port_Vdec_Test.h"
+#include "MagOMX_Port_Disp_Test.h"
+#include "MagOMX_IL.h"
 
 #define COMPONENT_NAME "OMX.Mag.vdec.test"
 #define ROLE_NAME      "video_decoder.all"
@@ -6,6 +9,52 @@
 #define PORT_NUMBER      2
 
 AllocateClass(MagOmxComponent_VdecTest, MagOmxComponentVideo);
+
+static OMX_ERRORTYPE localSetupComponent(
+                    OMX_IN  OMX_HANDLETYPE hComponent){
+	MagOmxPort_VdecTest vdecInPort;
+	// MagOmxPort vdecInPortRoot;
+	MagOmxPort_DispTest dispOutPort;
+	// MagOmxPort dispOutPortRoot;
+	MagOmxPort_Constructor_Param_t param;
+	MagOmxComponentImpl vdecCompImpl;
+	MagOmxComponent     vdecComp;
+
+	AGILE_LOGV("enter!");
+
+	param.portIndex    = START_PORT_INDEX + 0;
+	param.isInput      = OMX_TRUE;
+	param.bufSupplier  = OMX_BufferSupplyUnspecified;
+	param.formatStruct = 0;
+	sprintf(param.name, "%s-In", VDEC_PORT_NAME);
+
+	ooc_init_class(MagOmxPort_VdecTest);
+	vdecInPort = ooc_new(MagOmxPort_VdecTest, &param);
+	MAG_ASSERT(vdecInPort);
+	// vdecInPortRoot = ooc_cast(vdecInPort, MagOmxPort);
+
+	param.portIndex    = START_PORT_INDEX + 1;
+	param.isInput      = OMX_FALSE;
+	param.bufSupplier  = OMX_BufferSupplyOutput;
+	param.formatStruct = 0;
+	sprintf(param.name, "%s-Out", DISP_PORT_NAME);
+
+	ooc_init_class(MagOmxPort_DispTest);
+	dispOutPort = ooc_new(MagOmxPort_DispTest, &param);
+	MAG_ASSERT(dispOutPort);
+	// dispOutPortRoot = ooc_cast(dispOutPort, MagOmxPort);
+
+	vdecCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
+	vdecComp = ooc_cast(hComponent, MagOmxComponent);
+	
+	vdecComp->setName(vdecComp, COMPONENT_NAME);
+	vdecCompImpl->addPort(vdecCompImpl, START_PORT_INDEX + 0, vdecInPort);
+	vdecCompImpl->addPort(vdecCompImpl, START_PORT_INDEX + 1, dispOutPort);
+
+	vdecCompImpl->setupPortDataFlow(vdecCompImpl, vdecInPort, dispOutPort);
+
+	return OMX_ErrorNone;
+}
 
 static OMX_ERRORTYPE virtual_GetComponentUUID(
                     OMX_IN  OMX_HANDLETYPE hComponent,
@@ -15,37 +64,7 @@ static OMX_ERRORTYPE virtual_GetComponentUUID(
 
 static OMX_ERRORTYPE virtual_Prepare(
                     OMX_IN  OMX_HANDLETYPE hComponent){
-	MagOmxPort_VdecTest vdecInPort;
-	MagOmxPort vdecInPortRoot;
-	MagOmxPort_DispTest dispOutPort;
-	MagOmxPort dispOutPortRoot;
-	MagOmxPort_Constructor_Param_t param;
-	MagOmxComponentImpl vdecCompImpl;
-
 	AGILE_LOGV("enter!");
-
-	param.portIndex    = START_PORT_INDEX + 0;
-	param.isInput      = OMX_TRUE;
-	param.bufSupplier  = OMX_BufferSupplyUnspecified;
-	param.formatStruct = 0;
-	vdecInPort = ooc_new(MagOmxPort_VdecTest, &param);
-	MAG_ASSERT(vdecInPort);
-	vdecInPortRoot = ooc_cast(MagOmxPort, vdecInPort);
-
-	param.portIndex    = START_PORT_INDEX + 1;
-	param.isInput      = OMX_FALSE;
-	param.bufSupplier  = OMX_BufferSupplyOutput;
-	param.formatStruct = 0;
-	dispOutPort = ooc_new(MagOmxPort_DispTest, &param);
-	MAG_ASSERT(dispOutPort);
-	dispOutPortRoot = ooc_cast(MagOmxPort, dispOutPort);
-
-	vdecCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
-	vdecCompImpl->addPort(vdecCompImpl, START_PORT_INDEX + 0, vdecInPort);
-	vdecCompImpl->addPort(vdecCompImpl, START_PORT_INDEX + 1, dispOutPort);
-
-	vdecCompImpl->setupPortDataFlow(vdecCompImpl, vdecInPortRoot, dispOutPortRoot);
-
 	return OMX_ErrorNone;
 }
 
@@ -140,7 +159,7 @@ static void MagOmxComponent_VdecTest_constructor(MagOmxComponent_VdecTest thiz, 
     chain_constructor(MagOmxComponent_VdecTest, thiz, params);
 }
 
-static void MagOmxComponent_VdecTest_destructor(MagOmxComponent_VdecTest thiz, MagOmxComponentVideoVtable vtab){
+static void MagOmxComponent_VdecTest_destructor(MagOmxComponent_VdecTest thiz, MagOmxComponent_VdecTestVtable vtab){
 	AGILE_LOGV("Enter!");
 }
 
@@ -151,6 +170,10 @@ static OMX_ERRORTYPE MagOmxComponent_VdecTest_Init(OMX_OUT OMX_HANDLETYPE *hComp
 	MagOmxComponentImpl     parent;
     OMX_U32 param[2];
 
+    AGILE_LOGV("enter!");
+
+    ooc_init_class(MagOmxComponent_VdecTest);
+
     param[0] = START_PORT_INDEX;
     param[1] = PORT_NUMBER;
 
@@ -160,7 +183,7 @@ static OMX_ERRORTYPE MagOmxComponent_VdecTest_Init(OMX_OUT OMX_HANDLETYPE *hComp
     parent = ooc_cast(hVdecComp, MagOmxComponentImpl);
     *hComponent = MagOmxComponentImplVirtual(parent)->Create(hVdecComp, pAppData, pCallBacks);
     if (*hComponent){
-    	return OMX_ErrorNone;
+    	return localSetupComponent(hVdecComp);
     }else{
     	return OMX_ErrorInsufficientResources;
     }
@@ -185,7 +208,7 @@ MagOMX_Component_Registration_t *MagOMX_Component_Registration(){
     return &comp_reg;
 }
 
-void MagOMX_Component_Deregistration(OMX_IN OMX_HANDLETYPE hComponent){
+void MagOMX_Component_Deregistration(OMX_HANDLETYPE hComponent){
 	MagOmxComponent_VdecTest_DeInit(hComponent);
 }
 

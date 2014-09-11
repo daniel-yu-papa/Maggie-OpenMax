@@ -1,5 +1,7 @@
 #include "MagOMX_Component_video.h"
 
+AllocateClass(MagOmxComponentVideo, MagOmxComponentImpl);
+
 static MagOMX_Component_Type_t virtual_MagOmxComponentVideo_getType(
 									OMX_IN  OMX_HANDLETYPE hComponent){
 	return MagOMX_Component_Video;

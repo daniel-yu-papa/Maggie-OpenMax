@@ -1,8 +1,14 @@
-#include "MagOMX_Component_Vdec_Test.h"
-#include "MagOMX_Component_Disp_Test.h"
+#include "framework/MagFramework.h"
+#include "OMX_Core.h"
+#include "OMX_Types.h"
+#include "OMX_Component.h"
+#include "MagOMX_IL.h"
 
 #define OMX_IL_INPUT_BUFFER_NUMBER 4
 #define OMX_IL_INPUT_BUFFER_SIZE   512
+
+OMX_BOOL gVdecIsExecuting = OMX_FALSE;
+OMX_BOOL gDisplayIsExecuting = OMX_FALSE;
 
 typedef struct {
 	OMX_BUFFERHEADERTYPE *bufHeader;
@@ -14,26 +20,50 @@ static Buffer_t inBuffer[OMX_IL_INPUT_BUFFER_NUMBER];
 
 static OMX_BOOL gIsStopped = OMX_FALSE;
 
-OMX_CALLBACKTYPE vDecCallbacks = { .EventHandler    = vDecEventHandler,
-                                   .EmptyBufferDone = vDecEmptyBufferDone,
-                                   .FillBufferDone  = vDecFillBufferDone,
-};
-
-OMX_CALLBACKTYPE vDidplayCallbacks = { .EventHandler    = vDisplayEventHandler,
-                                       .EmptyBufferDone = vDisplayEmptyBufferDone,
-                                       .FillBufferDone  = vDisplayFillBufferDone,
-};
-
-/* VDEC Callbacks implementation */
-OMX_ERRORTYPE vDecEventHandler(
+static OMX_ERRORTYPE vDecEventHandler(
     OMX_HANDLETYPE hComponent,
     OMX_PTR pAppData,
     OMX_EVENTTYPE eEvent,
     OMX_U32 Data1,
     OMX_U32 Data2,
-    OMX_PTR pEventData) ,
+    OMX_PTR pEventData);
+static OMX_ERRORTYPE vDecEmptyBufferDone(
+	OMX_HANDLETYPE hComponent,
+	OMX_PTR pAppData,
+    OMX_BUFFERHEADERTYPE* pBuffer);
+static OMX_ERRORTYPE vDecFillBufferDone(
+    OMX_IN OMX_HANDLETYPE hComponent,
+    OMX_IN OMX_PTR pAppData,
+    OMX_IN OMX_BUFFERHEADERTYPE* pBuffer);
 
-    AGILE_LOGE("Vdec event: %d", eEvent);
+static OMX_ERRORTYPE vDisplayEventHandler(
+    OMX_HANDLETYPE hComponent,
+    OMX_PTR pAppData,
+    OMX_EVENTTYPE eEvent,
+    OMX_U32 Data1,
+    OMX_U32 Data2,
+    OMX_PTR pEventData);
+
+OMX_CALLBACKTYPE vDecCallbacks = { .EventHandler    = vDecEventHandler,
+                                   .EmptyBufferDone = vDecEmptyBufferDone,
+                                   .FillBufferDone  = vDecFillBufferDone
+};
+
+OMX_CALLBACKTYPE vDidplayCallbacks = { .EventHandler    = vDisplayEventHandler,
+									   .EmptyBufferDone = NULL,
+									   .FillBufferDone  = NULL
+};
+
+/* VDEC Callbacks implementation */
+static OMX_ERRORTYPE vDecEventHandler(
+    OMX_HANDLETYPE hComponent,
+    OMX_PTR pAppData,
+    OMX_EVENTTYPE eEvent,
+    OMX_U32 Data1,
+    OMX_U32 Data2,
+    OMX_PTR pEventData){
+
+    AGILE_LOGV("Vdec event: %d", eEvent);
     if(eEvent == OMX_EventCmdComplete) {
     	if (Data1 == OMX_CommandStateSet) {
         	AGILE_LOGD("OMX_CommandStateSet");
@@ -49,6 +79,7 @@ OMX_ERRORTYPE vDecEventHandler(
 	        	    break;
 	        	case OMX_StateExecuting:
 	        	    AGILE_LOGD("OMX_StateExecuting\n");
+	        	    gVdecIsExecuting = OMX_TRUE;
 	        	    break;
 	        	case OMX_StatePause:
 	        	    AGILE_LOGD("OMX_StatePause\n");
@@ -71,12 +102,12 @@ OMX_ERRORTYPE vDecEventHandler(
     return OMX_ErrorNone;
 }
 
-OMX_ERRORTYPE vDecEmptyBufferDone(
+static OMX_ERRORTYPE vDecEmptyBufferDone(
 	OMX_HANDLETYPE hComponent,
 	OMX_PTR pAppData,
     OMX_BUFFERHEADERTYPE* pBuffer) {
 
-	OMX_U32 index = *(OMX_U32 *)(pAppData);
+	OMX_U32 index = *(OMX_U32 *)(pBuffer->pAppPrivate);
 
 	AGILE_LOGD("get buffer %d returned, buffer header: 0x%x", index, pBuffer);
 	inBuffer[index].isBusy = OMX_FALSE;
@@ -87,32 +118,32 @@ OMX_ERRORTYPE vDecEmptyBufferDone(
 	}
 }
 
-OMX_ERRORTYPE vDecFillBufferDone(
+static OMX_ERRORTYPE vDecFillBufferDone(
     OMX_IN OMX_HANDLETYPE hComponent,
     OMX_IN OMX_PTR pAppData,
     OMX_IN OMX_BUFFERHEADERTYPE* pBuffer){
 
-	OMX_U32 index = *(OMX_U32 *)(pAppData);
+	OMX_U32 index = *(OMX_U32 *)(pBuffer->pAppPrivate);
 
 	AGILE_LOGD("get buffer %d returned, buffer header: 0x%x", index, pBuffer);
 	inBuffer[index].isBusy = OMX_FALSE;
 
-	if (!gIsFlushing){
+	if (!gIsStopped){
 		inBuffer[index].isBusy = OMX_TRUE;
 		OMX_FillThisBuffer(hComponent, pBuffer);
 	}
 }
 
 /* VDisplay Callbacks implementation */
-OMX_ERRORTYPE vDisplayEventHandler(
+static OMX_ERRORTYPE vDisplayEventHandler(
     OMX_HANDLETYPE hComponent,
     OMX_PTR pAppData,
     OMX_EVENTTYPE eEvent,
     OMX_U32 Data1,
     OMX_U32 Data2,
-    OMX_PTR pEventData) ,
+    OMX_PTR pEventData){
 
-    AGILE_LOGE("Vdisplay event: %d", eEvent);
+    AGILE_LOGV("Vdisplay event: %d", eEvent);
     if(eEvent == OMX_EventCmdComplete) {
     	if (Data1 == OMX_CommandStateSet) {
         	AGILE_LOGD("OMX_CommandStateSet");
@@ -128,6 +159,7 @@ OMX_ERRORTYPE vDisplayEventHandler(
 	        	    break;
 	        	case OMX_StateExecuting:
 	        	    AGILE_LOGD("OMX_StateExecuting\n");
+	        	    gDisplayIsExecuting = OMX_TRUE;
 	        	    break;
 	        	case OMX_StatePause:
 	        	    AGILE_LOGD("OMX_StatePause\n");
@@ -152,12 +184,15 @@ OMX_ERRORTYPE vDisplayEventHandler(
 
 int main(int argc, char** argv){
 	OMX_ERRORTYPE err;
-	OMX_HANDLETYPE *hVdec;
-	OMX_HANDLETYPE *hDisplay;
+	OMX_HANDLETYPE hVdec;
+	OMX_HANDLETYPE hDisplay;
 	OMX_PORT_PARAM_TYPE vDecPortParam;
 	OMX_PORT_PARAM_TYPE vDispPortParam;
 	OMX_PARAM_PORTDEFINITIONTYPE sPortDef;
 	OMX_U32 i;
+	char c;
+
+	AGILE_LOGV("start!");
 
     initHeader(&sPortDef, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
 
@@ -185,6 +220,9 @@ int main(int argc, char** argv){
 	    AGILE_LOGE("Error in getting vDec OMX_PORT_PARAM_TYPE parameter");
 	    exit(1);
     }
+
+    AGILE_LOGD("get vdec component param(OMX_IndexParamVideoInit): StartPortNumber-%d, Ports-%d",
+    	        vDecPortParam.nStartPortNumber, vDecPortParam.nPorts);
 
     for (i = vDecPortParam.nStartPortNumber; i < vDecPortParam.nPorts; i++){
     	sPortDef.nPortIndex = i;
@@ -215,6 +253,9 @@ int main(int argc, char** argv){
 	    AGILE_LOGE("Error in getting vDisplay OMX_PORT_PARAM_TYPE parameter");
 	    exit(1);
     }
+
+    AGILE_LOGD("get display component param(OMX_IndexParamVideoInit): StartPortNumber-%d, Ports-%d",
+    	        vDispPortParam.nStartPortNumber, vDispPortParam.nPorts);
 
     for (i = vDispPortParam.nStartPortNumber; i < vDispPortParam.nPorts; i++){
     	sPortDef.nPortIndex = i;
@@ -267,13 +308,21 @@ int main(int argc, char** argv){
         	OMX_SendCommand(hVdec, OMX_CommandStateSet, OMX_StateExecuting, NULL);
 		    OMX_SendCommand(hDisplay, OMX_CommandStateSet, OMX_StateExecuting, NULL);
 
-		    for (i = 0; i < OMX_IL_INPUT_BUFFER_NUMBER; i++){
+		    while(!gDisplayIsExecuting || !gVdecIsExecuting){
+
+		    }
+		    
+		    // for (i = 0; i < OMX_IL_INPUT_BUFFER_NUMBER; i++){
+			    i = 0;
 		    	inBuffer[i].isBusy = OMX_TRUE;
+		    	AGILE_LOGV("send out the buffer: 0x%p", inBuffer[i].bufHeader);
 				OMX_EmptyThisBuffer(hVdec, inBuffer[i].bufHeader);
 				usleep(10000);
-		    }
+		    // }
         }else if (c == 's'){
         	gIsStopped = OMX_TRUE;
+        	gDisplayIsExecuting = OMX_FALSE;
+        	gVdecIsExecuting    = OMX_FALSE;
         	OMX_SendCommand(hVdec, OMX_CommandStateSet, OMX_StateIdle, NULL);
 		    OMX_SendCommand(hDisplay, OMX_CommandStateSet, OMX_StateIdle, NULL);
         }else if (c == 'q'){

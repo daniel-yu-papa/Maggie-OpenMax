@@ -55,6 +55,8 @@ static void loadComponentRecursive(char *loadPath,
     closedir(dir);
 }
 #endif
+
+
 int main(){
     int i = 9;
     char str[30] = "Hello world - AgileLog";

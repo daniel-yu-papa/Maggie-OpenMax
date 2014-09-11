@@ -4,7 +4,7 @@ AllocateClass(MagOmxPort, Base);
 
 static void checkPortParameters(MagOmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *setDef){
     if (setDef->nBufferCountActual < setDef->nBufferCountMin){
-        AGILE_LOGE("the BufferCountActual(%d) is less than the BufferCountMin(%d). Ignore the setting!!", 
+        PORT_LOGE(hPort, "the BufferCountActual(%d) is less than the BufferCountMin(%d). Ignore the setting!!", 
                     setDef->nBufferCountActual, 
                     setDef->nBufferCountMin);
         setDef->nBufferCountActual = hPort->mpPortDefinition->nBufferCountActual;
@@ -12,13 +12,17 @@ static void checkPortParameters(MagOmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *
 }
 
 /*Member Functions*/
+static OMX_U8 *MagOmxPort_getPortName(MagOmxPort hPort){
+    return hPort->mPortName;
+}
+
 static OMX_ERRORTYPE MagOmxPort_getPortDefinition(MagOmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *getDef){
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     void *portDef = NULL;
     OMX_PORTDOMAINTYPE domain;
 
     Mag_AcquireMutex(hPort->mhMutex);
-    memcpy(getDef, &hPort->mpPortDefinition, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
+    memcpy(getDef, hPort->mpPortDefinition, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
     if (MagOmxPortVirtual(hPort)->GetPortSpecificDef){
         domain = MagOmxPortVirtual(hPort)->GetDomainType(hPort);
         if (domain == OMX_PortDomainAudio){
@@ -30,15 +34,17 @@ static OMX_ERRORTYPE MagOmxPort_getPortDefinition(MagOmxPort hPort, OMX_PARAM_PO
         }else if (domain == OMX_PortDomainOther){
             portDef = &getDef->format.other;
         }else{
-            AGILE_LOGE("invalid port domain: %d", domain);
+            PORT_LOGE(hPort, "invalid port domain: %d", domain);
             ret = OMX_ErrorPortsNotCompatible;
         }
 
-        hPort->mpPortDefinition.eDomain = domain;
+        hPort->mpPortDefinition->eDomain = domain;
+        getDef->eDomain = domain;
+
         if (portDef)
             MagOmxPortVirtual(hPort)->GetPortSpecificDef(hPort, portDef);
     }else{
-        AGILE_LOGE("The pure virtual function (SetPortSpecificDef) is not overrided!");
+        PORT_LOGE(hPort, "The pure virtual function (SetPortSpecificDef) is not overrided!");
         ret = OMX_ErrorUndefined;
     }
     Mag_ReleaseMutex(hPort->mhMutex);
@@ -54,7 +60,7 @@ static OMX_ERRORTYPE MagOmxPort_setPortDefinition(MagOmxPort hPort, OMX_PARAM_PO
     domain = MagOmxPortVirtual(hPort)->GetDomainType(hPort);
 
     if (domain != setDef->eDomain){
-        AGILE_LOGE("Port domain(%d) mismatches Set domain(%d)", domain, setDef->eDomain);
+        PORT_LOGE(hPort, "Port domain(%d) mismatches Set domain(%d)", domain, setDef->eDomain);
         return OMX_ErrorUndefined;
     }
 
@@ -72,14 +78,14 @@ static OMX_ERRORTYPE MagOmxPort_setPortDefinition(MagOmxPort hPort, OMX_PARAM_PO
         }else if (domain == OMX_PortDomainOther){
             portDef = &setDef->format.other;
         }else{
-            AGILE_LOGE("invalid port domain: %d", domain);
+            PORT_LOGE(hPort, "invalid port domain: %d", domain);
             ret = OMX_ErrorPortsNotCompatible;
         }
 
         if (portDef)
             MagOmxPortVirtual(hPort)->SetPortSpecificDef(hPort, portDef);
     }else{
-        AGILE_LOGE("The pure virtual function (SetPortSpecificDef) is not overrided!");
+        PORT_LOGE(hPort, "The pure virtual function (SetPortSpecificDef) is not overrided!");
     }
     Mag_ReleaseMutex(hPort->mhMutex);
 
@@ -118,7 +124,6 @@ static void MagOmxPort_setDef_BufferSize(MagOmxPort root, OMX_U32 bufSize){
 static void MagOmxPort_setDef_Populated(MagOmxPort root, OMX_BOOL flag){
     Mag_AcquireMutex(root->mhMutex);
     root->mpPortDefinition->bPopulated = flag;
-    MagOmxPortVirtual(root)->SendEvent(hPort, kBufferPopulatedEvt);
     Mag_ReleaseMutex(root->mhMutex);
 }
 
@@ -142,7 +147,6 @@ static void MagOmxPort_setParameter(MagOmxPort hPort, OMX_INDEXTYPE nIndex, OMX_
 
         case OMX_IndexConfigTunneledPortStatus:
             hPort->mParametersDB->setUInt32(hPort->mParametersDB, "TunneledPortStatus", value);
-            MagOmxPortVirtual(hPort)->SendEvent(hPort, kTunneledPortStatusEvt);
             break;
         
         case OMX_IndexParamCompBufferSupplier:
@@ -150,7 +154,7 @@ static void MagOmxPort_setParameter(MagOmxPort hPort, OMX_INDEXTYPE nIndex, OMX_
             break;
 
         default:
-            AGILE_LOGE("unsupported parameter: %s", OmxParameter2String(nIndex));
+            PORT_LOGE(hPort, "unsupported parameter: %s", OmxParameter2String(nIndex));
             break;
     }
     
@@ -164,21 +168,21 @@ static OMX_ERRORTYPE MagOmxPort_getParameter(MagOmxPort hPort, OMX_INDEXTYPE nIn
     switch (nIndex){
         case OMX_IndexParamNumAvailableStreams:
             if (!hPort->mParametersDB->findUInt32(hPort->mParametersDB, "NumAvailableStreams", pValue)){
-                AGILE_LOGE("failed to find the parameter: NumAvailableStreams");
+                PORT_LOGE(hPort, "failed to find the parameter: NumAvailableStreams");
                 ret = OMX_ErrorUnsupportedSetting;
             }
             break;
 
         case OMX_IndexParamActiveStream:
             if (!hPort->mParametersDB->findUInt32(hPort->mParametersDB, "ActiveStream", pValue)){
-                AGILE_LOGE("failed to find the parameter: ActiveStream");
+                PORT_LOGE(hPort, "failed to find the parameter: ActiveStream");
                 ret = OMX_ErrorUnsupportedSetting;
             }
             break;
 
         case OMX_IndexConfigTunneledPortStatus:
             if (!hPort->mParametersDB->findUInt32(hPort->mParametersDB, "TunneledPortStatus", pValue)){
-                AGILE_LOGE("failed to find the parameter: TunneledPortStatus");
+                PORT_LOGE(hPort, "failed to find the parameter: TunneledPortStatus");
                 ret = OMX_ErrorUnsupportedSetting;
             }
             break;
@@ -188,7 +192,7 @@ static OMX_ERRORTYPE MagOmxPort_getParameter(MagOmxPort hPort, OMX_INDEXTYPE nIn
             break;
 
         default:
-            AGILE_LOGE("unsupported parameter: %s", OmxParameter2String(nIndex));
+            PORT_LOGE(hPort, "unsupported parameter: %s", OmxParameter2String(nIndex));
             ret = OMX_ErrorUnsupportedSetting;
             break;
     }
@@ -246,6 +250,8 @@ static void MagOmxPort_setState(MagOmxPort root, MagOmxPort_State_t st){
 
 /*Class Constructor/Destructor*/
 static void MagOmxPort_initialize(Class this){
+    AGILE_LOGV("Enter!");
+
     MagOmxPortVtableInstance.Enable                = NULL;
     MagOmxPortVtableInstance.Disable               = NULL;
     MagOmxPortVtableInstance.Run                   = NULL;
@@ -282,11 +288,14 @@ static void MagOmxPort_initialize(Class this){
 static void MagOmxPort_constructor(MagOmxPort thiz, const void *params){
     MagOmxPort_Constructor_Param_t *lparam;
 
+    AGILE_LOGV("Enter!");
+
     MAG_ASSERT(ooc_isInitialized(MagOmxPort));
     chain_constructor(MagOmxPort, thiz, params);
     
     lparam  = (MagOmxPort_Constructor_Param_t *)(params);
     
+    thiz->getPortName              = MagOmxPort_getPortName;
     thiz->getPortDefinition        = MagOmxPort_getPortDefinition;
     thiz->setPortDefinition        = MagOmxPort_setPortDefinition;
     thiz->setParameter             = MagOmxPort_setParameter;
@@ -334,6 +343,7 @@ static void MagOmxPort_constructor(MagOmxPort thiz, const void *params){
     thiz->mIsTunneled            = OMX_FALSE;
     thiz->mBufferPolicy          = kNoneSharedBuffer;
     thiz->mState                 = kState_Stopped;
+    strncpy(thiz->mPortName, lparam->name, 32);
 
     Mag_CreateMutex(&thiz->mhMutex);
     Mag_CreateMutex(&thiz->mhParamMutex);

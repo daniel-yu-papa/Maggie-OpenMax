@@ -1,14 +1,18 @@
 #ifndef __MAG_OMX_PORT_BASE_H__
 #define __MAG_OMX_PORT_BASE_H__
+#include <stdio.h>
+#include <stdarg.h>
 
-#include "ooc.h"
+#include "framework/MagFramework.h"
 #include "OMX_Core.h"
 #include "OMX_Types.h"
+#include "OMX_Component.h"
+#include "MagOMX_IL.h"
 
 /*specifies the minimum number of buffers that the port requires*/
 #define kPortBuffersMinNum       2
 #define kPortBufferSize         (64 * 1024)
-#define kInvalidPortIndex       (0x7FFFFFFF);
+#define kInvalidPortIndex       (0x7FFFFFFF)
 
 typedef enum{
   kSharedBuffer,
@@ -20,6 +24,7 @@ typedef struct{
     OMX_BOOL isInput;
     OMX_BUFFERSUPPLIERTYPE bufSupplier;
     OMX_U32  formatStruct;
+    OMX_U8   name[32];
 }MagOmxPort_Constructor_Param_t;
 
 typedef enum{
@@ -128,11 +133,12 @@ EndOfVirtuals;
 
 
 ClassMembers(MagOmxPort, Base, \
+    OMX_U8 *(*getPortName)(MagOmxPort hPort); \
     OMX_ERRORTYPE (*getPortDefinition)(MagOmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *getDef); \
     OMX_ERRORTYPE (*setPortDefinition)(MagOmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *setDef); \
     
     void          (*setParameter)(MagOmxPort hPort, OMX_INDEXTYPE nIndex, OMX_U32 value);       \
-    OMX_ERRORTYPE (*getParameter)(MagOmxPort hPort, OMX_INDEXTYPE nIndex); \
+    OMX_ERRORTYPE (*getParameter)(MagOmxPort hPort, OMX_INDEXTYPE nIndex, OMX_U32 *pValue); \
     
     OMX_BOOL      (*isInputPort)(MagOmxPort hPort);  \
     OMX_BOOL      (*isBufferSupplier)(MagOmxPort hPort); \
@@ -169,7 +175,42 @@ ClassMembers(MagOmxPort, Base, \
     MagOmxPort_BufferPolicy_t    mBufferPolicy;
     MagOmxPort_State_t           mState;
 
+    OMX_U8                       mPortName[32];
+
 EndOfClassMembers;
 
+static inline void PortLogPriv(MagOmxPort hPort, 
+                               int lvl, 
+                               const char *tag,
+                               const char *func,
+                               const int  line, 
+                               const char *pMsg, ...){ 
+    char head[512] = "";                                                                           
+    char message[1024] = "";                                         
+    va_list args;                                               
+                                                                
+    va_start(args, pMsg); 
+    if (hPort) {                                     
+      snprintf(head, 512, "[port: %s][%s][%s][%p] %s", 
+                hPort->getPortName(hPort),             
+                hPort->isTunneled(hPort) ? "T" : "N-T",            
+                hPort->isBufferSupplier(hPort) ? "B-S" : "N-B-S",
+                hPort,
+                pMsg); 
+    }else{
+       snprintf(head, 512, "[port: NULL] %s",
+                pMsg);  
+    }
+
+    vsnprintf(message, 1024, head, args);   
+    Mag_agilelogPrint(lvl, tag, func, line, message);                                  
+    va_end(args);     
+}
+
+#define PORT_LOGV(hPort, ...)  PortLogPriv(hPort, AGILE_LOG_VERBOSE, MODULE_TAG, __FUNCTION_NAME__, __LINE__, __VA_ARGS__)
+#define PORT_LOGD(hPort, ...)  PortLogPriv(hPort, AGILE_LOG_DEBUG, MODULE_TAG, __FUNCTION_NAME__, __LINE__, __VA_ARGS__)
+#define PORT_LOGI(hPort, ...)  PortLogPriv(hPort, AGILE_LOG_INFO, MODULE_TAG, __FUNCTION_NAME__, __LINE__, __VA_ARGS__)
+#define PORT_LOGW(hPort, ...)  PortLogPriv(hPort, AGILE_LOG_WARN, MODULE_TAG, __FUNCTION_NAME__, __LINE__, __VA_ARGS__)
+#define PORT_LOGE(hPort, ...)  PortLogPriv(hPort, AGILE_LOG_ERROR, MODULE_TAG, __FUNCTION_NAME__, __LINE__, __VA_ARGS__)
 
 #endif

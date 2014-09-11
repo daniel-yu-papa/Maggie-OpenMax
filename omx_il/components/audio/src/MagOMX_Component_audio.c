@@ -1,5 +1,7 @@
 #include "MagOMX_Component_audio.h"
 
+AllocateClass(MagOmxComponentAudio, MagOmxComponentImpl);
+
 static MagOMX_Component_Type_t virtual_MagOMX_getType(
 									OMX_IN  OMX_HANDLETYPE hComponent){
 	return MagOMX_Component_Audio;

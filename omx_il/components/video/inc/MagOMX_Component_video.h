@@ -6,6 +6,10 @@
 
 DeclareClass(MagOmxComponentVideo, MagOmxComponentImpl);
 
+Virtuals(MagOmxComponentVideo, MagOmxComponentImpl) 
+   
+EndOfVirtuals;
+
 ClassMembers(MagOmxComponentVideo, MagOmxComponentImpl, \
 	
 )

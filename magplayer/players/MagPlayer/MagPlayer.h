@@ -129,7 +129,8 @@ private:
     MagMessageHandle mResetMsg;
     MagMessageHandle mSetVolumeMsg;
     MagMessageHandle mErrorNotifyMsg;
-    MagMessageHandle mComponentNotifyMsg;
+    MagMessageHandle mComponentNotifyMsg;
+
     MagMessageHandle mSetParametersMsg;
     
     MagMutexHandle   mGetParamLock;

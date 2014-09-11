@@ -3,19 +3,29 @@
  * Date: 2014-05-09
  * Implemention the OMX IL Spec Version 1.2.0 - chapter: 3.2.3 
  */
- 
+
+#include <dlfcn.h>
+#include <sys/types.h>
+#include <dirent.h>
 #include "MagOMX_IL_Core.h"
+#include "OMX_Component.h"
+#include "MagOMX_Component_base.h"
 
 #define DEFAULT_OMX_COMP_LOAD_PATH "/system/lib/openmax" 
 
 static MagOMX_IL_Core_t *gOmxCore = NULL;
 
-static OMX_S32 addComponentList(const OMX_STRING  fileName,
-                                      OMX_PTR           hLib,
-                                      comp_reg_func_t   regFunc,
-                                      comp_dereg_func_t deregFunc){
+static MagOmxComponent getBase(OMX_HANDLETYPE hComponent) {
+
+    MagOmxComponent base;
+    base = ooc_cast(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, MagOmxComponent);
+    return base;
+}
+
+static OMX_S32 addComponentList(OMX_PTR           hLib,
+                                comp_reg_func_t   regFunc,
+                                comp_dereg_func_t deregFunc){
     MagOMX_Component_Registration_t *regInfo;
-    List_t *tmpNode;
     Component_Entry_t *entry;
     OMX_U32 u = 0;
     
@@ -29,10 +39,12 @@ static OMX_S32 addComponentList(const OMX_STRING  fileName,
         entry->deregFunc = deregFunc;
         entry->libHandle = hLib;
         
+        AGILE_LOGD("add the component name = %s", regInfo->name);
         list_add_tail(&entry->node, &gOmxCore->LoadedCompListHead);
 
         for (u = 0; u < regInfo->roles_num; u++){
             gOmxCore->roleToComponentTable->addItem(gOmxCore->roleToComponentTable, entry, regInfo->roles[u]);
+            AGILE_LOGD("add the component role %d: %s", u, regInfo->roles[u]);
         }
 
         gOmxCore->componentToRoleTable->addItem(gOmxCore->componentToRoleTable, entry, regInfo->name);
@@ -63,7 +75,7 @@ static void loadComponentLib(const OMX_STRING file, OMX_PTR arg){
     reg   = dlsym(so, "MagOMX_Component_Registration");
     dereg = dlsym(so, "MagOMX_Component_Deregistration");
 
-    ret = addComponentList(file, so, reg, dereg);
+    ret = addComponentList(so, (comp_reg_func_t)reg, (comp_dereg_func_t)dereg);
     if(ret == 0)
         *(int *)arg = *(int *)arg + 1;
 }
@@ -106,24 +118,26 @@ static void loadComponentRecursive(OMX_STRING loadPath,
 }
 
 static OMX_U32 loadComponents(const OMX_STRING searchPath){
-    OMX_U32 components;
+    OMX_U32 components = 0;
 
     loadComponentRecursive(searchPath, loadComponentLib, &components);
+    AGILE_LOGD("Loaded %d components in total", components);
     return components;
 }
 
 OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_Init(void){
     char    loadPath[PATH_MAX];
     OMX_U32 num;
-    
+
     if (gOmxCore != NULL){
         AGILE_LOGW("MagOMX IL Core has been initialized!");
         return OMX_ErrorNone;
     }
 
-    gOmxCore = mag_mallocz(sizeof(MagOMX_IL_Core_t));
+    gOmxCore = (MagOMX_IL_Core_t *)mag_mallocz(sizeof(MagOMX_IL_Core_t));
     if (NULL != gOmxCore){
         INIT_LIST(&gOmxCore->LoadedCompListHead);
+        Mag_CreateMutex(&gOmxCore->lock);
         gOmxCore->roleToComponentTable = createMagStrHashTable(128);
         if (NULL == gOmxCore->roleToComponentTable){
             AGILE_LOGE("failed to create hastable: roleToComponentTable!");
@@ -136,13 +150,13 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_Init(void){
             mag_freep(&gOmxCore);
             return OMX_ErrorInsufficientResources;
         }
-        return OMX_ErrorNone;
     }else{
         AGILE_LOGE("failed to malloc the MagOMX_IL_Core_t!");
         return OMX_ErrorInsufficientResources;
     }
 
     sprintf(loadPath, "%s", getenv("OMX_LOAD_PATH") ? getenv("OMX_LOAD_PATH") : DEFAULT_OMX_COMP_LOAD_PATH);
+    AGILE_LOGD("try to load the omx il components from %s", loadPath);
 
     num = loadComponents(loadPath);
 
@@ -168,7 +182,7 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_Deinit(void){
         ((OMX_COMPONENTTYPE *)comp->compHandle)->ComponentDeInit(comp->compHandle);
         list_del(tmpNode);
         if (NULL != comp->deregFunc){
-            comp->deregFunc();
+            comp->deregFunc(comp);
         }
         dlclose(comp->libHandle);
         mag_freep(&comp);
@@ -241,7 +255,7 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_GetHandle(
                     comp->compHandle = *pHandle;
                     ret = OMX_SendCommand(*pHandle, OMX_CommandStateSet, OMX_StateLoaded, NULL);
                     if (ret == OMX_ErrorNone){
-                        AGILE_LOGI("Successful!");
+                        AGILE_LOGI("Get component handle: %s successfully!", cComponentName);
                     }else{
                         AGILE_LOGE("Failed to set the state to OMX_StateLoaded, ret = 0x%x", ret);
                     }
@@ -253,6 +267,7 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_GetHandle(
                 return ret;
             }
         }
+        tmpNode = tmpNode->next;
     }
     AGILE_LOGE("Failed to find the component: %s", cComponentName);
     Mag_ReleaseMutex(gOmxCore->lock);
@@ -310,8 +325,9 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_SetupTunnel(
     OMX_IN  OMX_HANDLETYPE hInput,
     OMX_IN  OMX_U32 nPortInput){
 
-    OMX_COMPONENTTYPE *comp_in;
-    OMX_COMPONENTTYPE *comp_out;
+    MagOmxComponent hCompIn;
+    MagOmxComponent hCompOut;
+
     OMX_TUNNELSETUPTYPE tunnelSetup;
     OMX_ERRORTYPE ret;
 
@@ -327,34 +343,46 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_SetupTunnel(
 
     Mag_AcquireMutex(gOmxCore->lock);
     
-    comp_in  = (OMX_COMPONENTTYPE *)hInput;
-    comp_out = (OMX_COMPONENTTYPE *)hOutput;
+    hCompIn  = getBase(hInput);
+    hCompOut = getBase(hOutput);
 
     tunnelSetup.eSupplier    = OMX_BufferSupplyUnspecified;
     tunnelSetup.nTunnelFlags = 0;
 
-    ret = comp_out->ComponentTunnelRequest(comp_out, nPortOutput, comp_in, nPortInput, &tunnelSetup);
+    ret = MagOmxComponentVirtual(hCompOut)->ComponentTunnelRequest(((OMX_COMPONENTTYPE *)hOutput)->pComponentPrivate, 
+                                                                    nPortOutput, 
+                                                                   ((OMX_COMPONENTTYPE *)hInput)->pComponentPrivate, 
+                                                                    nPortInput, 
+                                                                    &tunnelSetup);
     if (ret == OMX_ErrorNone){
-        ret = comp_in->ComponentTunnelRequest(comp_in, nPortInput, comp_out, nPortOutput, &tunnelSetup);
+        ret = MagOmxComponentVirtual(hCompIn)->ComponentTunnelRequest(((OMX_COMPONENTTYPE *)hInput)->pComponentPrivate, 
+                                                                       nPortInput, 
+                                                                      ((OMX_COMPONENTTYPE *)hOutput)->pComponentPrivate, 
+                                                                       nPortOutput, 
+                                                                       &tunnelSetup);
         if (ret == OMX_ErrorNone){
-            AGILE_LOGD("connect the in_comp[0x%p:%d] <--> out_comp[0x%p:%d] OK!!!", comp_in, nPortInput, comp_out, nPortOutput);
+            AGILE_LOGD("connect the in_comp[0x%p:%d] <--> out_comp[0x%p:%d] OK!!!", hCompIn, nPortInput, hCompOut, nPortOutput);
         }else{
             AGILE_LOGE("failed to do ComponentTunnelRequest() of comp_out (connect the in_comp[0x%p:%d] --> out_comp[0x%p:%d])",
-                        comp_in, nPortInput, comp_out, nPortOutput);
+                        hCompIn, nPortInput, hCompOut, nPortOutput);
 
             /*Tear down the tunnel on Output Port*/
-            ret = comp_out->ComponentTunnelRequest(comp_out, nPortOutput, NULL, kInvalidCompPortNumber, NULL);
+            ret = MagOmxComponentVirtual(hCompOut)->ComponentTunnelRequest(((OMX_COMPONENTTYPE *)hOutput)->pComponentPrivate, 
+                                                                           nPortOutput, 
+                                                                           NULL, 
+                                                                           kInvalidCompPortNumber, 
+                                                                           NULL);
             if (ret == OMX_ErrorNone){
-                AGILE_LOGD("To tear down the component[0x%p, %d] tunnel OK!!!", comp_out, nPortOutput);
+                AGILE_LOGD("To tear down the component[0x%p, %d] tunnel OK!!!", hCompOut, nPortOutput);
             }else{
-                AGILE_LOGE("Failed to tear down the component[0x%p, %d] tunnel)", comp_out, nPortOutput);
+                AGILE_LOGE("Failed to tear down the component[0x%p, %d] tunnel)", hCompOut, nPortOutput);
             }
             Mag_ReleaseMutex(gOmxCore->lock);
             return ret;
         }
     }else{
         AGILE_LOGE("failed to do ComponentTunnelRequest() of comp_in (connect the in_comp[0x%p:%d] --> out_comp[0x%p:%d])",
-                    comp_in, nPortInput, comp_out, nPortOutput);
+                    hCompIn, nPortInput, hCompOut, nPortOutput);
         Mag_ReleaseMutex(gOmxCore->lock);
         return ret;
     }
@@ -369,8 +397,8 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_TeardownTunnel(
     OMX_IN  OMX_HANDLETYPE hInput,
     OMX_IN  OMX_U32 nPortInput){
 
-    OMX_COMPONENTTYPE *comp_in;
-    OMX_COMPONENTTYPE *comp_out;
+    MagOmxComponent hCompIn;
+    MagOmxComponent hCompOut;
     OMX_TUNNELSETUPTYPE tunnelSetup;
     OMX_ERRORTYPE ret;
 
@@ -386,27 +414,35 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_TeardownTunnel(
     
     Mag_AcquireMutex(gOmxCore->lock);
     
-    comp_in  = (OMX_COMPONENTTYPE *)hInput;
-    comp_out = (OMX_COMPONENTTYPE *)hOutput;
+    hCompIn  = getBase(hInput);
+    hCompOut = getBase(hOutput);
 
     tunnelSetup.eSupplier    = OMX_BufferSupplyUnspecified;
     tunnelSetup.nTunnelFlags = 0;
 
-    ret = comp_in->ComponentTunnelRequest(comp_in, nPortInput, NULL, kInvalidCompPortNumber, &tunnelSetup);
+    ret = MagOmxComponentVirtual(hCompIn)->ComponentTunnelRequest(((OMX_COMPONENTTYPE *)hInput)->pComponentPrivate, 
+                                                                   nPortInput, 
+                                                                   NULL, 
+                                                                   kInvalidCompPortNumber, 
+                                                                   &tunnelSetup);
     if (ret == OMX_ErrorNone){
-        ret = comp_out->ComponentTunnelRequest(comp_out, nPortOutput, NULL, kInvalidCompPortNumber, &tunnelSetup);
+        ret = MagOmxComponentVirtual(hCompOut)->ComponentTunnelRequest(((OMX_COMPONENTTYPE *)hOutput)->pComponentPrivate, 
+                                                                        nPortOutput, 
+                                                                        NULL, 
+                                                                        kInvalidCompPortNumber, 
+                                                                        &tunnelSetup);
 
         if (ret == OMX_ErrorNone){
-            AGILE_LOGD("Tear down the in_comp[0x%p:%d] -/-> out_comp[0x%p:%d] OK!!!", comp_in, nPortInput, comp_out, nPortOutput);
+            AGILE_LOGD("Tear down the in_comp[0x%p:%d] -/-> out_comp[0x%p:%d] OK!!!", hCompIn, nPortInput, hCompOut, nPortOutput);
         }else{
             AGILE_LOGE("failed to do ComponentTunnelRequest() of comp_out (Tear down the in_comp[0x%p:%d] -/-> out_comp[0x%p:%d])",
-                        comp_in, nPortInput, comp_out, nPortOutput);
+                        hCompIn, nPortInput, hCompOut, nPortOutput);
             Mag_ReleaseMutex(gOmxCore->lock);
             return ret;
         }
     }else{
         AGILE_LOGE("failed to do ComponentTunnelRequest() of comp_in (Tear down the in_comp[0x%p:%d] -/-> out_comp[0x%p:%d])",
-                    comp_in, nPortInput, comp_out, nPortOutput);
+                    hCompIn, nPortInput, hCompOut, nPortOutput);
         Mag_ReleaseMutex(gOmxCore->lock);
         return ret;
     }

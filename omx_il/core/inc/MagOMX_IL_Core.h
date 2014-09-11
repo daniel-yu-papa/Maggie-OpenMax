@@ -1,7 +1,7 @@
 #ifndef __MAG_OMX_IL_CORE_H__
 #define __MAG_OMX_IL_CORE_H__
 
-#include "Mag_list.h"
+#include "framework/MagFramework.h"
 #include "MagOMX_IL.h"
 
 typedef MagOMX_Component_Registration_t *(*comp_reg_func_t) ();

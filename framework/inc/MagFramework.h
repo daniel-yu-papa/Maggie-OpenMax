@@ -21,6 +21,8 @@
 #include "Mag_thread.h"
 #include "Mag_FrameworkVer.h"
 
+#ifdef __cplusplus
 #include "tinyxml2.h"
+#endif
 
 #endif

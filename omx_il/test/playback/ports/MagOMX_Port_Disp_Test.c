@@ -5,6 +5,7 @@ AllocateClass(MagOmxPort_DispTest, MagOmxPortVideo);
 static OMX_ERRORTYPE virtual_PortDisp_AllocateBuffer(OMX_HANDLETYPE port, OMX_U8 **ppBuffer, OMX_U32 nSizeBytes){
 	OMX_U8 *buf;
 
+	AGILE_LOGV("enter!");
 	buf = (OMX_U8 *)mag_mallocz(nSizeBytes);
 	if (buf){
 		*ppBuffer = buf;

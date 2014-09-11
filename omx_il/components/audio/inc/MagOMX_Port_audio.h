@@ -12,6 +12,10 @@ typedef struct{
 
 DeclareClass(MagOmxPortAudio, MagOmxPortImpl);
 
+Virtuals(MagOmxPortAudio, MagOmxPortImpl) 
+   
+EndOfVirtuals;
+
 ClassMembers(MagOmxPortAudio, MagOmxPortImpl, \
 	void (*addFormat)(MagOmxPortAudio hPort, OMX_AUDIO_CODINGTYPE *pEncoding); \
 )

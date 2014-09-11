@@ -14,7 +14,7 @@ static OMX_PORTDOMAINTYPE virtual_GetDomainType(OMX_HANDLETYPE hPort){
 }
 
 static OMX_ERRORTYPE virtual_SetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFormat){
-	MagOmxPortAudio *aPort;
+	MagOmxPortAudio aPort;
 	OMX_AUDIO_PORTDEFINITIONTYPE *pAudioDef = (OMX_AUDIO_PORTDEFINITIONTYPE *)pFormat;
 	List_t *next;
     MagOMX_Audio_PortFormat_t *item = NULL;
@@ -27,7 +27,8 @@ static OMX_ERRORTYPE virtual_SetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFor
 
 	Mag_AcquireMutex(aPort->mhMutex);
 	next = aPort->mPortFormatList.next;
-    item = (MagOMX_Audio_PortFormat_t *)list_entry(next, MagOMX_Audio_PortFormat_t, node);
+	if (next != &aPort->mPortFormatList)
+	    item = (MagOMX_Audio_PortFormat_t *)list_entry(next, MagOMX_Audio_PortFormat_t, node);
 
     if (item){
     	item->eEncoding = pAudioDef->eEncoding;
@@ -40,7 +41,7 @@ static OMX_ERRORTYPE virtual_SetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFor
 }
 
 static OMX_ERRORTYPE virtual_GetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFormat){
-	MagOmxPortAudio *aPort;
+	MagOmxPortAudio aPort;
 	OMX_AUDIO_PORTDEFINITIONTYPE *pAudioDef = (OMX_AUDIO_PORTDEFINITIONTYPE *)pFormat;
 	List_t *next;
     MagOMX_Audio_PortFormat_t *item = NULL;
@@ -53,7 +54,8 @@ static OMX_ERRORTYPE virtual_GetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFor
 
 	Mag_AcquireMutex(aPort->mhMutex);
 	next = aPort->mPortFormatList.next;
-    item = (MagOMX_Audio_PortFormat_t *)list_entry(next, MagOMX_Audio_PortFormat_t, node);
+	if (next != &aPort->mPortFormatList)
+	    item = (MagOMX_Audio_PortFormat_t *)list_entry(next, MagOMX_Audio_PortFormat_t, node);
 
 	memcpy(pAudioDef, aPort->mpPortDefinition, sizeof(OMX_AUDIO_PORTDEFINITIONTYPE));
     if (item){
@@ -76,7 +78,7 @@ static OMX_ERRORTYPE virtual_GetParameter(OMX_HANDLETYPE hPort, OMX_INDEXTYPE nI
 
 	aPort = getAudioPort(hPort);
 
-	swtich (nIndex){
+	switch (nIndex){
 		case OMX_IndexParamAudioPortFormat:
 		{
 			OMX_AUDIO_PARAM_PORTFORMATTYPE *pFormat = (OMX_AUDIO_PARAM_PORTFORMATTYPE *)pPortParam;
@@ -145,12 +147,14 @@ static void MagOmxPortAudio_constructor(MagOmxPortAudio thiz, const void *params
     INIT_LIST(&thiz->mPortFormatList);
 
     thiz->mpPortDefinition = (OMX_AUDIO_PORTDEFINITIONTYPE *)mag_mallocz(sizeof(OMX_AUDIO_PORTDEFINITIONTYPE));
-    pFormat = (MagOMX_Audio_PortFormat_t *)mag_mallocz(sizeof(MagOMX_Audio_PortFormat_t));
-
-    pInputFormat = (MagOMX_Audio_PortFormat_t *)(lparam->formatStruct);
-    INIT_LIST(&pFormat->node);
-    pFormat->eEncoding         = pInputFormat->eEncoding;
-    list_add_tail(&pFormat->node, &thiz->mPortFormatList);
+    
+    if (lparam->formatStruct){
+	    pFormat = (MagOMX_Audio_PortFormat_t *)mag_mallocz(sizeof(MagOMX_Audio_PortFormat_t));
+	    pInputFormat = (MagOMX_Audio_PortFormat_t *)(lparam->formatStruct);
+	    INIT_LIST(&pFormat->node);
+	    pFormat->eEncoding         = pInputFormat->eEncoding;
+	    list_add_tail(&pFormat->node, &thiz->mPortFormatList);
+	}
 }
 
 static void MagOmxPortAudio_destructor(MagOmxPortAudio thiz, MagOmxPortAudioVtable vtab){

@@ -127,7 +127,7 @@ class LibraryModule(Module):
             Default(inst)
             
         if installHeaders is True:
-            targetDir = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/include/'+env['build_path_prefix'])
+            targetDir = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/include')
             if not os.path.exists(targetDir):  
                 os.makedirs(targetDir)
             for subdir in Split(self.build_include_dirs):
@@ -143,12 +143,18 @@ class LibraryModule(Module):
             env.Clean(inst, targetDir)
                 
 
-def Application(name, dir, deps, 
+def Application(name, dir, 
+                deps = [], 
+                extra_include_path = [],
                 extra_link_flags = [], 
                 install = False):
     DeclareBuildDir(dir)
-    libs = GetLibraries(deps)
-    cpp_path = GetIncludeDirs(deps)
+    if deps != []:
+      libs = GetLibraries(deps)
+      cpp_path = GetIncludeDirs(deps)
+    else:
+      libs = []
+      cpp_path = GetIncludeDirs(Split(extra_include_path))
     
     env.AppendUnique(LINKFLAGS = extra_link_flags)
 
@@ -206,133 +212,71 @@ else:
 # module's implementation only.
 #######################################################
 #  
-AGILELOG_LIB_PATH = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib')
+FRAMEWORK_LIB_PATH = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib')
+FRAMEWORK_INC_PATH = '../Targets/'+env['target']+'/'+env['build_config']+'/include'
 
-FRAMEWORK_COMMON_INC_PATH = """inc 
-                               agilelog/inc 
-                               agilelog/external/tinyxml2"""
+MAG_OMX_INC_PATH = """core/inc 
+                      components/base/inc 
+                      components/audio/inc 
+                      components/video/inc 
+                      includes 
+                      includes/internal"""
 
-FRAMEWORK_CORE_INC_PATH = """core/base/inc 
-                             core/db/inc 
-                             core/event/inc 
-                             core/hashtable/inc 
-                             core/looper/inc 
-                             core/message/inc 
-                             core/ooc/inc"""
+MAG_OMX_TEST_INC_PATH = """test/playback/dispComp 
+                           test/playback/vdecComp 
+                           test/playback/ports"""
 
-FRAMEWORK_PLATFORM_INC_PATH = """platform/hal/inc 
-                                 platform/memory/inc 
-                                 platform/thread/inc 
-                                 version"""
-
-LibraryModule(name                  = 'MagCore_Base',
-              build_source_dirs     = ['core/base/src/impl'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
-
-LibraryModule(name                  = 'MagCore_DB',
-              build_source_dirs     = ['core/db/src/impl'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
-
-LibraryModule(name                  = 'MagCore_Event',
-              build_source_dirs     = ['core/event/src/impl'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
-
-LibraryModule(name                  = 'MagCore_HashTable',
-              build_source_dirs     = ['core/hashtable/src/impl'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
-
-LibraryModule(name                  = 'MagCore_Looper',
-              build_source_dirs     = ['core/looper/src/impl'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
-
-LibraryModule(name                  = 'MagCore_Message',
-              build_source_dirs     = ['core/message/src/impl'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
-
-LibraryModule(name                  = 'MagCore_OOC',
-              build_source_dirs     = ['core/ooc/src/impl'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
-
-LibraryModule(name                  = 'MagPlatform_Hal',
-              build_source_dirs     = ['platform/hal/src'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
-
-LibraryModule(name                  = 'MagPlatform_Mem',
-              build_source_dirs     = ['platform/memory/src/impl'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
-
-LibraryModule(name                  = 'MagPlatform_Thread',
-              build_source_dirs     = ['platform/thread/src/impl'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
-
-
-Application(name    = 'MagPlatform_RbTreeTest', 
-                dir     = 'core/base/src/test', 
-                deps    = ['MagCore_Base', 'MagPlatform_Hal'],
-                extra_link_flags = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
-                install = True)
-
-Application(name    = 'MagPlatform_DBTest', 
-                dir     = 'core/db/src/test', 
-                deps    = ['MagCore_DB', 'MagCore_Base', 'MagPlatform_Hal'],
-                extra_link_flags = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
-                install = True)
-
-Application(name    = 'MagPlatform_EventTest', 
-                dir     = 'core/event/src/test', 
-                deps    = ['MagCore_Event', 'MagCore_Base', 'MagPlatform_Hal'],
-                extra_link_flags = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
-                install = True)
-
-Application(name    = 'MagPlatform_HashTableTest', 
-                dir     = 'core/hashtable/src/test', 
-                deps    = ['MagCore_HashTable', 'MagCore_Base', 'MagPlatform_Hal'],
-                install = True)
-
-Application(name    = 'MagPlatform_LooperTest', 
-                dir     = 'core/looper/src/test', 
-                deps    = [ 'MagCore_Looper', 'MagPlatform_Thread', 'MagCore_Event', 'MagCore_Base', 'MagPlatform_Hal',],
-                extra_link_flags = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
-                install = True)
-
-Application(name    = 'MagPlatform_MessageTest', 
-                dir     = 'core/message/src/test', 
-                deps    = ['MagCore_Message', 'MagCore_Event', 'MagCore_Base', 'MagPlatform_Hal'],
-                extra_link_flags = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
-                install = True)
-
-Application(name    = 'MagPlatform_OOCTest', 
-                dir     = 'core/ooc/src/test', 
-                deps    = ['MagCore_OOC', 'MagPlatform_Hal'],
-                extra_link_flags = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
-                install = True)
-
-Application(name    = 'MagPlatform_MemPoolTest', 
-                dir     = 'platform/memory/src/test', 
-                deps    = ['MagCore_Message', 'MagPlatform_Mem', 'MagCore_Event', 'MagPlatform_Hal'],
-                extra_link_flags = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
-                install = True)
-
-Application(name    = 'MagPlatform_ThreadTest', 
-                dir     = 'platform/thread/src/test', 
-                deps    = ['MagPlatform_Thread', 'MagCore_Event', 'MagPlatform_Hal', 'MagPlatform_Mem'],
-                extra_link_flags = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
-                install = True)
-
-LibraryModule(name                  = 'MagFramework',
-              build_source_dirs     = ['core/base/src/impl',
-                                       'core/db/src/impl',
-                                       'core/event/src/impl',
-                                       'core/hashtable/src/impl',
-                                       'core/looper/src/impl',
-                                       'core/message/src/impl',
-                                       'core/ooc/src/impl',
-                                       'platform/hal/src',
-                                       'platform/memory/src/impl',
-                                       'platform/thread/src/impl',
-                                       'version'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH),
-              extra_link_flags      = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
+LibraryModule(name                  = 'MagOmxIL_Base',
+              build_source_dirs     = ['components/base/src', 
+                                       'components/audio/src', 
+                                       'components/video/src'],
+              build_include_dirs    = Split(FRAMEWORK_INC_PATH)+Split(MAG_OMX_INC_PATH),
+              extra_link_flags      = ['-L'+FRAMEWORK_LIB_PATH, 
+                                       '-lMagAgilelog', 
+                                       '-lMagFramework'],
               shared                =  True,
-              install               =  True,
-              installHeaders        =  True)
+              install               =  True)
+
+LibraryModule(name                  = 'MagOmxIL_Core',
+              build_source_dirs     = ['core/src'],
+              build_include_dirs    = Split(FRAMEWORK_INC_PATH)+Split(MAG_OMX_INC_PATH),
+              extra_link_flags      = ['-L'+FRAMEWORK_LIB_PATH, 
+                                       '-lMagAgilelog', 
+                                       '-lMagFramework',
+                                       '-lMagOmxIL_Base'],
+              shared                =  True,
+              install               =  True)
+
+LibraryModule(name                  = 'MagOmxILTest_DispComp',
+              build_source_dirs     = ['test/playback/dispComp',
+                                       'test/playback/ports'],
+              build_include_dirs    = Split(FRAMEWORK_INC_PATH)+Split(MAG_OMX_INC_PATH),
+              extra_link_flags      = ['-L'+FRAMEWORK_LIB_PATH, 
+                                       '-lMagAgilelog', 
+                                       '-lMagFramework', 
+                                       '-lMagOmxIL_Base',
+                                       '-rdynamic'],
+              shared                =  True,
+              install               =  True)
+
+LibraryModule(name                  = 'MagOmxILTest_VdecComp',
+              build_source_dirs     = ['test/playback/vdecComp',
+                                       'test/playback/ports'],
+              build_include_dirs    = Split(FRAMEWORK_INC_PATH)+Split(MAG_OMX_INC_PATH),
+              extra_link_flags      = ['-L'+FRAMEWORK_LIB_PATH, 
+                                       '-lMagAgilelog', 
+                                       '-lMagFramework', 
+                                       '-lMagOmxIL_Base',
+                                       '-rdynamic'],
+              shared                =  True,
+              install               =  True)
+
+Application(name    = 'MagOmxILTest_Playback', 
+            dir     = 'test/playback/main', 
+            extra_include_path = Split(FRAMEWORK_INC_PATH)+Split(MAG_OMX_INC_PATH),
+            extra_link_flags = ['-L'+FRAMEWORK_LIB_PATH, 
+                                '-lMagAgilelog', 
+                                '-lMagFramework',
+                                '-lMagOmxIL_Core',
+                                '-lMagOmxIL_Base'],
+            install = True)

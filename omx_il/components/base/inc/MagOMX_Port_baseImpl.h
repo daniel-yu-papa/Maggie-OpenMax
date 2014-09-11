@@ -24,7 +24,6 @@ typedef enum{
 typedef struct{
     List_t node;        /*add into the List: mBufferList*/
     List_t runNode;     /*add into the List: mRunningBufferList*/
-    // List_t outputNode;  /*add into the List: mOutputBufferList*/
 
     /*bufferHeaderOwner: only could be OwnedByThisPort or OwnedByTunneledPort*/
     MagOMX_Buffer_Owner_t bufferHeaderOwner;
@@ -35,7 +34,7 @@ typedef struct{
 
 typedef struct{
     List_t node;
-    MagEventHandle msg;
+    MagMessageHandle msg;
 }BufferDispatcherNode_t;
 
 DeclareClass(MagOmxPortImpl, MagOmxPort);
@@ -51,7 +50,7 @@ EndOfVirtuals;
 ClassMembers(MagOmxPortImpl, MagOmxPort, \
     MagMessageHandle      (*createMessage)(OMX_HANDLETYPE handle, OMX_U32 what);     \
     _status_t             (*getLooper)(OMX_HANDLETYPE handle);                       \  
-    void                  (*dispatchBuffers)(MagOmxPortImpl port, OMX_BUFFERHEADERTYPE *bufHeader); \
+    void                  (*dispatchBuffers)(OMX_HANDLETYPE hPort, OMX_BUFFERHEADERTYPE *bufHeader); \
     MagOMX_Port_Buffer_t *(*allocBufferNode)(OMX_BUFFERHEADERTYPE* pBuffer);  \
     OMX_ERRORTYPE         (*putRunningNode)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE* pBuffer);  \
     OMX_ERRORTYPE         (*getRunningNode)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE **ppBuffer); \
@@ -73,7 +72,7 @@ ClassMembers(MagOmxPortImpl, MagOmxPort, \
 
     MagEventHandle         mAllBufReturnedEvent;
     MagEventGroupHandle    mBufferEventGroup;
-    OMX_BOOL               mWaitOnBuffers;
+    OMX_BOOL               mWaitOnAllBuffers;
 
     MagEventHandle         mGetOutputBufferEvent;
     MagEventGroupHandle    mOutputBufferEventGroup;

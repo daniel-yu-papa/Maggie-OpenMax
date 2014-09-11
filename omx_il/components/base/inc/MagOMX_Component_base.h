@@ -1,10 +1,11 @@
 #ifndef __MAG_OMX_COMPONENT_BASE_H__
 #define __MAG_OMX_COMPONENT_BASE_H__
 
-#include "ooc.h"
+#include "framework/MagFramework.h"
 #include "OMX_Core.h"
 #include "OMX_Types.h"
-
+#include "OMX_Component.h"
+#include "MagOMX_IL.h"
 
 DeclareClass(MagOmxComponent, Base);
 
@@ -113,8 +114,42 @@ EndOfVirtuals;
 
 ClassMembers(MagOmxComponent, Base, \               
     OMX_COMPONENTTYPE *(*getComponentObj)(MagOmxComponent self); \
+    void    (*setName)(MagOmxComponent self, OMX_U8 *pName);     \
+    OMX_U8 *(*getName)(MagOmxComponent self);                    \
 )
-    OMX_COMPONENTTYPE      *mpComponentObject;  /*OMX IL spec defined Component handle*/
+    OMX_COMPONENTTYPE *mpComponentObject;  /*OMX IL spec defined Component handle*/
+    OMX_U8            *mName[64];     
 EndOfClassMembers;
 
+static inline void CompLogPriv(MagOmxComponent hComp, 
+                               int lvl, 
+                               const char *tag,
+                               const char *func,
+                               const int  line, 
+                               const char *pMsg, ...){ 
+    char head[512] = "";                                                                           
+    char message[1024] = "";                                         
+    va_list args;                                               
+                                                                
+    va_start(args, pMsg); 
+    if (hComp) {                                     
+        snprintf(head, 512, "[comp: %s][%p] %s", 
+                 hComp->getName(hComp),             
+                 hComp,
+                 pMsg); 
+    }else{
+        snprintf(head, 512, "[comp: NULL] %s",
+                 pMsg);  
+    }
+
+    vsnprintf(message, 1024, head, args);   
+    Mag_agilelogPrint(lvl, tag, func, line, message);                                  
+    va_end(args);     
+}
+
+#define COMP_LOGV(hComp, ...)  CompLogPriv(hComp, AGILE_LOG_VERBOSE, MODULE_TAG, __FUNCTION_NAME__, __LINE__, __VA_ARGS__)
+#define COMP_LOGD(hComp, ...)  CompLogPriv(hComp, AGILE_LOG_DEBUG, MODULE_TAG, __FUNCTION_NAME__, __LINE__, __VA_ARGS__)
+#define COMP_LOGI(hComp, ...)  CompLogPriv(hComp, AGILE_LOG_INFO, MODULE_TAG, __FUNCTION_NAME__, __LINE__, __VA_ARGS__)
+#define COMP_LOGW(hComp, ...)  CompLogPriv(hComp, AGILE_LOG_WARN, MODULE_TAG, __FUNCTION_NAME__, __LINE__, __VA_ARGS__)
+#define COMP_LOGE(hComp, ...)  CompLogPriv(hComp, AGILE_LOG_ERROR, MODULE_TAG, __FUNCTION_NAME__, __LINE__, __VA_ARGS__)
 #endif

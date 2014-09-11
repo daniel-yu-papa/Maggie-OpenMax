@@ -14,6 +14,10 @@ typedef struct{
 
 DeclareClass(MagOmxPortVideo, MagOmxPortImpl);
 
+Virtuals(MagOmxPortVideo, MagOmxPortImpl) 
+   
+EndOfVirtuals;
+
 ClassMembers(MagOmxPortVideo, MagOmxPortImpl, \
 	void (*addFormat)(MagOmxPortVideo hPort, MagOMX_Video_PortFormat_t *pFormat); \
 )
