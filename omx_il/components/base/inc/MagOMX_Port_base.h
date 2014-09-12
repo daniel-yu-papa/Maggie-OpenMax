@@ -33,10 +33,10 @@ typedef enum{
 }MagOmxPort_Event_t;
 
 typedef enum{
-  kState_Stopped,
-  kState_Paused,
-  kState_Running,
-  kState_Flushing
+  kPort_State_Stopped,
+  kPort_State_Paused,
+  kPort_State_Running,
+  kPort_State_Flushing
 }MagOmxPort_State_t;
 
 DeclareClass(MagOmxPort, Base);

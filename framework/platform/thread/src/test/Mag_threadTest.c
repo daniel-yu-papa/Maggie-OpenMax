@@ -62,7 +62,7 @@ int main(){
     father.age  = 40;
     father.id   = 1;
     father.times= 0;
-   
+
     mother.name = mag_strdup("mother");
     mother.age  = 30;
     mother.id   = 2;

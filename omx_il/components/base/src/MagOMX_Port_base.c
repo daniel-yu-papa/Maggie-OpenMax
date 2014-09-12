@@ -342,7 +342,7 @@ static void MagOmxPort_constructor(MagOmxPort thiz, const void *params){
     thiz->mInitialBufferSupplier = thiz->mBufferSupplier;
     thiz->mIsTunneled            = OMX_FALSE;
     thiz->mBufferPolicy          = kNoneSharedBuffer;
-    thiz->mState                 = kState_Stopped;
+    thiz->mState                 = kPort_State_Stopped;
     strncpy(thiz->mPortName, lparam->name, 32);
 
     Mag_CreateMutex(&thiz->mhMutex);

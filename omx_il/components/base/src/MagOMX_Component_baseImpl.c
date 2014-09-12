@@ -345,6 +345,7 @@ static OMX_ERRORTYPE doStateExecuting_Idle(OMX_IN OMX_HANDLETYPE hComponent){
             port = ooc_cast(n->value, MagOmxPort);
             if (port->getDef_Enabled(port)){
                 err = MagOmxPortVirtual(port)->Flush(n->value);
+                port->setState(port, kPort_State_Stopped);
                 if (err != OMX_ErrorNone){
                     COMP_LOGE(root, "failed to flush the port!");
                     return err;
@@ -1324,11 +1325,15 @@ static OMX_ERRORTYPE virtual_EmptyThisBuffer(
 
     port = ooc_cast(hPort, MagOmxPort);
     // Mag_AcquireMutex(comp->mhMutex);
-    if (((comp->mState == OMX_StateExecuting) ||
-        (comp->mState  == OMX_StatePause)) && 
-        port->getDef_Enabled(port) &&
-        port->isInputPort(port)){
+    
+    if ( port->getDef_Enabled(port) &&
+         port->isInputPort(port) ){
         ret = MagOmxPortVirtual(port)->EmptyThisBuffer(hPort, pBuffer);
+        if (comp->mState != OMX_StateExecuting &&
+            comp->mState != OMX_StatePause){
+            COMP_LOGD(getRoot(hComponent), "the state is %s, but continue to proceed it!",
+                                           OmxState2String(comp->mState));
+        }
     }else{
         COMP_LOGE(getRoot(hComponent), "Error condition to do: state[%s], port enabled[%s], input port[%s]", 
                                         OmxState2String(comp->mState),
@@ -1363,17 +1368,20 @@ static OMX_ERRORTYPE virtual_FillThisBuffer(
     port = ooc_cast(hPort, MagOmxPort);
 
     // Mag_AcquireMutex(comp->mhMutex);
-    if (((comp->mState == OMX_StateExecuting) ||
-        (comp->mState  == OMX_StatePause)) && 
-        port->getDef_Enabled(port) &&
-        !port->isInputPort(port)){
+    if ( port->getDef_Enabled(port) &&
+         !port->isInputPort(port) ){
         ret = MagOmxPortVirtual(port)->FillThisBuffer(hPort, pBuffer);
+        if (comp->mState != OMX_StateExecuting &&
+            comp->mState != OMX_StatePause){
+            COMP_LOGD(getRoot(hComponent), "the state is %s, but continue to proceed it!",
+                                           OmxState2String(comp->mState));
+        }
     }else{
-        COMP_LOGE(getRoot(hComponent), "Error condition to do: state[%s], port enabled[%s], output port[%s]", 
+        COMP_LOGE(getRoot(hComponent), "Error condition to do: state[%s], port enabled[%s], input port[%s]", 
                                         OmxState2String(comp->mState),
                                         port->getDef_Enabled(port) ? "Yes" : "No",
-                                        port->isInputPort(port) ? "No" : "Yes");
-        ret = OMX_ErrorBadPortIndex;
+                                        port->isInputPort(port) ? "Yes" : "No");
+        ret = OMX_ErrorIncorrectStateOperation;
     }
     // Mag_ReleaseMutex(comp->mhMutex);
 
