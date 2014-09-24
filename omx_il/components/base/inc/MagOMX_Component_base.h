@@ -112,13 +112,13 @@ Virtuals(MagOmxComponent, Base)
                     OMX_IN OMX_PTR pAppData);
 EndOfVirtuals;
 
-ClassMembers(MagOmxComponent, Base, \               
+ClassMembers(MagOmxComponent, Base, \
     OMX_COMPONENTTYPE *(*getComponentObj)(MagOmxComponent self); \
     void    (*setName)(MagOmxComponent self, OMX_U8 *pName);     \
     OMX_U8 *(*getName)(MagOmxComponent self);                    \
 )
     OMX_COMPONENTTYPE *mpComponentObject;  /*OMX IL spec defined Component handle*/
-    OMX_U8            *mName[64];     
+    OMX_U8            mName[64];     
 EndOfClassMembers;
 
 static inline void CompLogPriv(MagOmxComponent hComp, 
@@ -135,7 +135,7 @@ static inline void CompLogPriv(MagOmxComponent hComp,
     if (hComp) {                                     
         snprintf(head, 512, "[comp: %s][%p] %s", 
                  hComp->getName(hComp),             
-                 hComp,
+                 (void *)hComp,
                  pMsg); 
     }else{
         snprintf(head, 512, "[comp: NULL] %s",

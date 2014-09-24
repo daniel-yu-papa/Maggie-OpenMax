@@ -44,6 +44,6 @@ static void MagOmxComponentVideo_constructor(MagOmxComponentVideo thiz, const vo
 static void MagOmxComponentVideo_destructor(MagOmxComponentVideo thiz, MagOmxComponentVideoVtable vtab){
 	AGILE_LOGV("Enter!");
 
-	destroyMagMiniDB(thiz->mParametersDB);
-    Mag_DestroyMutex(thiz->mhMutex);
+	destroyMagMiniDB(&thiz->mParametersDB);
+    Mag_DestroyMutex(&thiz->mhMutex);
 }

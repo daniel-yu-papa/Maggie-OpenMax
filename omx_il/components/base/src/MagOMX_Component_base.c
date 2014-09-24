@@ -301,7 +301,7 @@ static OMX_COMPONENTTYPE *MagOmxComponent_getComponentObj(MagOmxComponent self){
 }
 
 static void MagOmxComponent_setName(MagOmxComponent self, OMX_U8 *pName){
-    strncpy(self->mName, pName, 64);
+    strncpy((char *)self->mName, (char *)pName, 64);
 }
 
 static OMX_U8 *MagOmxComponent_getName(MagOmxComponent self){
@@ -394,8 +394,8 @@ static void MagOmxComponent_constructor(MagOmxComponent thiz, const void *params
 }
 
 static void MagOmxComponent_destructor(MagOmxComponent thiz, MagOmxComponentVtable vtab){
-    AGILE_LOGV("Enter!");
-    mag_freep(&thiz->mpComponentObject);
+    COMP_LOGV(thiz, "Enter!");
+    mag_freep((void **)&thiz->mpComponentObject);
 }
 
 

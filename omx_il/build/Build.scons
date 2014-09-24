@@ -72,6 +72,8 @@ class LibraryModule(Module):
                  excluded_files        = [],
                  extra_cpp_defines     = [],
                  extra_link_flags      = [],
+                 extra_libs            = [], 
+                 extra_lib_path        = [],
                  shared                = False,
                  install               = False,
                  installHeaders        = False) :
@@ -114,8 +116,8 @@ class LibraryModule(Module):
         if shared is False:
             self.product = self.env.StaticLibrary(target=name, source=sources)
         else:
-            libs = GetLibraries(Split(linked_modules))
-            self.product = self.env.SharedLibrary(target=name, LIBS=libs, source=sources)
+            libs = GetLibraries(Split(linked_modules))+extra_libs
+            self.product = self.env.SharedLibrary(target=name, LIBS=libs, LIBPATH=extra_lib_path, source=sources)
         self.env.Alias(name, self.product)
         Default(self.product)
 
@@ -146,21 +148,22 @@ class LibraryModule(Module):
 def Application(name, dir, 
                 deps = [], 
                 extra_include_path = [],
-                extra_link_flags = [], 
+                extra_libs = [], 
+                extra_lib_path = [], 
                 install = False):
     DeclareBuildDir(dir)
     if deps != []:
-      libs = GetLibraries(deps)
+      libs = GetLibraries(deps)+extra_libs
       cpp_path = GetIncludeDirs(deps)
     else:
-      libs = []
+      libs = []+extra_libs
       cpp_path = GetIncludeDirs(Split(extra_include_path))
     
-    env.AppendUnique(LINKFLAGS = extra_link_flags)
+    #env.AppendUnique(LINKFLAGS = extra_link_flags)
 
     prog = env.Program(name, 
                        GlobSources(dir, ['*.c', '*.cpp']),
-                       LIBS=libs, CPPPATH=cpp_path)
+                       LIBS=libs, LIBPATH=extra_lib_path, CPPPATH=cpp_path)
     Default(prog)
 
     # copy to Targets folder
@@ -231,19 +234,20 @@ LibraryModule(name                  = 'MagOmxIL_Base',
                                        'components/audio/src', 
                                        'components/video/src'],
               build_include_dirs    = Split(FRAMEWORK_INC_PATH)+Split(MAG_OMX_INC_PATH),
-              extra_link_flags      = ['-L'+FRAMEWORK_LIB_PATH, 
-                                       '-lMagAgilelog', 
-                                       '-lMagFramework'],
+              extra_libs            = ['librt.so', 'libpthread.so', 'libdl.so',
+                                       'libMagAgilelog.so', 
+                                       'libMagFramework.so'],
+              extra_lib_path        = FRAMEWORK_LIB_PATH,
               shared                =  True,
               install               =  True)
 
 LibraryModule(name                  = 'MagOmxIL_Core',
               build_source_dirs     = ['core/src'],
               build_include_dirs    = Split(FRAMEWORK_INC_PATH)+Split(MAG_OMX_INC_PATH),
-              extra_link_flags      = ['-L'+FRAMEWORK_LIB_PATH, 
-                                       '-lMagAgilelog', 
-                                       '-lMagFramework',
-                                       '-lMagOmxIL_Base'],
+              extra_libs            = ['librt.so', 'libpthread.so', 'libdl.so',
+                                       'libMagAgilelog.so', 
+                                       'libMagFramework.so'],
+              extra_lib_path        = FRAMEWORK_LIB_PATH,
               shared                =  True,
               install               =  True)
 
@@ -251,11 +255,12 @@ LibraryModule(name                  = 'MagOmxILTest_DispComp',
               build_source_dirs     = ['test/playback/dispComp',
                                        'test/playback/ports'],
               build_include_dirs    = Split(FRAMEWORK_INC_PATH)+Split(MAG_OMX_INC_PATH),
-              extra_link_flags      = ['-L'+FRAMEWORK_LIB_PATH, 
-                                       '-lMagAgilelog', 
-                                       '-lMagFramework', 
-                                       '-lMagOmxIL_Base',
-                                       '-rdynamic'],
+              extra_link_flags      = ['-rdynamic'],
+              extra_libs            = ['librt.so', 'libpthread.so', 'libdl.so',
+                                       'libMagAgilelog.so', 
+                                       'libMagFramework.so',
+                                       'libMagOmxIL_Base.so'],
+              extra_lib_path        = FRAMEWORK_LIB_PATH,
               shared                =  True,
               install               =  True)
 
@@ -263,20 +268,22 @@ LibraryModule(name                  = 'MagOmxILTest_VdecComp',
               build_source_dirs     = ['test/playback/vdecComp',
                                        'test/playback/ports'],
               build_include_dirs    = Split(FRAMEWORK_INC_PATH)+Split(MAG_OMX_INC_PATH),
-              extra_link_flags      = ['-L'+FRAMEWORK_LIB_PATH, 
-                                       '-lMagAgilelog', 
-                                       '-lMagFramework', 
-                                       '-lMagOmxIL_Base',
-                                       '-rdynamic'],
+              extra_link_flags      = ['-rdynamic'],
+              extra_libs            = ['librt.so', 'libpthread.so', 'libdl.so',
+                                       'libMagAgilelog.so', 
+                                       'libMagFramework.so',
+                                       'libMagOmxIL_Base.so'],
+              extra_lib_path        = FRAMEWORK_LIB_PATH,
               shared                =  True,
               install               =  True)
 
 Application(name    = 'MagOmxILTest_Playback', 
             dir     = 'test/playback/main', 
             extra_include_path = Split(FRAMEWORK_INC_PATH)+Split(MAG_OMX_INC_PATH),
-            extra_link_flags = ['-L'+FRAMEWORK_LIB_PATH, 
-                                '-lMagAgilelog', 
-                                '-lMagFramework',
-                                '-lMagOmxIL_Core',
-                                '-lMagOmxIL_Base'],
+            extra_libs = ['librt.so', 'libpthread.so', 'libdl.so',
+                          'libMagAgilelog.so', 
+                          'libMagFramework.so',
+                          'libMagOmxIL_Core.so',
+                          'libMagOmxIL_Base.so'],
+            extra_lib_path = FRAMEWORK_LIB_PATH,
             install = True)

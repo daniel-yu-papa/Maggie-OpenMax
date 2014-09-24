@@ -8,17 +8,17 @@
 static void freeItem(MagItem_t *item){
     switch(item->mType){
         case TypeString:
-            mag_freep(&item->u.stringValue);
+            mag_freep((void **)&item->u.stringValue);
             break;
 
         case TypePointer:
             if (item->mOwnedByMsg)
-                mag_freep(&item->u.ptrValue);
+                mag_freep((void **)&item->u.ptrValue);
             break;
 
         case TypeMessage:
             if (item->mOwnedByMsg)
-                destroyMagMessage(item->u.messageValue);
+                destroyMagMessage(&item->u.messageValue);
             break;
 
         default:
@@ -39,12 +39,11 @@ static MagItem_t *findItem(MagMessage_t *msg, const char *name, enum MsgPayloadT
 
 static MagItem_t *allocateItem(MagMessage_t *msg, const char *name){
     ui32 i = 0;
+    MagItem_t *item;
 
     while(i < msg->mNumItems && strcmp(msg->mItems[i].mName, name) != 0){
         ++i;
     }
-
-    MagItem_t *item;
 
     if (i < msg->mNumItems){
         item = &msg->mItems[i];
@@ -215,11 +214,11 @@ static boolean MagMessage_findMessage(MagMessage_t *msg, const char *name, struc
 }
 
 
-ui32 MagMessage_what(MagMessage_t *msg){
+static ui32 MagMessage_what(MagMessage_t *msg){
     return msg->mWhat;
 }
 
-boolean MagMessage_postMessage(MagMessage_t *msg, i64 delayMs){
+static boolean MagMessage_postMessage(MagMessage_t *msg, i64 delayMs){
     if (msg->mLooper != NULL){
         AGILE_LOGV("msg(%d) do post() in looper(0x%x)", msg->mWhat, msg->mLooper);
         msg->mLooper->postMessage(msg->mLooper, msg, delayMs);
@@ -265,25 +264,26 @@ MagMessageHandle createMagMessage(struct MagLooper *looper, ui32 what, ui32 targ
     return msg;
 }
 
-void             destroyMagMessage(MagMessageHandle msg){
+void             destroyMagMessage(MagMessageHandle *pMsg){
     ui32 i;
+    MagMessageHandle msg = *pMsg;
 
     if (msg == NULL)
         return;
     
     for (i = 0; i < msg->mNumItems; i++){
         if ((msg->mItems[i].mOwnedByMsg) && (msg->mItems[i].mType == TypePointer)){
-            mag_freep(&msg->mItems[i].u.ptrValue);
+            mag_freep((void **)&msg->mItems[i].u.ptrValue);
         }
 
         if (msg->mItems[i].mType == TypeString){
-            mag_freep(&msg->mItems[i].u.stringValue);
+            mag_freep((void **)&msg->mItems[i].u.stringValue);
         }
 
         if ((msg->mItems[i].mOwnedByMsg) && (msg->mItems[i].mType == TypeMessage)){
-            destroyMagMessage(msg->mItems[i].u.messageValue);
+            destroyMagMessage(&msg->mItems[i].u.messageValue);
         }
     }
-    mag_freep(&msg);
+    mag_freep((void **)pMsg);
 }
 

@@ -22,5 +22,5 @@ int main(){
 
     pTable->print(pTable);
 
-    destroyMagStrHashTable(pTable);
+    destroyMagStrHashTable(&pTable);
 }

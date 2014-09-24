@@ -11,7 +11,7 @@ Virtuals(MagOmxComponentAudio, MagOmxComponentImpl)
 EndOfVirtuals;
 
 ClassMembers(MagOmxComponentAudio, MagOmxComponentImpl, \
-	
+	void (*self)(void); \
 )
     MagMutexHandle         mhMutex;
     MagMiniDBHandle        mParametersDB;

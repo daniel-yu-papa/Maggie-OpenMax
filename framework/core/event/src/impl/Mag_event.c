@@ -39,19 +39,19 @@ MagErr_t Mag_CreateEvent(MagEventHandle *evtHandle, MAG_EVENT_PRIO_t prio){
     if(NULL == (*evtHandle)->pEvtCallBack)
         goto err_nomem;
         
-    // rc = pthread_mutex_init(&(*evtHandle)->pEvtCommon->lock, NULL  default attributes );
-    // if(rc != 0){
-    //     goto err_evt_mutex;
-    // }
+    /*rc = pthread_mutex_init(&(*evtHandle)->pEvtCommon->lock, NULL  default attributes );
+    if(rc != 0){
+        goto err_evt_mutex;
+    }*/
     INIT_LIST(&(*evtHandle)->pEvtCommon->entry);
     (*evtHandle)->pEvtCommon->signal      = MAG_FALSE;
     (*evtHandle)->pEvtCommon->hEventGroup = NULL;
 
 
-    // rc = pthread_mutex_init(&(*evtHandle)->pEvtCallBack->lock, NULL  default attributes );
-    // if(rc != 0){
-    //     goto err_cb_mutex;
-    // }
+    /*rc = pthread_mutex_init(&(*evtHandle)->pEvtCallBack->lock, NULL  default attributes );
+    if(rc != 0){
+        goto err_cb_mutex;
+    }*/
 
     INIT_LIST(&(*evtHandle)->pEvtCallBack->entry);
     (*evtHandle)->pEvtCallBack->priority      = prio;
@@ -63,31 +63,32 @@ MagErr_t Mag_CreateEvent(MagEventHandle *evtHandle, MAG_EVENT_PRIO_t prio){
     
 err_nomem:
     if ((*evtHandle)->pEvtCommon)
-        mag_freep(&(*evtHandle)->pEvtCommon);
+        mag_freep((void **)&(*evtHandle)->pEvtCommon);
     
     if (*evtHandle)
-        mag_freep(evtHandle);
+        mag_freep((void **)evtHandle);
 
     return MAG_NoMemory;
 
-// err_cb_mutex:
-//     pthread_mutex_destroy(&(*evtHandle)->pEvtCommon->lock);
+/*err_cb_mutex:
+    pthread_mutex_destroy(&(*evtHandle)->pEvtCommon->lock);*/
     
 err_evt_mutex:    
     if((*evtHandle)->pEvtCommon)
-        mag_freep(&(*evtHandle)->pEvtCommon);
+        mag_freep((void **)&(*evtHandle)->pEvtCommon);
 
     if((*evtHandle)->pEvtCallBack)
-        mag_freep(&(*evtHandle)->pEvtCallBack);
+        mag_freep((void **)&(*evtHandle)->pEvtCallBack);
 
     if (*evtHandle)
-        mag_freep(evtHandle);
+        mag_freep((void **)evtHandle);
 
     return MAG_ErrMutexCreate;
 }
 
-MagErr_t Mag_DestroyEvent(MagEventHandle evtHandle){
+MagErr_t Mag_DestroyEvent(MagEventHandle *pEvtHandle){
     i32 rc;
+    MagEventHandle evtHandle = *pEvtHandle;
     MagErr_t ret = MAG_ErrNone;
 
     if (evtHandle == NULL){
@@ -98,16 +99,16 @@ MagErr_t Mag_DestroyEvent(MagEventHandle evtHandle){
         ret = Mag_RemoveEventGroup(evtHandle->pEvtCommon->hEventGroup, evtHandle);
     }
 
-    // pthread_mutex_destroy(&evtHandle->pEvtCommon->lock);
-    mag_freep(&evtHandle->pEvtCommon);
+    /*pthread_mutex_destroy(&evtHandle->pEvtCommon->lock);*/
+    mag_freep((void **)&evtHandle->pEvtCommon);
 
     ret = Mag_UnregisterEventCallback(evtHandle);
     if(evtHandle->pEvtCallBack->hCallback){
         pthread_mutex_destroy(&evtHandle->pEvtCallBack->hCallback->lock);
-        mag_freep(&evtHandle->pEvtCallBack->hCallback);
+        mag_freep((void **)&evtHandle->pEvtCallBack->hCallback);
     }
-    mag_freep(&evtHandle->pEvtCallBack);
-    mag_freep(&evtHandle);
+    mag_freep((void **)&evtHandle->pEvtCallBack);
+    mag_freep((void **)pEvtHandle);
     return ret;
 }
 
@@ -186,7 +187,7 @@ MagErr_t  Mag_SetEvent(MagEventHandle evtHandle){
             }else{
                 Mag_EvtCbTimeStamp_t *prev;
                 prev = (Mag_EvtCbTimeStamp_t *)list_entry(pEvtCB->hEvtScheduler->cbTimeStampListH.prev, Mag_EvtCbTimeStamp_t, tsListNode);
-                evtTSHandle->timeDiff = (now.tv_sec - prev->timeStamp.tv_sec)*1000000 + (now.tv_nsec - prev->timeStamp.tv_nsec)/1000;//in us
+                evtTSHandle->timeDiff = (now.tv_sec - prev->timeStamp.tv_sec)*1000000 + (now.tv_nsec - prev->timeStamp.tv_nsec)/1000;/*//in us*/
             }
             AGILE_LOGV("add default priority event[0x%p] into the TimeStamp list: tv_sec = %d, tv_nsec = %ld, timeDiff = %d",
                         evtHandle, evtTSHandle->timeStamp.tv_sec, 
@@ -204,7 +205,7 @@ MagErr_t  Mag_SetEvent(MagEventHandle evtHandle){
         rc = pthread_cond_signal(&pEvtCB->hEvtScheduler->cond);
         MAG_ASSERT(0 == rc);
     }else{
-        //AGILE_LOGV("The event element(0x%lx) has no callback registered!", (unsigned long)evtHandle);
+        /*AGILE_LOGV("The event element(0x%lx) has no callback registered!", (unsigned long)evtHandle);*/
     }
 
     return ret;
@@ -339,28 +340,29 @@ MagErr_t Mag_CreateEventGroup(MagEventGroupHandle *evtGrphandle){
     
 err_cond:
     pthread_mutex_destroy(&(*evtGrphandle)->lock);
-    mag_freep(evtGrphandle);
+    mag_freep((void **)evtGrphandle);
     return MAG_ErrCondCreate;
     
 err_mutex:
-    mag_freep(evtGrphandle);
+    mag_freep((void **)evtGrphandle);
     return MAG_ErrMutexCreate;    
 
 }
 
-void Mag_DestroyEventGroup(MagEventGroupHandle evtGrphandle){
+void Mag_DestroyEventGroup(MagEventGroupHandle *pEvtGrphandle){
+    MagEventGroupHandle evtGrphandle = *pEvtGrphandle;
     List_t *tmpNode = evtGrphandle->EventGroupHead.next;
     MagEventHandle pEvent;
 
     while (tmpNode != &evtGrphandle->EventGroupHead){
-        pEvent = (MagEventHandle)tmpNode->next; //list_entry(tmpNode, Mag_EventCommon_t, entry);
+        pEvent = (MagEventHandle)tmpNode->next; /*//list_entry(tmpNode, Mag_EventCommon_t, entry);*/
         Mag_RemoveEventGroup(evtGrphandle, pEvent);
         tmpNode = tmpNode->next;
     }
 
     pthread_mutex_destroy(&evtGrphandle->lock);
     pthread_cond_destroy(&evtGrphandle->cond);
-    mag_freep(&evtGrphandle);
+    mag_freep((void **)pEvtGrphandle);
 }
 
 MagErr_t Mag_AddEventGroup(MagEventGroupHandle evtGrphandle, MagEventHandle event){
@@ -550,7 +552,7 @@ static MagErr_t getCallbackExeList(MagEventSchedulerHandle schedHandle, List_t *
     ui32 highPrioTotal = 0;
     ui32 defPrioTotal = 0;
     Mag_EvtCbTimeStamp_t *timeStampNode;
-    i32 calcTimeOut = 0; //in ms
+    i32 calcTimeOut = 0; /*//in ms*/
     MagErr_t ret = MAG_ErrNone;
     MagEventCallbackHandle cbHandle;
 
@@ -792,26 +794,31 @@ MagErr_t Mag_CreateEventScheduler(MagEventSchedulerHandle *evtSched, MagEvtSched
     return MAG_ErrNone;
     
 err_mutex:
-    mag_freep(evtSched);
+    mag_freep((void **)evtSched);
     return MAG_ErrMutexCreate;
 
 err_cond:
     pthread_mutex_destroy(&(*evtSched)->lock);
-    mag_freep(evtSched);
+    mag_freep((void **)evtSched);
     return MAG_ErrCondCreate;
 
 err_thread:
     pthread_mutex_destroy(&(*evtSched)->lock);
     pthread_cond_destroy(&(*evtSched)->cond);
-    mag_freep(evtSched);
+    mag_freep((void **)evtSched);
     return MAG_ErrThreadCreate;
 
 }
 
-MagErr_t Mag_DestroyEventScheduler(MagEventSchedulerHandle evtSched){
+MagErr_t Mag_DestroyEventScheduler(MagEventSchedulerHandle *pEvtSched){
     i32 rc;
+    MagEventSchedulerHandle evtSched = *pEvtSched;
     MagErr_t ret = MAG_ErrNone;
     
+    if (evtSched == NULL){
+        return MAG_BadParameter;
+    }
+
     rc = pthread_mutex_lock(&evtSched->lock);
     MAG_ASSERT(0 == rc);
 
@@ -831,6 +838,6 @@ MagErr_t Mag_DestroyEventScheduler(MagEventSchedulerHandle evtSched){
     pthread_mutex_destroy(&evtSched->lock);
     pthread_cond_destroy(&evtSched->cond);
 
-    free(evtSched);
+    mag_freep((void **)pEvtSched);
     return ret;
 }

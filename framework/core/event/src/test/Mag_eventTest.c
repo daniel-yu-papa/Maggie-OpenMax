@@ -16,7 +16,7 @@ MagEventSchedulerHandle hEvtSched;
 
 static int all_count = 0;
 static unsigned int loops = 100000;
-void *inc_count(void *arg){
+static void *inc_count(void *arg){
     int count = 1;
     int index = *((int *)arg);
     
@@ -33,7 +33,7 @@ void *inc_count(void *arg){
     Mag_SetEvent(evtGrpElem[index]);
 }
 
-void *watch_count(void *arg){
+static void *watch_count(void *arg){
     int count = 1;
     
     while(all_count <= (loops*3)){
@@ -114,11 +114,11 @@ int main(){
     AGILE_LOGD("test: quit ...");   
 
     for (i = 0; i < 3; i++){
-        Mag_DestroyEvent(evtGrpElem[i]);
+        Mag_DestroyEvent(&evtGrpElem[i]);
     }
     AGILE_LOGD("test: quit 111");
-    Mag_DestroyEventGroup(evtGrp); 
-    Mag_DestroyEventScheduler(hEvtSched);
+    Mag_DestroyEventGroup(&evtGrp); 
+    Mag_DestroyEventScheduler(&hEvtSched);
     return 0; 
     
 }

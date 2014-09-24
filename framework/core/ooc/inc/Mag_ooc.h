@@ -344,7 +344,9 @@ void		ooc_delete_and_null( Object * object_ptr );
  * @return	The Objcet as a new type.
  * @see		ooc_check_cast()
  */
- 
+void
+ooc_check_cast( void * _self, const Class target );
+
 #define     ooc_cast( pObj, pClass )  ( ooc_check_cast( pObj, & pClass ## Class ), (pClass) pObj )
 
 /** Chain the parent constructor.

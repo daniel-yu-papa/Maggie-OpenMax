@@ -25,7 +25,7 @@ static Mag_MsgQueueNode_t *getFreeMsg(Mag_MsgQueueHandle h){
     return pMsg;
 }
 
-void MagMsgQueue_get(Mag_MsgQueueHandle h, MagMessageHandle *msg){
+static void MagMsgQueue_get(Mag_MsgQueueHandle h, MagMessageHandle *msg){
     List_t *tmpNode;
     Mag_MsgQueueNode_t *pMsg = NULL;
 
@@ -45,7 +45,7 @@ void MagMsgQueue_get(Mag_MsgQueueHandle h, MagMessageHandle *msg){
     Mag_ReleaseMutex(h->mLock);
 }
 
-void MagMsgQueue_put(Mag_MsgQueueHandle h, MagMessageHandle msg){
+static void MagMsgQueue_put(Mag_MsgQueueHandle h, MagMessageHandle msg){
     Mag_MsgQueueNode_t *node;
     if (msg == NULL)
         return;
@@ -60,8 +60,10 @@ void MagMsgQueue_put(Mag_MsgQueueHandle h, MagMessageHandle msg){
     Mag_ReleaseMutex(h->mLock);
 }
 
-Mag_MsgQueueHandle Mag_CreateMsgQueue(){
+Mag_MsgQueueHandle Mag_CreateMsgQueue(void){
     Mag_MsgQueueHandle h;
+    ui32 i;
+    Mag_MsgQueueNode_t *pMsg;
 
     h = mag_mallocz(sizeof(Mag_MsgQueue_t));
     if (h != NULL){
@@ -71,9 +73,7 @@ Mag_MsgQueueHandle Mag_CreateMsgQueue(){
         h->put = MagMsgQueue_put;
 
         Mag_CreateMutex(&h->mLock);
-        
-        ui32 i;
-        Mag_MsgQueueNode_t *pMsg;
+
         for (i = 0; i < MAG_MQ_REALLOCATED_NODES; i++){
             pMsg = mag_malloc(sizeof(Mag_MsgQueueNode_t));
             INIT_LIST(&pMsg->node);
@@ -85,9 +85,10 @@ Mag_MsgQueueHandle Mag_CreateMsgQueue(){
     return h;
 }
 
-void Mag_DestroyMsgQueue(Mag_MsgQueueHandle h){
+void Mag_DestroyMsgQueue(Mag_MsgQueueHandle *pHandle){
     List_t *tmpNode;
     Mag_MsgQueueNode_t *node;
+    Mag_MsgQueueHandle h = *pHandle;
 
     Mag_AcquireMutex(h->mLock);
     
@@ -109,9 +110,9 @@ void Mag_DestroyMsgQueue(Mag_MsgQueueHandle h){
 
     Mag_ReleaseMutex(h->mLock);
 
-    Mag_DestroyMutex(h->mLock);
+    Mag_DestroyMutex(&h->mLock);
     
-    mag_free(h);
+    mag_freep((void **)pHandle);
 
 }
 

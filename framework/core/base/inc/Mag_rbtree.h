@@ -19,7 +19,7 @@ extern "C" {
 
 typedef enum{
     RBTREE_FALSE = 0,
-    RBTREE_TRUE  = !RBTREE_FALSE,
+    RBTREE_TRUE  = !RBTREE_FALSE
 }RBTREE_BOOL;
 
 

@@ -3,6 +3,7 @@
 
 #include "Mag_hal.h"
 #include "Mag_agilelog.h"
+#include "Mag_mem.h"
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
@@ -19,12 +20,12 @@ void Mag_AssertFailed(const char *expr, const char *file, unsigned int line){
 #endif
 }
 
-
 MagErr_t Mag_CreateMutex(MagMutexHandle *handler){
-    *handler = (MagMutexHandle)malloc(sizeof(**handler));
+    *handler = (MagMutexHandle)mag_mallocz(sizeof(**handler));
 
-    if(NULL == *handler)
+    if(NULL == *handler){
         return MAG_NoMemory;
+    }
 
     if (pthread_mutex_init(&(*handler)->mutex, NULL)) {
         AGILE_LOGE("failed to create the MagMutexHandle. err code(%s)", strerror(errno));
@@ -36,17 +37,24 @@ MagErr_t Mag_CreateMutex(MagMutexHandle *handler){
     }
 }
 
-MagErr_t Mag_DestroyMutex(MagMutexHandle handler){
-    if (NULL == handler)
+MagErr_t Mag_DestroyMutex(MagMutexHandle *pHandler){
+    MagMutexHandle handler = *pHandler;
+
+    if (NULL == handler){
         return MAG_InvalidPointer;
+    }
 
     pthread_mutex_destroy(&handler->mutex);
-    free(handler);
+    mag_freep((void **)pHandler);
     return MAG_ErrNone;
 }
 
 MagErr_t Mag_TryAcquireMutex(MagMutexHandle handler){
     int rc;
+
+    if (handler == NULL){
+        return MAG_InvalidPointer;
+    }
 
     rc = pthread_mutex_trylock(&handler->mutex);
 
@@ -62,6 +70,10 @@ MagErr_t Mag_TryAcquireMutex(MagMutexHandle handler){
 MagErr_t Mag_AcquireMutex(MagMutexHandle handler){
     int rc;
 
+    if (handler == NULL){
+        return MAG_InvalidPointer;
+    }
+
     rc = pthread_mutex_lock(&handler->mutex);
 
     if (0 == rc){
@@ -74,6 +86,10 @@ MagErr_t Mag_AcquireMutex(MagMutexHandle handler){
 
 MagErr_t Mag_ReleaseMutex(MagMutexHandle handler){
     int rc;
+
+    if (handler == NULL){
+        return MAG_InvalidPointer;
+    }
 
     rc = pthread_mutex_unlock(&handler->mutex);
 
@@ -99,7 +115,7 @@ ui64 Mag_GetSystemTime(i32 clock)
     clock_gettime(clocks[clock], &t);
     return (ui64)(t.tv_sec)*1000000000LL + t.tv_nsec;
 #else
-    // we don't support the clocks here.
+    /*we don't support the clocks here.*/
     struct timeval t;
     t.tv_sec = t.tv_usec = 0;
     gettimeofday(&t, NULL);

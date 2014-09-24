@@ -11,11 +11,11 @@ extern "C"
 
 #define list_offsetof(TYPE, MEMBER) ( (uintptr_t)(&((TYPE *)0)->MEMBER) ) 
 
-#define container_of(ptr, type, member) ({			\
-	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
-	(type *)( (const char *)__mptr - list_offsetof(type,member) );})
+#define container_of(ptr, type, member) __extension__({			\
+	const __typeof__( ((type *)0)->member ) *__mptr = (ptr);	\
+	(type *)( (const char *)__mptr - list_offsetof(type, member) );})
 
-#define list_entry(ptr, type, member) container_of(ptr,type,member)
+#define list_entry(ptr, type, member) container_of(ptr, type, member)
 
 typedef struct list_t{
     struct list_t *next;

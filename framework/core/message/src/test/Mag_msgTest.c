@@ -11,13 +11,13 @@ struct msgTest{
     char msgContent[64];
 };
 
-void MessageChannelReceiver(void *msg, void *priv){
+static void MessageChannelReceiver(void *msg, void *priv){
     struct msgTest *msgGet = (struct msgTest *)msg;
     
     AGILE_LOGD("msgID = %d, msgContent = %s", msgGet->msgID, msgGet->msgContent);
 }
 
-void *post_msg_thread(void *arg){
+static void *post_msg_thread(void *arg){
     int count = 1;
     int index = *((int *)arg);
     struct msgTest msg;
@@ -52,6 +52,6 @@ int main(){
         pthread_join(threads[i], NULL);  
     }
 
-    Mag_MsgChannelDestroy(handle);
+    Mag_MsgChannelDestroy(&handle);
 }
 

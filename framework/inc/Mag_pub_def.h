@@ -26,32 +26,32 @@ typedef enum{
     MAG_EventStatusMeet,
     MAG_EventStatusErr,
     MAG_InvalidPointer,
-    MAG_InvalidOperation,
+    MAG_InvalidOperation
 }MagErr_t;
 
 enum {
-    MAG_OK                  = 0,    // Everything's swell.
-    MAG_NO_ERROR            = 0,    // No errors.
+    MAG_OK                  = 0,    /*// Everything's swell.*/
+    MAG_NO_ERROR            = 0,    /*// No errors.*/
     
-    MAG_UNKNOWN_ERROR       = 0x80000000,
+    MAG_UNKNOWN_ERROR       = 0x8000,
 
     MAG_NO_MEMORY           = -ENOMEM,
     MAG_INVALID_OPERATION   = -ENOSYS,
     MAG_BAD_VALUE           = -EINVAL,
-    MAG_BAD_TYPE            = 0x80000001,
+    MAG_BAD_TYPE            = 0x8001,
     MAG_NAME_NOT_FOUND      = -ENOENT,
     MAG_PERMISSION_DENIED   = -EPERM,
     MAG_NO_INIT             = -ENODEV,
     MAG_ALREADY_EXISTS      = -EEXIST,
     MAG_DEAD_OBJECT         = -EPIPE,
-    MAG_FAILED_TRANSACTION  = 0x80000002,
+    MAG_FAILED_TRANSACTION  = 0x8002,
 
     MAG_BAD_INDEX           = -EOVERFLOW,
     MAG_NOT_ENOUGH_DATA     = -ENODATA,
     MAG_WOULD_BLOCK         = -EWOULDBLOCK, 
     MAG_TIMED_OUT           = -ETIMEDOUT,
     MAG_UNKNOWN_TRANSACTION = -EBADMSG,
-    MAG_STATUS_EXTENSION    = 0x80000010,
+    MAG_STATUS_EXTENSION    = 0x8010
 };
 
 #define MAG_TIMEOUT_INFINITE 0xF0000000

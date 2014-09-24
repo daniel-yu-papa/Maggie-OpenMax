@@ -99,7 +99,7 @@ _ooc_isInitialized( const Class type )
 	return ( type == & BaseClass || type->c.vtable->_class == type ) ? TRUE : FALSE;
 }
 
-void *
+static void *
 ooc_calloc( size_t num, size_t size )
 {
 	void * allocated;
@@ -151,13 +151,13 @@ ooc_new_classptr( const Class type, const void * params )
 /*  Helper: pointer read-out while nulling
  */
 
-void *
+static void *
 ooc_ptr_read_and_null( void ** ptr_ptr )
 {
     OOC_IMPLEMENT_PTR_READ_AND_NULL
 }
 
-void
+static void
 ooc_free( void * mem )
 {
 	if( mem )
@@ -229,7 +229,7 @@ ooc_isClassChildOf( const Class checkable, const Class base )
 }
 
 
-int
+static int
 _ooc_isInstanceOf( const Object self, const Class base )
 {
 	MAG_ASSERT( _ooc_isInitialized( base ) );

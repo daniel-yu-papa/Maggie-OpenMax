@@ -7,8 +7,8 @@
 #define OMX_IL_INPUT_BUFFER_NUMBER 4
 #define OMX_IL_INPUT_BUFFER_SIZE   512
 
-OMX_BOOL gVdecIsExecuting = OMX_FALSE;
-OMX_BOOL gDisplayIsExecuting = OMX_FALSE;
+OMX_STATETYPE gVdecState    = OMX_StateMax;
+OMX_STATETYPE gDisplayState = OMX_StateMax;
 
 typedef struct {
 	OMX_BUFFERHEADERTYPE *bufHeader;
@@ -44,14 +44,14 @@ static OMX_ERRORTYPE vDisplayEventHandler(
     OMX_U32 Data2,
     OMX_PTR pEventData);
 
-OMX_CALLBACKTYPE vDecCallbacks = { .EventHandler    = vDecEventHandler,
-                                   .EmptyBufferDone = vDecEmptyBufferDone,
-                                   .FillBufferDone  = vDecFillBufferDone
+OMX_CALLBACKTYPE vDecCallbacks = { vDecEventHandler,
+                                   vDecEmptyBufferDone,
+                                   vDecFillBufferDone
 };
 
-OMX_CALLBACKTYPE vDidplayCallbacks = { .EventHandler    = vDisplayEventHandler,
-									   .EmptyBufferDone = NULL,
-									   .FillBufferDone  = NULL
+OMX_CALLBACKTYPE vDidplayCallbacks = { vDisplayEventHandler,
+									   NULL,
+									   NULL
 };
 
 /* VDEC Callbacks implementation */
@@ -73,19 +73,23 @@ static OMX_ERRORTYPE vDecEventHandler(
 	        	    break;
 	        	case OMX_StateLoaded:
 	        	    AGILE_LOGD("OMX_StateLoaded\n");
+	        	    gVdecState = OMX_StateLoaded;
 	        	    break;
 	        	case OMX_StateIdle:
 	        	    AGILE_LOGD("OMX_StateIdle\n");
+	        	    gVdecState = OMX_StateIdle;
 	        	    break;
 	        	case OMX_StateExecuting:
 	        	    AGILE_LOGD("OMX_StateExecuting\n");
-	        	    gVdecIsExecuting = OMX_TRUE;
+	        	    gVdecState = OMX_StateExecuting;
 	        	    break;
 	        	case OMX_StatePause:
 	        	    AGILE_LOGD("OMX_StatePause\n");
+	        	    gVdecState = OMX_StatePause;
 	        	    break;
 	        	case OMX_StateWaitForResources:
 	        	    AGILE_LOGD("OMX_StateWaitForResources\n");
+	        	    gVdecState = OMX_StateWaitForResources;
 	        	    break;
         	}
         }else if (Data1 == OMX_CommandPortEnable){
@@ -115,6 +119,7 @@ static OMX_ERRORTYPE vDecEmptyBufferDone(
 	if (!gIsStopped){
 		inBuffer[index].isBusy = OMX_TRUE;
 		OMX_EmptyThisBuffer(hComponent, pBuffer);
+		usleep(1000);
 	}
 }
 
@@ -131,6 +136,7 @@ static OMX_ERRORTYPE vDecFillBufferDone(
 	if (!gIsStopped){
 		inBuffer[index].isBusy = OMX_TRUE;
 		OMX_FillThisBuffer(hComponent, pBuffer);
+		usleep(1000);
 	}
 }
 
@@ -153,19 +159,23 @@ static OMX_ERRORTYPE vDisplayEventHandler(
 	        	    break;
 	        	case OMX_StateLoaded:
 	        	    AGILE_LOGD("OMX_StateLoaded\n");
+	        	    gDisplayState = OMX_StateLoaded;
 	        	    break;
 	        	case OMX_StateIdle:
 	        	    AGILE_LOGD("OMX_StateIdle\n");
+	        	    gDisplayState = OMX_StateIdle;
 	        	    break;
 	        	case OMX_StateExecuting:
 	        	    AGILE_LOGD("OMX_StateExecuting\n");
-	        	    gDisplayIsExecuting = OMX_TRUE;
+	        	    gDisplayState = OMX_StateExecuting;
 	        	    break;
 	        	case OMX_StatePause:
 	        	    AGILE_LOGD("OMX_StatePause\n");
+	        	    gDisplayState = OMX_StatePause;
 	        	    break;
 	        	case OMX_StateWaitForResources:
 	        	    AGILE_LOGD("OMX_StateWaitForResources\n");
+	        	    gDisplayState = OMX_StateWaitForResources;
 	        	    break;
         	}
         }else if (Data1 == OMX_CommandPortEnable){
@@ -299,44 +309,57 @@ int main(int argc, char** argv){
     OMX_SendCommand(hDisplay, OMX_CommandStateSet, OMX_StateIdle, NULL);
 
     while (1){
-        printf("p: play, s: stop, q: exit the program.\n");
+        printf("p: play, s: stop, a: pause, q: exit the program.\n");
         scanf("%c",&c);
         printf("\ninput is '%c'\n", c);
 
         if (c == 'p'){
+        	printf("do play action!\n");
         	gIsStopped = OMX_FALSE;
         	OMX_SendCommand(hVdec, OMX_CommandStateSet, OMX_StateExecuting, NULL);
 		    OMX_SendCommand(hDisplay, OMX_CommandStateSet, OMX_StateExecuting, NULL);
 
-		    while(!gDisplayIsExecuting || !gVdecIsExecuting){
+		    while(gVdecState != OMX_StateExecuting || gDisplayState != OMX_StateExecuting){
 
 		    }
 		    
-		    // for (i = 0; i < OMX_IL_INPUT_BUFFER_NUMBER; i++){
-			    i = 0;
+		    for (i = 0; i < OMX_IL_INPUT_BUFFER_NUMBER; i++){
 		    	inBuffer[i].isBusy = OMX_TRUE;
 		    	AGILE_LOGV("send out the buffer: 0x%p", inBuffer[i].bufHeader);
 				OMX_EmptyThisBuffer(hVdec, inBuffer[i].bufHeader);
 				usleep(10000);
-		    // }
+		    }
         }else if (c == 's'){
+        	printf("do stop action!\n");
         	gIsStopped = OMX_TRUE;
-        	gDisplayIsExecuting = OMX_FALSE;
-        	gVdecIsExecuting    = OMX_FALSE;
         	OMX_SendCommand(hVdec, OMX_CommandStateSet, OMX_StateIdle, NULL);
 		    OMX_SendCommand(hDisplay, OMX_CommandStateSet, OMX_StateIdle, NULL);
+        }else if (c == 'a'){
+        	printf("do pause action!\n");
+        	OMX_SendCommand(hVdec, OMX_CommandStateSet, OMX_StatePause, NULL);
+		    OMX_SendCommand(hDisplay, OMX_CommandStateSet, OMX_StatePause, NULL);
         }else if (c == 'q'){
+        	printf("do quit action!\n");
         	if (!gIsStopped){
+        		gIsStopped = OMX_TRUE;
         		OMX_SendCommand(hVdec, OMX_CommandStateSet, OMX_StateIdle, NULL);
 			    OMX_SendCommand(hDisplay, OMX_CommandStateSet, OMX_StateIdle, NULL);  
         	}
 
+        	while(gVdecState != OMX_StateIdle || gDisplayState != OMX_StateIdle){
+
+		    }
+
         	OMX_SendCommand(hVdec, OMX_CommandStateSet, OMX_StateLoaded, NULL);
 		    OMX_SendCommand(hDisplay, OMX_CommandStateSet, OMX_StateLoaded, NULL);
 
-		    for (i = 0; i < OMX_IL_INPUT_BUFFER_NUMBER; i++){
-			    OMX_FreeBuffer(hVdec, vDecPortParam.nStartPortNumber, inBuffer[i].bufHeader);
+		    while(gVdecState != OMX_StateLoaded || gDisplayState != OMX_StateLoaded){
+
 		    }
+
+		    /*for (i = 0; i < OMX_IL_INPUT_BUFFER_NUMBER; i++){
+			    OMX_FreeBuffer(hVdec, vDecPortParam.nStartPortNumber, inBuffer[i].bufHeader);
+		    }*/
 
 		    OMX_FreeHandle(hVdec);
 		    OMX_FreeHandle(hDisplay);

@@ -23,7 +23,7 @@ public:
         Msg_Test_2,
         Msg_Test_3,
         Msg_Test_4,
-        Msg_Test_5,
+        Msg_Test_5
     };
     
 private:
@@ -53,11 +53,11 @@ Comp_A::~Comp_A(){
 
     for (i = 0; i < HANDLER_MAX_NUM; i++){
         if (mMsgHandler[i] != NULL){
-            destroyHandler(mMsgHandler[i]);
+            destroyHandler(&mMsgHandler[i]);
         }
     }
     if (mLooper != NULL){
-        destroyLooper(mLooper);
+        destroyLooper(&mLooper);
     }
 }
 
@@ -258,7 +258,7 @@ public:
     _status_t        start();
     
     enum{
-        Msg_reply,
+        Msg_reply
     };
     
 private:
@@ -278,11 +278,11 @@ Comp_B::Comp_B():
 
 Comp_B::~Comp_B(){
     if (mMsgHandler != NULL){
-        destroyHandler(mMsgHandler);
+        destroyHandler(&mMsgHandler);
     }
     
     if (mLooper != NULL){
-        destroyLooper(mLooper);
+        destroyLooper(&mLooper);
     }
 }
 
@@ -413,15 +413,15 @@ int main(){
     obj->waitOnAllDone();
     
     AGILE_LOGD("begin to destroy the messages!");
-    destroyMagMessage(msg1);
+    destroyMagMessage(&msg1);
     AGILE_LOGD("111");
-    destroyMagMessage(msg2);
+    destroyMagMessage(&msg2);
     AGILE_LOGD("222");
-    destroyMagMessage(msg3);
+    destroyMagMessage(&msg3);
     AGILE_LOGD("333");
-    destroyMagMessage(msg4);
+    destroyMagMessage(&msg4);
     AGILE_LOGD("444");
-    destroyMagMessage(msg5);
+    destroyMagMessage(&msg5);
     // AGILE_LOGD("before destroyMagMessage(reply)");
     // destroyMagMessage(reply);
     // AGILE_LOGD("after destroyMagMessage(reply)");

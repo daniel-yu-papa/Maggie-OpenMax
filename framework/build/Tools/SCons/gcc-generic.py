@@ -5,7 +5,7 @@ def generate(env, gcc_cross_prefix=None, gcc_strict=True, gcc_stop_on_warning=No
 
     ### compiler flags
     if gcc_strict:
-        env.AppendUnique(CCFLAGS = ['-pedantic', '-Wall',  '-W',  '-Wundef', '-Wno-long-long'])
+        env.AppendUnique(CCFLAGS = ['-pedantic', '-Werror', '-Wno-variadic-macros', '-Wno-long-long'])
         env.AppendUnique(CFLAGS  = ['-Wmissing-prototypes', '-Wmissing-declarations'])
     else:
         env.AppendUnique(CCFLAGS = ['-Wall'])
@@ -14,7 +14,7 @@ def generate(env, gcc_cross_prefix=None, gcc_strict=True, gcc_stop_on_warning=No
     env.AppendUnique(CCFLAGS  = compiler_defines)
     env.AppendUnique(CPPFLAGS = compiler_defines)
     
-    env.AppendUnique(LINKFLAGS = ['-lpthread', '-lrt'])
+    #env.AppendUnique(LINKFLAGS = ['-lpthread', '-lrt'])
 
     if env['build_config'] == 'Debug':
         env.AppendUnique(CCFLAGS = '-g')

@@ -18,7 +18,7 @@ typedef enum {
     FAILURE  = 1,
     INVALID_OUTPUT = 2,
     USE_DEFAULT_CONFIG = 3,
-    NO_MODULE = 4,
+    NO_MODULE = 4
 }Error_t;
 
 typedef enum {

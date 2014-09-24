@@ -72,6 +72,8 @@ class LibraryModule(Module):
                  excluded_files        = [],
                  extra_cpp_defines     = [],
                  extra_link_flags      = [],
+                 extra_libs            = [], 
+                 extra_lib_path        = [],
                  shared                = False,
                  install               = False,
                  installHeaders        = False) :
@@ -114,8 +116,8 @@ class LibraryModule(Module):
         if shared is False:
             self.product = self.env.StaticLibrary(target=name, source=sources)
         else:
-            libs = GetLibraries(Split(linked_modules))
-            self.product = self.env.SharedLibrary(target=name, LIBS=libs, source=sources)
+            libs = GetLibraries(Split(linked_modules))+extra_libs
+            self.product = self.env.SharedLibrary(target=name, LIBS=libs, LIBPATH=extra_lib_path, source=sources)
         self.env.Alias(name, self.product)
         Default(self.product)
 
@@ -144,17 +146,16 @@ class LibraryModule(Module):
                 
 
 def Application(name, dir, deps, 
-                extra_link_flags = [], 
+                extra_libs = [], 
+                extra_lib_path = [],
                 install = False):
     DeclareBuildDir(dir)
-    libs = GetLibraries(deps)
+    libs = GetLibraries(deps)+extra_libs
     cpp_path = GetIncludeDirs(deps)
-    
-    env.AppendUnique(LINKFLAGS = extra_link_flags)
 
     prog = env.Program(name, 
                        GlobSources(dir, ['*.c', '*.cpp']),
-                       LIBS=libs, CPPPATH=cpp_path)
+                       LIBS=libs, LIBPATH=extra_lib_path, CPPPATH=cpp_path)
     Default(prog)
 
     # copy to Targets folder
@@ -269,54 +270,64 @@ LibraryModule(name                  = 'MagPlatform_Thread',
 Application(name    = 'MagPlatform_RbTreeTest', 
                 dir     = 'core/base/src/test', 
                 deps    = ['MagCore_Base', 'MagPlatform_Hal'],
-                extra_link_flags = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
+                extra_libs = ['librt.so', 'libpthread.so', 'libMagAgilelog.so'],
+                extra_lib_path = AGILELOG_LIB_PATH,
                 install = True)
 
 Application(name    = 'MagPlatform_DBTest', 
                 dir     = 'core/db/src/test', 
                 deps    = ['MagCore_DB', 'MagCore_Base', 'MagPlatform_Hal'],
-                extra_link_flags = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
+                extra_libs = ['librt.so', 'libpthread.so', 'libMagAgilelog.so'],
+                extra_lib_path = AGILELOG_LIB_PATH,
                 install = True)
 
 Application(name    = 'MagPlatform_EventTest', 
                 dir     = 'core/event/src/test', 
                 deps    = ['MagCore_Event', 'MagCore_Base', 'MagPlatform_Hal'],
-                extra_link_flags = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
+                extra_libs = ['librt.so', 'libpthread.so', 'libMagAgilelog.so'],
+                extra_lib_path = AGILELOG_LIB_PATH,
                 install = True)
 
 Application(name    = 'MagPlatform_HashTableTest', 
                 dir     = 'core/hashtable/src/test', 
                 deps    = ['MagCore_HashTable', 'MagCore_Base', 'MagPlatform_Hal'],
+                extra_libs = ['librt.so', 'libpthread.so', 'libMagAgilelog.so'],
+                extra_lib_path = AGILELOG_LIB_PATH,
                 install = True)
 
 Application(name    = 'MagPlatform_LooperTest', 
                 dir     = 'core/looper/src/test', 
                 deps    = [ 'MagCore_Looper', 'MagPlatform_Thread', 'MagCore_Event', 'MagCore_Base', 'MagPlatform_Hal',],
-                extra_link_flags = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
+                extra_libs = ['librt.so', 'libpthread.so', 'libMagAgilelog.so'],
+                extra_lib_path = AGILELOG_LIB_PATH,
                 install = True)
 
 Application(name    = 'MagPlatform_MessageTest', 
                 dir     = 'core/message/src/test', 
                 deps    = ['MagCore_Message', 'MagCore_Event', 'MagCore_Base', 'MagPlatform_Hal'],
-                extra_link_flags = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
+                extra_libs = ['librt.so', 'libpthread.so', 'libMagAgilelog.so'],
+                extra_lib_path = AGILELOG_LIB_PATH,
                 install = True)
 
 Application(name    = 'MagPlatform_OOCTest', 
                 dir     = 'core/ooc/src/test', 
                 deps    = ['MagCore_OOC', 'MagPlatform_Hal'],
-                extra_link_flags = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
+                extra_libs = ['librt.so', 'libpthread.so', 'libMagAgilelog.so'],
+                extra_lib_path = AGILELOG_LIB_PATH,
                 install = True)
 
 Application(name    = 'MagPlatform_MemPoolTest', 
                 dir     = 'platform/memory/src/test', 
                 deps    = ['MagCore_Message', 'MagPlatform_Mem', 'MagCore_Event', 'MagPlatform_Hal'],
-                extra_link_flags = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
+                extra_libs = ['librt.so', 'libpthread.so', 'libMagAgilelog.so'],
+                extra_lib_path = AGILELOG_LIB_PATH,
                 install = True)
 
 Application(name    = 'MagPlatform_ThreadTest', 
                 dir     = 'platform/thread/src/test', 
                 deps    = ['MagPlatform_Thread', 'MagCore_Event', 'MagPlatform_Hal', 'MagPlatform_Mem'],
-                extra_link_flags = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
+                extra_libs = ['librt.so', 'libpthread.so', 'libMagAgilelog.so'],
+                extra_lib_path = AGILELOG_LIB_PATH,
                 install = True)
 
 LibraryModule(name                  = 'MagFramework',
@@ -332,7 +343,8 @@ LibraryModule(name                  = 'MagFramework',
                                        'platform/thread/src/impl',
                                        'version'],
               build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH),
-              extra_link_flags      = ['-L'+AGILELOG_LIB_PATH, '-lMagAgilelog'],
+              extra_libs            = ['librt.so', 'libpthread.so', 'libMagAgilelog.so'],
+              extra_lib_path        = AGILELOG_LIB_PATH,
               shared                =  True,
               install               =  True,
               installHeaders        =  True)

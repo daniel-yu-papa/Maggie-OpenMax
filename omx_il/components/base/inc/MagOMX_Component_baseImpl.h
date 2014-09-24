@@ -10,7 +10,7 @@ typedef enum{
     MagOMX_Component_Subtitle,
     MagOMX_Component_Image,
     MagOMX_Component_Other,
-    MagOMX_Component_Max,
+    MagOMX_Component_Max
 }MagOMX_Component_Type_t;
 
 enum{
@@ -96,7 +96,7 @@ EndOfVirtuals;
 
 ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
     MagMessageHandle (*createMessage)(OMX_HANDLETYPE handle, OMX_U32 what);     \
-    _status_t        (*getLooper)(OMX_HANDLETYPE handle);                       \  
+    _status_t        (*getLooper)(OMX_HANDLETYPE handle);                       \
 
     MagMessageHandle (*createBufferMessage)(OMX_HANDLETYPE handle, OMX_U32 what);     \
     _status_t        (*getBufferLooper)(OMX_HANDLETYPE handle); 
@@ -138,6 +138,7 @@ ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
     MagMessageHandle mCmdMarkBufferMsg;
 
     OMX_STATETYPE    mState;
+    OMX_EXTSTATETRANSTYPE mTransitionState;
     doStateTransition mStateTransitTable[5][5]; /*[current state][target state]*/
     
     MagMiniDBHandle  mParametersDB;

@@ -66,7 +66,7 @@ MagAgileLog::~MagAgileLog(){
         close(mLogFile2);
     }
 
-    destroyMagStrHashTable(mpModuleHashT);
+    destroyMagStrHashTable(&mpModuleHashT);
 }
 
 Error_t MagAgileLog::parseGlobalConfigElement(XMLElement *ele){ 

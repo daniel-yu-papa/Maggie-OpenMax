@@ -8,6 +8,7 @@
 #include "Mag_pub_type.h"
 #include "Mag_agilelog.h"
 #include "Mag_hal.h"
+#include "Mag_mem.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,12 +27,12 @@ typedef enum{
     MAG_EVT_PRIO_DEFAULT = 0, /*most of events should be in this list*/
     MAG_EVT_PRIO_LOW = 1,
     MAG_EVT_PRIO_HIGH = 2,
-    MAG_EVT_PRIO_MAX = 3,
+    MAG_EVT_PRIO_MAX = 3
 }MAG_EVENT_PRIO_t;
 
 typedef enum{
     MAG_EVT_SCHED_NORMAL = 0, /*default is event retrigger while several events occur at the same time*/
-    MAG_EVT_SCHED_NO_RETRIGGER, 
+    MAG_EVT_SCHED_NO_RETRIGGER 
 }MagEvtSchedPolicy_t;
 
 typedef struct mag_event_group_obj{
@@ -87,14 +88,14 @@ typedef struct mag_event_common_obj{
     List_t              entry;
 
     MagEventGroupHandle hEventGroup;
-    // pthread_mutex_t     lock;            /* mutex for protecting signal and conditional variables */
+    /*pthread_mutex_t     lock;             mutex for protecting signal and conditional variables */
     MAG_BOOL_t          signal;          /* >0: the event is really triggered. =0: not triggered*/
 }Mag_EventCommon_t;
 
 typedef struct mag_event_callback_t{
     List_t                  entry;
 
-    // pthread_mutex_t         lock;            /* mutex for protecting the object handling */
+    /*pthread_mutex_t         lock;             mutex for protecting the object handling */
     unsigned int            armed;          /* >0: the event callback is armed. =0: not armed*/
     MAG_EVENT_PRIO_t        priority;
 
@@ -103,7 +104,7 @@ typedef struct mag_event_callback_t{
 }Mag_EventCallback_t;
 
 typedef struct mag_event{
-    Mag_EventCommon_t   *pEvtCommon; //Must be the first element
+    Mag_EventCommon_t   *pEvtCommon; /*//Must be the first element*/
     Mag_EventCallback_t *pEvtCallBack;
 }MagEvent_t;
 
@@ -111,18 +112,18 @@ typedef MagEvent_t            *MagEventHandle;
 
 
 MagErr_t Mag_CreateEvent(MagEventHandle *evtHandle, MAG_EVENT_PRIO_t prio);
-MagErr_t Mag_DestroyEvent(MagEventHandle evtHandle);
+MagErr_t Mag_DestroyEvent(MagEventHandle *pEvtHandle);
 MagErr_t Mag_SetEvent(MagEventHandle evtHandle);
 void     Mag_ClearEvent(MagEventHandle evtHandle);
 
 MagErr_t Mag_CreateEventGroup(MagEventGroupHandle *evtGrphandle);
-void     Mag_DestroyEventGroup(MagEventGroupHandle evtGrphandle);
+void     Mag_DestroyEventGroup(MagEventGroupHandle *pEvtGrphandle);
 MagErr_t Mag_AddEventGroup(MagEventGroupHandle evtGrphandle, MagEventHandle event);
 MagErr_t Mag_RemoveEventGroup(MagEventGroupHandle evtGrphandle, MagEventHandle event);
 MagErr_t Mag_WaitForEventGroup(MagEventGroupHandle evtGrphandle, MAG_EVENT_GROUP_OP_t op, i32 timeoutMsec);
 
 MagErr_t Mag_CreateEventScheduler(MagEventSchedulerHandle *evtSched, MagEvtSchedPolicy_t option);
-MagErr_t Mag_DestroyEventScheduler(MagEventSchedulerHandle evtSched);
+MagErr_t Mag_DestroyEventScheduler(MagEventSchedulerHandle *pEvtSched);
 MagErr_t Mag_RegisterEventCallback(MagEventSchedulerHandle schedHandle, MagEventHandle evtHandle, void (*pCallback)(void *), void *pContext);
 MagErr_t Mag_UnregisterEventCallback(MagEventHandle evtHandle);
 

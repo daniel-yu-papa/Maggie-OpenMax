@@ -19,7 +19,7 @@ struct person{
     i32 times;
 };
 
-boolean EatThreadEntry(void *priv){
+static boolean EatThreadEntry(void *priv){
     if (priv == NULL)
         AGILE_LOGE("priv is NULL");
     else{
@@ -31,7 +31,7 @@ boolean EatThreadEntry(void *priv){
     return MAG_TRUE;
 }
 
-boolean EatThread_ReadyToRun(void *priv){
+static boolean EatThread_ReadyToRun(void *priv){
     struct person *p = (struct person *)priv;
     
     AGILE_LOGD("%s is ready to eat!", p->name);
@@ -39,7 +39,7 @@ boolean EatThread_ReadyToRun(void *priv){
     return MAG_TRUE;
 }
 
-boolean WorkThreadEntry(void *priv){
+static boolean WorkThreadEntry(void *priv){
     struct person *p = (struct person *)priv;
 
     AGILE_LOGD("thread working: times:%d, id=%d, name=%s, age=%d", ++p->times, p->id, p->name, p->age);
@@ -47,7 +47,7 @@ boolean WorkThreadEntry(void *priv){
     return MAG_TRUE;
 }
 
-boolean SleepThreadEntry(void *priv){
+static boolean SleepThreadEntry(void *priv){
     struct person *p = (struct person *)priv;
 
     AGILE_LOGD("thread sleeping: times:%d, id=%d, name=%s, age=%d", ++p->times, p->id, p->name, p->age);
@@ -84,7 +84,7 @@ int main(){
     
     gThreads_sleep = Mag_CreateThread("sleeping", SleepThreadEntry, (void *)&child);
     gThreads_sleep->run(gThreads_sleep);
-    //gThreads_sleep->setParm_Priority(MAGTHREAD_PRIORITY_LOWEST);
+    /*gThreads_sleep->setParm_Priority(MAGTHREAD_PRIORITY_LOWEST);*/
     
     sleep(2);
 
@@ -93,8 +93,8 @@ int main(){
     gThreads_sleep->requestExitAndWait(gThreads_sleep, MAG_TIMEOUT_INFINITE);
 
     
-    Mag_DestroyThread(gThreads_eat);
-    Mag_DestroyThread(gThreads_work);
-    Mag_DestroyThread(gThreads_sleep);
+    Mag_DestroyThread(&gThreads_eat);
+    Mag_DestroyThread(&gThreads_work);
+    Mag_DestroyThread(&gThreads_sleep);
 }
 

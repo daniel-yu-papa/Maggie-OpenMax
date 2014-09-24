@@ -59,18 +59,20 @@ int main()
                 return -1;
             }  
             AGILE_LOGI("****** After delete: node number: %d", rbtree_dump(root, 0));
-            //return 0;
+            /*return 0;*/
         } 
 
-        // rbtree_dump(root, 1);
+        /*rbtree_dump(root, 1);*/
 
     }  
     
-    RBTreeNodeHandle n;
-    i = 0;
-    for (n = rbtree_first(root); n; n = rbtree_next(n)) {
-        AGILE_LOGI("index %d: key - %lld", i, n->key);
-        i++;
+    {
+        RBTreeNodeHandle n;
+        i = 0;
+        for (n = rbtree_first(root); n; n = rbtree_next(n)) {
+            AGILE_LOGI("index %d: key - %lld", i, n->key);
+            i++;
+        }
     }
     return 0;  
 }  

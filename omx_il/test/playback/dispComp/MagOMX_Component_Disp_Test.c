@@ -23,7 +23,7 @@ static OMX_ERRORTYPE localSetupComponent(
 	param.isInput      = OMX_TRUE;
 	param.bufSupplier  = OMX_BufferSupplyUnspecified;
 	param.formatStruct = 0;
-	sprintf(param.name, "%s-In", DISP_PORT_NAME);
+	sprintf((char *)param.name, "%s-In", DISP_PORT_NAME);
 	
 	ooc_init_class(MagOmxPort_DispTest);
 	dispInPort = ooc_new(MagOmxPort_DispTest, &param);
@@ -33,7 +33,7 @@ static OMX_ERRORTYPE localSetupComponent(
 	dispCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
 	dispComp = ooc_cast(hComponent, MagOmxComponent);
 
-	dispComp->setName(dispComp, COMPONENT_NAME);
+	dispComp->setName(dispComp, (OMX_U8 *)COMPONENT_NAME);
 	dispCompImpl->addPort(dispCompImpl, 0, dispInPort);
 	dispCompImpl->setupPortDataFlow(dispCompImpl, dispInPort, NULL);
 
@@ -86,7 +86,7 @@ static OMX_ERRORTYPE virtual_Deinit(
 	OMX_HANDLETYPE dispInPort;
 	MagOmxComponentImpl dispCompImpl;
 
-	AGILE_LOGV("enter!");
+	AGILE_LOGV("Disp enter!");
 	dispCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
 	dispInPort  = dispCompImpl->getPort(dispCompImpl, START_PORT_INDEX + 0);
 
@@ -101,7 +101,9 @@ static OMX_ERRORTYPE virtual_Reset(
 }
 
 static OMX_ERRORTYPE virtual_ComponentRoleEnum(
-                    OMX_IN  OMX_HANDLETYPE hComponent){
+                    OMX_IN OMX_HANDLETYPE hComponent,
+                    OMX_OUT OMX_U8 *cRole,
+                    OMX_IN OMX_U32 nIndex){
 	return OMX_ErrorNone;
 }
 
@@ -174,6 +176,7 @@ static OMX_ERRORTYPE MagOmxComponent_DispTest_DeInit(OMX_IN OMX_HANDLETYPE hComp
 	OMX_COMPONENTTYPE *compType = (OMX_COMPONENTTYPE *)hComponent;
 	MagOmxComponent_DispTest hVdecComp;
 
+	AGILE_LOGV("MagOmxComponent_DispTest_DeInit enter!");
 	hVdecComp = (MagOmxComponent_DispTest)compType->pComponentPrivate;
 	ooc_delete((Object)hVdecComp);
 

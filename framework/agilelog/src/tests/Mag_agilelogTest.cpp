@@ -1,4 +1,5 @@
 #include "Mag_agilelog.h"
+#include "Mag_mem.h"
 #include <unistd.h>
 #include <sys/types.h>
 #include <dirent.h>

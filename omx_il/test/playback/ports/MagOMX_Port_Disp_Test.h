@@ -12,7 +12,7 @@ Virtuals(MagOmxPort_DispTest, MagOmxPortVideo)
 EndOfVirtuals;
 
 ClassMembers(MagOmxPort_DispTest, MagOmxPortVideo, \
-
+	void (*self)(void); \
 )
 
 EndOfClassMembers;

@@ -8,6 +8,7 @@ static OMX_ERRORTYPE virtual_VdecTest_AllocateBuffer(OMX_HANDLETYPE port, OMX_U8
 	buf = (OMX_U8 *)mag_mallocz(nSizeBytes);
 	if (buf){
 		*ppBuffer = buf;
+		AGILE_LOGD("allocate buffer: %p", buf);
 		return OMX_ErrorNone;
 	}else{
 		return OMX_ErrorInsufficientResources;
@@ -15,6 +16,7 @@ static OMX_ERRORTYPE virtual_VdecTest_AllocateBuffer(OMX_HANDLETYPE port, OMX_U8
 }
 
 static OMX_ERRORTYPE virtual_VdecTest_FreeBuffer(OMX_HANDLETYPE port, OMX_U8 *pBuffer){
+	AGILE_LOGD("free buffer: %p", pBuffer);
 	mag_free(pBuffer);
 
 	return OMX_ErrorNone;

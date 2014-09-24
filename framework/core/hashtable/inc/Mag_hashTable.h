@@ -12,11 +12,12 @@ extern "C" {
 /*uintptr_t is an unsigned int that is guaranteed to be the same size as a pointer. in <stdint.h>*/
 #define ht_offsetof(TYPE, MEMBER) ( (uintptr_t) (&((TYPE *)0)->MEMBER) ) 
 
-#define hlist_container_of(ptr, type, member) ({			\
-	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
+#define hlist_container_of(ptr, type, member)  \
+	__extension__({			\
+	const __typeof__( ((type *)0)->member ) *__mptr = (ptr);	\
 	(type *)( (const char *)__mptr - ht_offsetof(type,member) );})
 
-#define hlist_entry(ptr, type, member) hlist_container_of(ptr,type,member)
+#define hlist_entry(ptr, type, member) hlist_container_of(ptr, type, member)
 
 /**
  * hlist_for_each_entry	- iterate over list of given type
@@ -25,17 +26,17 @@ extern "C" {
  * @head:	the head for your list.
  * @member:	the name of the hlist_node within the struct.
  */
-#define hlist_for_each_entry(tpos, pos, head, member)    \
+#define hlist_for_each_entry(tpos, pos, head, member)   \
 	for (pos = (head)->first;					 \
 	     pos &&							 \
-		({ tpos = hlist_entry(pos, typeof(*tpos), member); 1;}); \
-	     pos = pos->next)
+		 __extension__({ tpos = hlist_entry(pos, __typeof__(*tpos), member); 1;}); \
+	     pos = pos->next) 
 
 #define hlist_for_each_entry_to_tail(tpos, pos, prev, head, member)    \
 	for (pos = (head)->first;					 \
 	     pos &&							 \
-	    ({ prev = pos; 1;}) &&          \
-		({ tpos = hlist_entry(pos, typeof(*tpos), member); 1;}); \
+	    __extension__({ prev = pos; 1;}) &&          \
+		__extension__({ tpos = hlist_entry(pos, __typeof__(*tpos), member); 1;}); \
 	     pos = pos->next)
 	     
 /*END: The Macros for hlist operations*/
@@ -55,7 +56,7 @@ typedef struct hash_table{
 typedef struct linked_key_node{
     struct hlist_node node;
     void *nodeValue;
-    char nodeStr[64]; //the length of the key should be less than 64
+    char nodeStr[64]; /*the length of the key should be less than 64*/
 }LinkedKeyNode_t;
 
 
@@ -113,7 +114,7 @@ typedef struct str_hash_table{
 typedef StrHashTable_t* HashTableHandle;
 
 HashTableHandle  createMagStrHashTable(int num);
-void             destroyMagStrHashTable(HashTableHandle ht);
+void             destroyMagStrHashTable(HashTableHandle *pHt);
 
 #ifdef __cplusplus
 }

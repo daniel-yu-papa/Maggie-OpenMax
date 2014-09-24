@@ -177,7 +177,7 @@ static void MagOmxPortVideo_destructor(MagOmxPortVideo thiz, MagOmxPortVideoVtab
 
     AGILE_LOGV("Enter!");
 
-    mag_free(thiz->mpPortDefinition);
+    mag_freep((void **)&thiz->mpPortDefinition);
 
     next = thiz->mPortFormatList.next;
     while (next != &thiz->mPortFormatList){
@@ -187,6 +187,6 @@ static void MagOmxPortVideo_destructor(MagOmxPortVideo thiz, MagOmxPortVideoVtab
     	next = thiz->mPortFormatList.next;
     }
 
-    destroyMagMiniDB(thiz->mParametersDB);
-    Mag_DestroyMutex(thiz->mhMutex);
+    destroyMagMiniDB(&thiz->mParametersDB);
+    Mag_DestroyMutex(&thiz->mhMutex);
 }

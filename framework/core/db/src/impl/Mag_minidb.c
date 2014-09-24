@@ -1,5 +1,6 @@
 #include "Mag_minidb.h"
 #include "Mag_agilelog.h"
+#include "Mag_mem.h"
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
@@ -7,7 +8,7 @@
 #define MODULE_TAG "magFramework-MiniDB"
 
 
-void MagMiniDB_setInt32(struct mag_minidb *db, const char *name, i32 value){
+static void MagMiniDB_setInt32(struct mag_minidb *db, const char *name, i32 value){
     MagMiniDBItemHandle hItem;
 
     Mag_AcquireMutex(db->mLock);
@@ -29,7 +30,7 @@ void MagMiniDB_setInt32(struct mag_minidb *db, const char *name, i32 value){
     Mag_ReleaseMutex(db->mLock);
 }
 
-void MagMiniDB_setInt64(struct mag_minidb *db, const char *name, i64 value){
+static void MagMiniDB_setInt64(struct mag_minidb *db, const char *name, i64 value){
     MagMiniDBItemHandle hItem;
 
     Mag_AcquireMutex(db->mLock);
@@ -51,8 +52,8 @@ void MagMiniDB_setInt64(struct mag_minidb *db, const char *name, i64 value){
     Mag_ReleaseMutex(db->mLock);
 }
 
-void MagMiniDB_setUInt32(struct mag_minidb *db, const char *name, ui32 value){
-    MagMiniDBItemHandle hItem;
+static void MagMiniDB_setUInt32(struct mag_minidb *db, const char *name, ui32 value){
+    MagMiniDBItemHandle hItem = NULL;
 
     Mag_AcquireMutex(db->mLock);
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
@@ -73,7 +74,7 @@ void MagMiniDB_setUInt32(struct mag_minidb *db, const char *name, ui32 value){
     Mag_ReleaseMutex(db->mLock);
 }
 
-void MagMiniDB_setFloat(struct mag_minidb *db, const char *name, fp32 value){
+static void MagMiniDB_setFloat(struct mag_minidb *db, const char *name, fp32 value){
     MagMiniDBItemHandle hItem;
 
     Mag_AcquireMutex(db->mLock);
@@ -95,7 +96,7 @@ void MagMiniDB_setFloat(struct mag_minidb *db, const char *name, fp32 value){
     Mag_ReleaseMutex(db->mLock);
 }
 
-void MagMiniDB_setDouble(struct mag_minidb *db, const char *name, fp64 value){
+static void MagMiniDB_setDouble(struct mag_minidb *db, const char *name, fp64 value){
     MagMiniDBItemHandle hItem;
 
     Mag_AcquireMutex(db->mLock);
@@ -117,7 +118,7 @@ void MagMiniDB_setDouble(struct mag_minidb *db, const char *name, fp64 value){
     Mag_ReleaseMutex(db->mLock);
 }
 
-void MagMiniDB_setPointer(struct mag_minidb *db, const char *name, void *value){
+static void MagMiniDB_setPointer(struct mag_minidb *db, const char *name, void *value){
     MagMiniDBItemHandle hItem;
 
     Mag_AcquireMutex(db->mLock);
@@ -141,7 +142,7 @@ void MagMiniDB_setPointer(struct mag_minidb *db, const char *name, void *value){
     Mag_ReleaseMutex(db->mLock);
 }
 
-void MagMiniDB_setString(struct mag_minidb *db, const char *name, const char *s){
+static void MagMiniDB_setString(struct mag_minidb *db, const char *name, const char *s){
     MagMiniDBItemHandle hItem;
 
     Mag_AcquireMutex(db->mLock);
@@ -164,7 +165,7 @@ void MagMiniDB_setString(struct mag_minidb *db, const char *name, const char *s)
     Mag_ReleaseMutex(db->mLock);
 }
 
-boolean MagMiniDB_findInt32(struct mag_minidb *db, const char *name, i32 *value){
+static boolean MagMiniDB_findInt32(struct mag_minidb *db, const char *name, i32 *value){
     MagMiniDBItemHandle hItem;
     boolean ret;
 
@@ -186,7 +187,7 @@ boolean MagMiniDB_findInt32(struct mag_minidb *db, const char *name, i32 *value)
     return ret;
 }
 
-boolean MagMiniDB_findInt64(struct mag_minidb *db, const char *name, i64 *value){
+static boolean MagMiniDB_findInt64(struct mag_minidb *db, const char *name, i64 *value){
     MagMiniDBItemHandle hItem;
     boolean ret;
 
@@ -208,7 +209,7 @@ boolean MagMiniDB_findInt64(struct mag_minidb *db, const char *name, i64 *value)
     return ret;
 }
 
-boolean MagMiniDB_findUInt32(struct mag_minidb *db, const char *name, ui32 *value){
+static boolean MagMiniDB_findUInt32(struct mag_minidb *db, const char *name, ui32 *value){
     MagMiniDBItemHandle hItem;
     boolean ret;
 
@@ -230,7 +231,7 @@ boolean MagMiniDB_findUInt32(struct mag_minidb *db, const char *name, ui32 *valu
     return ret;
 }
 
-boolean MagMiniDB_findFloat(struct mag_minidb *db, const char *name, fp32 *value){
+static boolean MagMiniDB_findFloat(struct mag_minidb *db, const char *name, fp32 *value){
     MagMiniDBItemHandle hItem;
     boolean ret;
 
@@ -252,7 +253,7 @@ boolean MagMiniDB_findFloat(struct mag_minidb *db, const char *name, fp32 *value
     return ret;
 }
 
-boolean MagMiniDB_findDouble(struct mag_minidb *db, const char *name, fp64 *value){
+static boolean MagMiniDB_findDouble(struct mag_minidb *db, const char *name, fp64 *value){
     MagMiniDBItemHandle hItem;
     boolean ret;
 
@@ -274,7 +275,7 @@ boolean MagMiniDB_findDouble(struct mag_minidb *db, const char *name, fp64 *valu
     return ret;
 }
 
-boolean MagMiniDB_findPointer(struct mag_minidb *db, const char *name, void **value){
+static boolean MagMiniDB_findPointer(struct mag_minidb *db, const char *name, void **value){
     MagMiniDBItemHandle hItem;
     boolean ret;
 
@@ -296,7 +297,7 @@ boolean MagMiniDB_findPointer(struct mag_minidb *db, const char *name, void **va
     return ret;
 }
 
-boolean MagMiniDB_findString(struct mag_minidb *db, const char *name, char **s){
+static boolean MagMiniDB_findString(struct mag_minidb *db, const char *name, char **s){
     MagMiniDBItemHandle hItem;
     boolean ret;
 
@@ -320,9 +321,8 @@ boolean MagMiniDB_findString(struct mag_minidb *db, const char *name, char **s){
 
 /* once the string/pointer type items are copied to other mag_minidb object. 
   * the items must be deferenced cause the copied mag_minidb object takes responsibility to free them.*/
-void    MagMiniDB_derefItem(struct mag_minidb *db, const char *name){
+static void    MagMiniDB_derefItem(struct mag_minidb *db, const char *name){
     MagMiniDBItemHandle hItem;
-    boolean ret;
 
     Mag_AcquireMutex(db->mLock);
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
@@ -342,9 +342,8 @@ void    MagMiniDB_derefItem(struct mag_minidb *db, const char *name){
     Mag_ReleaseMutex(db->mLock);
 }
 
-void    MagMiniDB_deleteItem(struct mag_minidb *db, const char *name){
+static void    MagMiniDB_deleteItem(struct mag_minidb *db, const char *name){
     MagMiniDBItemHandle hItem;
-    boolean ret;
 
     Mag_AcquireMutex(db->mLock);
     hItem = (MagMiniDBItemHandle)db->mhHashTable->getItem(db->mhHashTable, name);
@@ -403,13 +402,14 @@ MagMiniDBHandle createMagMiniDB(i32 maxItemsNum){
     return h;
 }
 
-void destroyMagMiniDB(MagMiniDBHandle db){
+void destroyMagMiniDB(MagMiniDBHandle *pDb){
     List_t *tmpNode;
     MagMiniDBItemHandle hItem;
+    MagMiniDBHandle db = *pDb;
 
     Mag_AcquireMutex(db->mLock);
     
-    destroyMagStrHashTable(db->mhHashTable);
+    destroyMagStrHashTable(&db->mhHashTable);
 
     tmpNode = db->mItemListHead.next;
 
@@ -427,7 +427,7 @@ void destroyMagMiniDB(MagMiniDBHandle db){
     }
     Mag_ReleaseMutex(db->mLock);
     
-    Mag_DestroyMutex(db->mLock);
-    mag_free(db);
+    Mag_DestroyMutex(&db->mLock);
+    mag_freep((void **)pDb);
 }
 

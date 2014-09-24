@@ -14,7 +14,7 @@ typedef enum {
     MAGTHREAD_PRIORITY_HIGH           = -16,
     /* should never be used in practice. regular process might not 
      * be allowed to use this level */
-    MAGTHREAD_PRIORITY_HIGHEST        = -20,
+    MAGTHREAD_PRIORITY_HIGHEST        = -20
 }MagThread_Priority_t;
 
 typedef boolean (*fnThreadLoop)(void *priv);
@@ -56,7 +56,7 @@ typedef struct mag_thread{
 typedef MagThread_t*   MagThreadHandle;
 
 MagThreadHandle Mag_CreateThread(const char* name, fnThreadLoop fn, void *priv);
-void        Mag_DestroyThread(MagThreadHandle self);
+void        Mag_DestroyThread(MagThreadHandle *pSelf);
 
 #ifdef __cplusplus
 }

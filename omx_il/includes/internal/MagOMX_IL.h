@@ -17,6 +17,14 @@
 
 #define STRINGIFY(x) case x: return #x
 
+typedef enum OMX_EXTSTATETRANSTYPE
+{
+    OMX_TransitionStateNone = 0,
+    OMX_TransitionStateToIdle,
+    OMX_TransitionStateToLoaded,
+    OMX_TransitionStateToExecuting,
+    OMX_TransitionStateToPause
+} OMX_EXTSTATETRANSTYPE;
 
 /** all parameters/configs structures start with this structure. */
 typedef struct
@@ -111,6 +119,17 @@ static inline OMX_STRING OmxState2String(OMX_STATETYPE state) {
         STRINGIFY(OMX_StateKhronosExtensions);
         STRINGIFY(OMX_StateVendorStartUnused);
         STRINGIFY(OMX_StateMax);
+        default: return "state - unknown";
+    }
+}
+
+static inline OMX_STRING OmxTransState2String(OMX_EXTSTATETRANSTYPE state) {
+    switch (state) {
+        STRINGIFY(OMX_TransitionStateNone);
+        STRINGIFY(OMX_TransitionStateToIdle);
+        STRINGIFY(OMX_TransitionStateToLoaded);
+        STRINGIFY(OMX_TransitionStateToExecuting);
+        STRINGIFY(OMX_TransitionStateToPause);
         default: return "state - unknown";
     }
 }

@@ -104,7 +104,9 @@ class LibraryModule(Module):
        
         # calculate our build include path
         cpp_path = GetIncludeDirs(Split(self.build_include_dirs) + Split(build_source_dirs) + self.included_modules + self.linked_modules)          
-                 
+        
+        self.env.AppendUnique(CCFLAGS = env['EXTRA_CC_FLAGS'])
+          
         # the product is a library
         self.env.AppendUnique(CPPPATH=cpp_path)
         if shared is False:
@@ -186,10 +188,16 @@ LibraryModule(name                  = 'tinyxml2',
               build_source_dirs     = ['tinyxml2'],
               excluded_files        = ['xmltest.cpp'])
 
+LibraryModule(name                  = 'Mag_mem',
+              source_root           = '../platform/hal',
+              build_source_dirs     = ['src'],
+              excluded_files        = ['Mag_hal.c'],
+              build_include_dirs    = ['../platform/hal/inc'])
+
 LibraryModule(name                  = 'hashTable',
               source_root           = '../core/hashtable',
               build_source_dirs     = ['src/impl'],
-              build_include_dirs    = ['../core/hashtable/inc'])
+              build_include_dirs    = ['../core/hashtable/inc', '../platform/hal/inc'])
 
 LibraryModule(name                  = 'MagAgilelog',
               build_source_dirs     = ['impl'],
@@ -200,8 +208,8 @@ LibraryModule(name                  = 'MagAgilelog',
 
 LibraryModule(name                  = 'MagAgilelogStatic',
               build_source_dirs     = ['impl'],
-              linked_modules        = ['tinyxml2', 'hashTable'],
-              build_include_dirs    = ['inc', 'external/tinyxml2', '../core/hashtable/inc'])
+              linked_modules        = ['tinyxml2', 'hashTable', 'Mag_mem'],
+              build_include_dirs    = ['inc', 'external/tinyxml2', '../core/hashtable/inc', '../platform/hal/inc'])
 
 Application(name    = 'MagAgilelogTest', 
             dir     = 'src/tests', 

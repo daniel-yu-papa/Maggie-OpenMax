@@ -15,12 +15,12 @@ extern "C" {
 
 typedef enum{
     MSG_DISCARD = 0,  /*discard all messages and stop immediately*/
-    MSG_FLUSH,        /*finish all messages before stopping*/
+    MSG_FLUSH         /*finish all messages before stopping*/
 }Mag_MsgDetachFlag_t;
 
 typedef enum{
     MSG_CTRL_STOP = 0,
-    MSG_CTRL_RUN,
+    MSG_CTRL_RUN
 }Mag_MsgCtrlType_t;
 
 typedef void (*fnMsgChanReceiver)(void *msg, void *priv);
@@ -53,7 +53,7 @@ typedef Mag_MsgChannel_t* MagMsgChannelHandle;
 
 /*function prototye definitions*/
 MagErr_t Mag_MsgChannelCreate(MagMsgChannelHandle *handle);
-MagErr_t Mag_MsgChannelDestroy(MagMsgChannelHandle handle);
+MagErr_t Mag_MsgChannelDestroy(MagMsgChannelHandle *pHandle);
 
 /*only one receiver could be attached to the message channel*/
 MagErr_t Mag_MsgChannelReceiverAttach(MagMsgChannelHandle handle, fnMsgChanReceiver func, void *priv_data);

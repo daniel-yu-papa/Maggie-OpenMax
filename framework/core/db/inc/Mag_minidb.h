@@ -22,7 +22,7 @@ enum MagMiniDBItemType {
     MagMiniDB_TypeFloat,
     MagMiniDB_TypeDouble,
     MagMiniDB_TypePointer,
-    MagMiniDB_TypeString,
+    MagMiniDB_TypeString
 };
 
 typedef struct mag_minidb_item{
@@ -72,7 +72,7 @@ typedef struct mag_minidb{
 typedef MagMiniDB_t* MagMiniDBHandle;
 
 MagMiniDBHandle createMagMiniDB(i32 maxItemsNum);
-void destroyMagMiniDB(MagMiniDBHandle db);
+void destroyMagMiniDB(MagMiniDBHandle *pDb);
 
 #ifdef __cplusplus
 }

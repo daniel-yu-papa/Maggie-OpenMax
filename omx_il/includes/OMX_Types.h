@@ -95,6 +95,8 @@ extern "C" {
 
 #define OMX_ALL 0xFFFFFFFF
 
+#ifdef __C99_standard_integer_definitions_not_present__
+
 typedef unsigned char OMX_U8;
 
 typedef signed char OMX_S8;
@@ -103,9 +105,13 @@ typedef unsigned short OMX_U16;
 
 typedef signed short OMX_S16;
 
-typedef unsigned long OMX_U32;
+typedef unsigned int OMX_U32;
 
-typedef signed long OMX_S32;
+typedef signed int OMX_S32;
+
+/*typedef unsigned long OMX_U32;
+
+typedef signed long OMX_S32;*/
 
 
 /* Users with compilers that cannot accept the "long long" designation should
@@ -131,6 +137,23 @@ typedef unsigned long long OMX_U64;
 typedef signed long long OMX_S64;
 
 #endif /* WIN32 */
+#endif
+
+#else /*__C99_standard_integer_definitions__*/
+
+#include <stdint.h>
+
+/*====== defines ======*/
+typedef unsigned char      OMX_U8;
+typedef uint16_t           OMX_U16;       /*///< Unsigned 16-bit integer*/
+typedef uint32_t           OMX_U32;       /*///< Unsigned 32-bit integer*/
+typedef uint64_t           OMX_U64;       /*///< Unsigned 64-bit integer*/
+
+typedef signed char        OMX_S8;        /*///< Signed 8-bit integer*/
+typedef int16_t            OMX_S16;       /*///< Signed 16-bit integer*/
+typedef int32_t            OMX_S32;       /*///< Signed 32-bit integer*/
+typedef int64_t            OMX_S64;       /*///< Signed 64-bit integer*/
+
 #endif
 
 typedef enum OMX_BOOL {

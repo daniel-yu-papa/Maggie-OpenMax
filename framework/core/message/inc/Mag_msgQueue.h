@@ -26,8 +26,8 @@ typedef struct mag_msg_queue{
 
 typedef Mag_MsgQueue_t* Mag_MsgQueueHandle;
 
-Mag_MsgQueueHandle Mag_CreateMsgQueue();
-void Mag_DestroyMsgQueue(Mag_MsgQueueHandle h);
+Mag_MsgQueueHandle Mag_CreateMsgQueue(void);
+void Mag_DestroyMsgQueue(Mag_MsgQueueHandle *pHandle);
 
 #ifdef __cplusplus
 }

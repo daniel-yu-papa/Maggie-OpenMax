@@ -10,6 +10,7 @@ Virtuals(MagOmxComponent_DispTest, MagOmxComponentVideo)
 EndOfVirtuals;
 
 ClassMembers(MagOmxComponent_DispTest, MagOmxComponentVideo, \
+	void (*self)(void); \
 )
 
 EndOfClassMembers;

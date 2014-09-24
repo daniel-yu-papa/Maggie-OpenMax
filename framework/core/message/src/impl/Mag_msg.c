@@ -47,17 +47,18 @@ err_event:
     
 err_mutex:
     if((*handle))
-        free((*handle));
+        mag_free((*handle));
     
     *handle = NULL;
     return MAG_ErrMutexCreate;
 }
 
-MagErr_t Mag_MsgChannelDestroy(MagMsgChannelHandle handle){
+MagErr_t Mag_MsgChannelDestroy(MagMsgChannelHandle *pHandle){
     List_t *tmpNode;
     Mag_Message_t *msg;
     int freeNodeCount = 0;
-    
+    MagMsgChannelHandle handle = *pHandle;
+
     if(NULL == handle)
         return MAG_BadParameter;
     
@@ -68,21 +69,21 @@ MagErr_t Mag_MsgChannelDestroy(MagMsgChannelHandle handle){
     while (tmpNode != &handle->freeMsgListHead){
         msg = (Mag_Message_t *)list_entry(tmpNode, Mag_Message_t, node);
         if (msg->msgBody)
-            free(msg->msgBody);
+            mag_free(msg->msgBody);
         
         list_del(&msg->node);
-        free(msg);
+        mag_free(msg);
         tmpNode = handle->freeMsgListHead.next;
         freeNodeCount++;
     }
     
     AGILE_LOGV("delete total %d nodes from the free list", freeNodeCount);
-    Mag_DestroyEvent(handle->event);
-    Mag_DestroyEventGroup(handle->evtGrp);
+    Mag_DestroyEvent(&handle->event);
+    Mag_DestroyEventGroup(&handle->evtGrp);
 
     pthread_mutex_destroy(&handle->lock);
     
-    free(handle);
+    mag_freep((void **)pHandle);
     return MAG_ErrNone;
 }
 
@@ -90,7 +91,7 @@ static void *Mag_MsgChannelProcessEntry(void *arg){
     List_t *tmpNode;
     int rc;
     MagMsgChannelHandle msgChHandle = (MagMsgChannelHandle)arg;
-    // int timeout = MAG_TIMEOUT_INFINITE;
+    /*int timeout = MAG_TIMEOUT_INFINITE;*/
     Mag_Message_t *msg;
 
     if (NULL == msgChHandle->evtGrp){
@@ -175,7 +176,6 @@ static Mag_Message_t *getMsgNode(MagMsgChannelHandle handle){
     Mag_Message_t *newMsg = NULL;
     List_t *tmpNode;
     int rc;
-    // MagErr_t ret;
     
     rc = pthread_mutex_lock(&handle->lock);
     MAG_ASSERT(0 == rc);
@@ -204,10 +204,10 @@ static Mag_Message_t *getMsgNode(MagMsgChannelHandle handle){
     
 err_memory: 
     if (newMsg)
-        free(newMsg);
+        mag_free(newMsg);
 
     if (newMsg->msgBody)
-        free(newMsg->msgBody);
+        mag_free(newMsg->msgBody);
     
     return NULL;
 }
@@ -260,7 +260,6 @@ MagErr_t Mag_MsgChannelReceiverDettach(MagMsgChannelHandle handle, Mag_MsgDetach
 }
 
 MagErr_t Mag_MsgChannelSend(MagMsgChannelHandle handle, const void *msg, const unsigned int msg_len){
-    // List_t *tmpNode;
     Mag_Message_t *newMsg;
     int rc;
 
@@ -275,7 +274,7 @@ MagErr_t Mag_MsgChannelSend(MagMsgChannelHandle handle, const void *msg, const u
     if (NULL == newMsg->msgBody){
         newMsg->msgBody = (unsigned char *)malloc(msg_len);
         if (NULL == newMsg->msgBody){
-            free(newMsg);
+            mag_free(newMsg);
             return MAG_NoMemory;
         }
     }

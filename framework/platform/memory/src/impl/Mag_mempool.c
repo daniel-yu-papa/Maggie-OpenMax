@@ -6,7 +6,7 @@
 #endif          
 #define MODULE_TAG "magFramework-Memory"
 
-//#define MEMPOOL_DEBUG
+/*#define MEMPOOL_DEBUG*/
 
 /*
 * the design of the memory pool is specially for OpenMax Port Buffer management.
@@ -99,13 +99,13 @@ static MagErr_t allocateBuffer(magMempoolHandle hMemPool, magMempoolInternal_t *
     magMemBlock_t *mb = NULL;
     magMemBlock_t *mb2 = NULL;
     magMemBlock_t *allocmb = NULL;
-    // List_t *tmpNodeInter = NULL;
+    /*List_t *tmpNodeInter = NULL;*/
     List_t *nextActive = NULL;
-    // unsigned int order = 0;
+    /*unsigned int order = 0;*/
     int offset = 0;
     
     /*for debugging*/
-    // magMemBlock_t *mbdebug;
+    /*magMemBlock_t *mbdebug;*/
     
     *getBuffer = NULL;    
     
@@ -326,7 +326,7 @@ static void sortMemPoolList(magMempoolHandle hMemPool){
         }
     }
 
-    //For debugging
+    /*For debugging*/
     l1 = hMemPool->memPoolListHead.next;
     while (l1 != &hMemPool->memPoolListHead){
         current = (magMempoolInternal_t *)list_entry(l1, magMempoolInternal_t, node);
@@ -421,7 +421,7 @@ void *magMemPoolGetBuffer(magMempoolHandle hMemPool, unsigned int bytes){
     }
     
 find:
-    // AGILE_LOGV("[0x%x]: find the matching buffer - 0x%x", hMemPool, getBuffer);
+    /*AGILE_LOGV("[0x%x]: find the matching buffer - 0x%x", hMemPool, getBuffer);*/
     pthread_mutex_unlock(&hMemPool->mutex);
     return (void *)getBuffer;
 }
@@ -521,7 +521,7 @@ done:
         firstMB->pBuf  = mpool->pMemPoolBuf + firstMB->start;
 
 #ifdef MEMPOOL_DEBUG        
-        //debugging
+        /*debugging*/
         tmpNode = mpool->freeMBListHead.next;
         AGILE_LOGV("**********");
         while(tmpNode != &mpool->freeMBListHead){
@@ -545,11 +545,12 @@ MagErr_t magMemPoolReset(magMempoolHandle hMemPool){
     return MAG_ErrNone;
 }
 
-void magMemPoolDestroy(magMempoolHandle hMemPool){
+void magMemPoolDestroy(magMempoolHandle *phMemPool){
     List_t *tmpNode = NULL;
     List_t *pNode = NULL;
     magMempoolInternal_t * mpool = NULL;
     magMemBlock_t *mb = NULL;
+    magMempoolHandle hMemPool = *phMemPool;
 
     AGILE_LOGV("enter!");
     if (NULL == hMemPool){
@@ -596,7 +597,7 @@ void magMemPoolDestroy(magMempoolHandle hMemPool){
     pthread_mutex_unlock(&hMemPool->mutex);
 
     pthread_mutex_destroy(&hMemPool->mutex);
-    mag_free(hMemPool);
+    mag_freep((void **)phMemPool);
     AGILE_LOGV("exit!");
 }
 

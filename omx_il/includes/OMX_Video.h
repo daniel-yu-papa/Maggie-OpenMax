@@ -353,7 +353,7 @@ typedef enum OMX_VIDEO_WMVPROFILETYPE {
     OMX_VIDEO_WMVProfileAdvanced,
     OMX_VIDEO_WMVProfileUnknown           = 0x6EFFFFFF,
     OMX_VIDEO_WMVProfileKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */ 
-    OMX_VIDEO_WMVProfileVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
+    OMX_VIDEO_WMVProfileVendorStartUnused = 0x7F000000  /**< Reserved region for introducing Vendor Extensions */
 } OMX_VIDEO_WMVPROFILETYPE;
 
 typedef enum OMX_VIDEO_WMVLEVELTYPE {
@@ -367,7 +367,7 @@ typedef enum OMX_VIDEO_WMVLEVELTYPE {
     OMX_VIDEO_WMVLevelL4,
     OMX_VIDEO_WMVLevelUnknown           = 0x6EFFFFFF,
     OMX_VIDEO_WMVLevelKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */ 
-    OMX_VIDEO_WMVLevelVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
+    OMX_VIDEO_WMVLevelVendorStartUnused = 0x7F000000  /**< Reserved region for introducing Vendor Extensions */
 } OMX_VIDEO_WMVLEVELTYPE;
 
 typedef struct OMX_VIDEO_PARAM_WMVTYPE {

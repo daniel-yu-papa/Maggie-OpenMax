@@ -343,7 +343,7 @@ static void MagOmxPort_constructor(MagOmxPort thiz, const void *params){
     thiz->mIsTunneled            = OMX_FALSE;
     thiz->mBufferPolicy          = kNoneSharedBuffer;
     thiz->mState                 = kPort_State_Stopped;
-    strncpy(thiz->mPortName, lparam->name, 32);
+    strncpy((char *)thiz->mPortName, (char *)lparam->name, 32);
 
     Mag_CreateMutex(&thiz->mhMutex);
     Mag_CreateMutex(&thiz->mhParamMutex);
@@ -352,11 +352,11 @@ static void MagOmxPort_constructor(MagOmxPort thiz, const void *params){
 }
 
 static void MagOmxPort_destructor(MagOmxPort thiz, MagOmxPortVtable vtab){
-    AGILE_LOGV("Enter!");
+    PORT_LOGV(thiz, "Enter!");
 
-    mag_freep(&thiz->mpPortDefinition);
-    Mag_DestroyMutex(thiz->mhMutex);
-    Mag_DestroyMutex(thiz->mhParamMutex);
-    destroyMagMiniDB(thiz->mParametersDB);
+    mag_freep((void **)&thiz->mpPortDefinition);
+    Mag_DestroyMutex(&thiz->mhMutex);
+    Mag_DestroyMutex(&thiz->mhParamMutex);
+    destroyMagMiniDB(&thiz->mParametersDB);
 }
 

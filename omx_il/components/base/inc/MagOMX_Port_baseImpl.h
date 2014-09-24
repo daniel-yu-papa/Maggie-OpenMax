@@ -14,21 +14,18 @@ enum{
     MagOmxPortImpl_OutputBufferMsg
 };
 
-typedef enum{
-    MagOmxPortImpl_OwnedByNone,
-    MagOmxPortImpl_OwnedByThisPort,
-    MagOmxPortImpl_OwnedByTunneledPort,
-    MagOmxPortImpl_OwnedByILClient,
-}MagOMX_Buffer_Owner_t;
-
 typedef struct{
     List_t node;        /*add into the List: mBufferList*/
     List_t runNode;     /*add into the List: mRunningBufferList*/
 
-    /*bufferHeaderOwner: only could be OwnedByThisPort or OwnedByTunneledPort*/
-    MagOMX_Buffer_Owner_t bufferHeaderOwner;
-    /*bufferOwner: only could be OwnedByThisPort or OwnedByILClient*/
-    MagOMX_Buffer_Owner_t bufferOwner;
+    /*bufferHeaderOwner: the port owns the buffer header allocation and free
+     *                   NULL: means owned by the OMX IL Client
+     */
+    MagOmxPort bufferHeaderOwner;
+    /*bufferOwner: the port owns the buffer allocation and free
+     *                   NULL: means owned by the OMX IL Client
+     */
+    MagOmxPort bufferOwner;
     OMX_BUFFERHEADERTYPE  *pOmxBufferHeader;
 }MagOMX_Port_Buffer_t;
 
@@ -49,13 +46,13 @@ EndOfVirtuals;
 
 ClassMembers(MagOmxPortImpl, MagOmxPort, \
     MagMessageHandle      (*createMessage)(OMX_HANDLETYPE handle, OMX_U32 what);     \
-    _status_t             (*getLooper)(OMX_HANDLETYPE handle);                       \  
+    _status_t             (*getLooper)(OMX_HANDLETYPE handle);                       \
     void                  (*dispatchBuffers)(OMX_HANDLETYPE hPort, OMX_BUFFERHEADERTYPE *bufHeader); \
     MagOMX_Port_Buffer_t *(*allocBufferNode)(OMX_BUFFERHEADERTYPE* pBuffer);  \
     OMX_ERRORTYPE         (*putRunningNode)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE* pBuffer);  \
     OMX_ERRORTYPE         (*getRunningNode)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE **ppBuffer); \
     OMX_ERRORTYPE         (*putOutputNode)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE* pBuffer);  \
-    OMX_ERRORTYPE         (*getOutputNode)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE **ppBuffer); \
+    OMX_ERRORTYPE         (*getOutputNode)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE **ppBuffer, OMX_BOOL block); \
 
 )
     MagMutexHandle         mhMutex;

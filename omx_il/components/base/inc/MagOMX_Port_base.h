@@ -103,7 +103,7 @@ Virtuals(MagOmxPort, Base)
     /*Register the buffer handling message. only works on Input port*/
     OMX_ERRORTYPE (*RegisterBufferHandler)(
                   OMX_HANDLETYPE hPort,
-                  MagEventHandle pBufferHandler);
+                  MagMessageHandle pBufferHandler);
 
     void (*SendEvent)(
                   OMX_HANDLETYPE hPort,
@@ -195,7 +195,7 @@ static inline void PortLogPriv(MagOmxPort hPort,
                 hPort->getPortName(hPort),             
                 hPort->isTunneled(hPort) ? "T" : "N-T",            
                 hPort->isBufferSupplier(hPort) ? "B-S" : "N-B-S",
-                hPort,
+                (void *)hPort,
                 pMsg); 
     }else{
        snprintf(head, 512, "[port: NULL] %s",

@@ -2,7 +2,7 @@
 #include <string.h>
 
 #include "Mag_hashTable.h"
-//#include "agilelog.h"
+#include "Mag_mem.h"
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
@@ -12,9 +12,10 @@
 
 static void StrHashTable_addItem(struct str_hash_table *ht, void *item, const char *str){
     unsigned int tableIndex = 0;
+    LinkedKeyNode_t *node = NULL;
 
     tableIndex = calcDJBHashValue(str, strlen(str)) % ht->mTableSize;
-    LinkedKeyNode_t *node = (LinkedKeyNode_t *)malloc(sizeof(LinkedKeyNode_t));
+    node = (LinkedKeyNode_t *)malloc(sizeof(LinkedKeyNode_t));
     if (node != NULL){
         INIT_HLIST_NODE(&node->node);
         node->nodeValue = item;
@@ -34,19 +35,19 @@ static void *StrHashTable_getItem(struct str_hash_table *ht, const char *str){
     tableIndex = calcDJBHashValue(str, strlen(str)) % ht->mTableSize;
 
     if (NULL == ht->mpTable[tableIndex].head.first){
-        //printf("the string[%s] has not been added into the Table!!\n", str);
+        /*printf("the string[%s] has not been added into the Table!!\n", str);*/
         return NULL;
     }else{
         /*several nodes has the same hash key so traverse the link*/
         hlist_for_each_entry(tnode, pos, &ht->mpTable[tableIndex].head, node){
             if(!strcmp(str, tnode->nodeStr)){
-                //printf("get the node (%s)\n", tnode->nodeStr);
+                /* printf("get the node (%s)\n", tnode->nodeStr); */
                 return tnode->nodeValue;
             }
         }
     }
     
-    //printf("failed to get the node (%s)\n", str);
+    /* printf("failed to get the node (%s)\n", str); */
     return NULL;
 }
 
@@ -59,7 +60,7 @@ static void StrHashTable_delItem(struct str_hash_table *ht, const char *str){
     tableIndex = calcDJBHashValue(str, strlen(str)) % ht->mTableSize;
 
     if (NULL == ht->mpTable[tableIndex].head.first){
-        //printf("the string[%s] has not been added into the Table!!\n", str);
+        /* printf("the string[%s] has not been added into the Table!!\n", str); */
         return;
     }else{
         while(NULL != ht->mpTable[tableIndex].head.first){
@@ -75,7 +76,7 @@ static void StrHashTable_delItem(struct str_hash_table *ht, const char *str){
         }
     }
     
-    //printf("failed to get the node (%s)\n", str);
+    /* printf("failed to get the node (%s)\n", str); */
 }
 
 
@@ -126,12 +127,13 @@ HashTableHandle  createMagStrHashTable(int num){
     return ht;
 }
 
-void             destroyMagStrHashTable(HashTableHandle ht){
+void             destroyMagStrHashTable(HashTableHandle *pHt){
     int i;
     LinkedKeyNode_t *tnode = NULL;
     struct hlist_node *pos = NULL;
     struct hlist_node *prev = NULL;
-    
+    HashTableHandle ht = *pHt;
+
     if (NULL == ht)
         return;
     
@@ -141,10 +143,10 @@ void             destroyMagStrHashTable(HashTableHandle ht){
             }
             printf("remove node (%s)\n", tnode->nodeStr);
             hlist_del(prev);
-            free((void *)tnode);
+            mag_free((void *)tnode);
         }
     }
-    free((void *)ht->mpTable);
-    free(ht);
+    mag_free((void *)ht->mpTable);
+    mag_freep((void **)pHt);
 }
 

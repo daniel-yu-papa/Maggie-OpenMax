@@ -75,7 +75,7 @@ static void loadComponentLib(const OMX_STRING file, OMX_PTR arg){
     reg   = dlsym(so, "MagOMX_Component_Registration");
     dereg = dlsym(so, "MagOMX_Component_Deregistration");
 
-    ret = addComponentList(so, (comp_reg_func_t)reg, (comp_dereg_func_t)dereg);
+    ret = addComponentList(so, (comp_reg_func_t)(_size_t)reg, (comp_dereg_func_t)(_size_t)dereg);
     if(ret == 0)
         *(int *)arg = *(int *)arg + 1;
 }
@@ -141,13 +141,13 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_Init(void){
         gOmxCore->roleToComponentTable = createMagStrHashTable(128);
         if (NULL == gOmxCore->roleToComponentTable){
             AGILE_LOGE("failed to create hastable: roleToComponentTable!");
-            mag_freep(&gOmxCore);
+            mag_freep((void **)&gOmxCore);
             return OMX_ErrorInsufficientResources;
         }
         gOmxCore->componentToRoleTable = createMagStrHashTable(128);
         if (NULL == gOmxCore->componentToRoleTable){
             AGILE_LOGE("failed to create hastable: componentToRoleTable!");
-            mag_freep(&gOmxCore);
+            mag_freep((void **)&gOmxCore);
             return OMX_ErrorInsufficientResources;
         }
     }else{
@@ -185,16 +185,16 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_Deinit(void){
             comp->deregFunc(comp);
         }
         dlclose(comp->libHandle);
-        mag_freep(&comp);
+        mag_freep((void **)&comp);
         
         tmpNode = gOmxCore->LoadedCompListHead.next;
     }
 
-    destroyMagStrHashTable(gOmxCore->roleToComponentTable);
-    destroyMagStrHashTable(gOmxCore->componentToRoleTable);
-    Mag_DestroyMutex(gOmxCore->lock);
+    destroyMagStrHashTable(&gOmxCore->roleToComponentTable);
+    destroyMagStrHashTable(&gOmxCore->componentToRoleTable);
+    Mag_DestroyMutex(&gOmxCore->lock);
     
-    mag_freep(&gOmxCore);
+    mag_freep((void **)&gOmxCore);
 }
 
 OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_ComponentNameEnum(
@@ -286,7 +286,8 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_FreeHandle(
         AGILE_LOGE("the OMX_Init() is not done yet! quit...");
         return OMX_ErrorInsufficientResources;
     }
-    
+
+    AGILE_LOGV("enter!");
     Mag_AcquireMutex(gOmxCore->lock);
     
     tmpNode = gOmxCore->LoadedCompListHead.next;
@@ -307,9 +308,10 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_FreeHandle(
                 comp->deregFunc(hComponent);
             }
             dlclose(comp->libHandle);
-            mag_freep(&comp);
+            mag_freep((void **)&comp);
             goto out;
         }
+        tmpNode = tmpNode->next;
     }
     ret = OMX_ErrorComponentNotFound;
     AGILE_LOGE("Failed to find the component: 0x%p", hComponent);
@@ -529,7 +531,6 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_GetCoreInterface(
 OMX_API void OMX_APIENTRY OMX_FreeCoreInterface(
     OMX_IN void * pItf){
 
-    return OMX_ErrorNotImplemented;
 }
 
 

@@ -144,6 +144,7 @@ static void clearMessageQueue(MagLooperHandle hLooper){
     i64 key;
     void *value;
     MagLooperEvent_t *evt;
+    List_t *tmpNode;
 
     Mag_AcquireMutex(hLooper->mLock);
     while (hLooper->mDelayEvtTreeRoot){
@@ -153,8 +154,6 @@ static void clearMessageQueue(MagLooperHandle hLooper){
         list_add(&evt->node, &hLooper->mFreeEvtQueue);
     }
     hLooper->mDelayEvtWhenMS = 0;
-    
-    List_t *tmpNode;
     
     tmpNode = hLooper->mNoDelayEvtQueue.next;
     while (tmpNode != &hLooper->mNoDelayEvtQueue){
@@ -198,15 +197,17 @@ static boolean LooperThreadEntry(void *priv){
             Mag_ReleaseMutex(looper->mLock);
             
             if (NULL == msg){
-                //AGILE_LOGD("wait on event, timeout=%d", (i32)(looper->mDelayEvtWhenMS - nowMS));
+                /*AGILE_LOGD("wait on event, timeout=%d", (i32)(looper->mDelayEvtWhenMS - nowMS));*/
                 Mag_WaitForEventGroup(looper->mMQPushEvtGroup, MAG_EG_OR, (i32)(looper->mDelayEvtWhenMS - nowMS));
                 return MAG_TRUE;
             }else{
                 deliverMessage(looper, msg);
             }
         }else{
+            MagLooperEvent_t *evt;
+
+            evt = (MagLooperEvent_t *)value;
             rbtree_delete(&looper->mDelayEvtTreeRoot, looper->mDelayEvtWhenMS);
-            MagLooperEvent_t *evt = (MagLooperEvent_t *)value;
             if (evt)
                 looper->mEventInExecuting = MAG_TRUE;
             Mag_ReleaseMutex(looper->mLock);
@@ -250,7 +251,7 @@ static _status_t MagLooper_start(MagLooperHandle hLooper){
     ret = hLooper->mLooperThread->run(hLooper->mLooperThread);
     if (ret != MAG_NO_ERROR){
         AGILE_LOGE("failed to run Looper!, ret = 0x%x", ret);
-        Mag_DestroyThread(hLooper->mLooperThread);
+        Mag_DestroyThread(&hLooper->mLooperThread);
         hLooper->mLooperThread = NULL;
     }  
     return ret;
@@ -331,7 +332,7 @@ static void MagLooper_postMessage(MagLooperHandle hLooper, MagMessage_t *msg, i6
     }
     
     Mag_ReleaseMutex(hLooper->mLock);
-    //AGILE_LOGV("post msg: target %d(postEvt:%d)", msg->mTarget, postEvt);
+    /*AGILE_LOGV("post msg: target %d(postEvt:%d)", msg->mTarget, postEvt);*/
 }
 
 static ui32 MagLooper_getHandlerID(MagLooperHandle hLooper){
@@ -353,6 +354,8 @@ static void MagLooper_setMergeMsg(MagLooperHandle hLooper){
 MagLooperHandle createLooper(const char *pName){
     MagLooperHandle pLooper;
     char threadName[64];
+    ui32 i;
+    MagLooperEvent_t *pEvent;
 
     pLooper = (MagLooperHandle)mag_mallocz(sizeof(MagLooper_t));
     if (NULL != pLooper){
@@ -396,8 +399,6 @@ MagLooperHandle createLooper(const char *pName){
         pLooper->clear             = MagLooper_clear;
         pLooper->setMergeMsg       = MagLooper_setMergeMsg;
 
-        ui32 i;
-        MagLooperEvent_t *pEvent;
         for (i = 0; i < NUM_PRE_ALLOCATED_EVENTS; i++){
             pEvent = mag_mallocz(sizeof(MagLooperEvent_t));
             if (NULL != pEvent){
@@ -413,18 +414,19 @@ MagLooperHandle createLooper(const char *pName){
     return pLooper;
 }
 
-void destroyLooper(MagLooperHandle hLooper){
-    hLooper->stop(hLooper);
-
-    Mag_DestroyThread(hLooper->mLooperThread);
-    
-    Mag_DestroyMutex(hLooper->mLock);
-
-    Mag_DestroyEvent(hLooper->mMQEmptyPushEvt);
-    Mag_DestroyEventGroup(hLooper->mMQPushEvtGroup);
-
+void destroyLooper(MagLooperHandle *phLooper){
     List_t *tmpNode;
     MagLooperEvent_t *evt;
+    MagLooperHandle hLooper = *phLooper;
+
+    hLooper->stop(hLooper);
+
+    Mag_DestroyThread(&hLooper->mLooperThread);
+    
+    Mag_DestroyMutex(&hLooper->mLock);
+
+    Mag_DestroyEvent(&hLooper->mMQEmptyPushEvt);
+    Mag_DestroyEventGroup(&hLooper->mMQPushEvtGroup);
     
     tmpNode = hLooper->mFreeEvtQueue.next;
     while (tmpNode != &hLooper->mFreeEvtQueue){
@@ -435,7 +437,7 @@ void destroyLooper(MagLooperHandle hLooper){
         mag_free(evt);
         tmpNode = hLooper->mFreeEvtQueue.next;
     }
-    mag_free(hLooper);
+    mag_freep((void **)phLooper);
 }
 
 static ui32 MagHandler_id(MagHandlerHandle h){
@@ -457,7 +459,7 @@ MagHandlerHandle createHandler(MagLooperHandle hLooper, fnOnMessageReceived cb, 
     return h;
 }
 
-void destroyHandler(MagHandlerHandle hHandler){
-    mag_free(hHandler);
+void destroyHandler(MagHandlerHandle *phHandler){
+    mag_freep((void **)phHandler);
 }
 

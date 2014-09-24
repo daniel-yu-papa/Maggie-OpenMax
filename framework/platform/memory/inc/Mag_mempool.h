@@ -50,7 +50,7 @@ magMempoolHandle magMemPoolCreate(unsigned int bytes, ui32 flags);
 void *magMemPoolGetBuffer(magMempoolHandle hMemPool, unsigned int bytes);
 MagErr_t magMemPoolPutBuffer(magMempoolHandle hMemPool, void *pBuf);
 MagErr_t magMemPoolReset(magMempoolHandle hMemPool);
-void magMemPoolDestroy(magMempoolHandle hMemPool);
+void magMemPoolDestroy(magMempoolHandle *phMemPool);
 void magMemPoolDump(magMempoolHandle hMemPool);
 
 #ifdef __cplusplus

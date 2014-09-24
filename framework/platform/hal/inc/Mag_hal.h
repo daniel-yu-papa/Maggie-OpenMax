@@ -1,5 +1,5 @@
-#ifndef _MAG_BASE_H__
-#define _MAG_BASE_H__
+#ifndef _MAG_HAL_H__
+#define _MAG_HAL_H__
 
 #include "Mag_pub_def.h"
 #include "Mag_pub_type.h"
@@ -12,11 +12,11 @@ extern "C" {
 #endif
 
 enum {
-    MAG_SYSTEM_TIME_REALTIME = 0,  // system-wide realtime clock
-    MAG_SYSTEM_TIME_MONOTONIC = 1, // monotonic time since unspecified starting point
-    MAG_SYSTEM_TIME_PROCESS = 2,   // high-resolution per-process clock
-    MAG_SYSTEM_TIME_THREAD = 3,    // high-resolution per-thread clock
-    MAG_SYSTEM_TIME_BOOTTIME = 4   // same as SYSTEM_TIME_MONOTONIC, but including CPU suspend time
+    MAG_SYSTEM_TIME_REALTIME = 0,  /*// system-wide realtime clock*/
+    MAG_SYSTEM_TIME_MONOTONIC = 1, /*// monotonic time since unspecified starting point*/
+    MAG_SYSTEM_TIME_PROCESS = 2,   /*// high-resolution per-process clock*/
+    MAG_SYSTEM_TIME_THREAD = 3,    /*// high-resolution per-thread clock*/
+    MAG_SYSTEM_TIME_BOOTTIME = 4   /*// same as SYSTEM_TIME_MONOTONIC, but including CPU suspend time*/
 };
 
 struct MAG_MutexObj{
@@ -30,7 +30,7 @@ typedef struct MAG_MutexObj *MagMutexHandle;
 void Mag_AssertFailed(const char *expr, const char *file, unsigned int line);
 
 MagErr_t Mag_CreateMutex(MagMutexHandle *handler);
-MagErr_t Mag_DestroyMutex(MagMutexHandle handler);
+MagErr_t Mag_DestroyMutex(MagMutexHandle *pHandler);
 MagErr_t Mag_TryAcquireMutex(MagMutexHandle handler);
 MagErr_t Mag_AcquireMutex(MagMutexHandle handler);
 MagErr_t Mag_ReleaseMutex(MagMutexHandle handler);

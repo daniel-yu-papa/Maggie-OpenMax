@@ -45,6 +45,6 @@ static void MagOmxComponentAudio_constructor(MagOmxComponentAudio thiz, const vo
 static void MagOmxComponentAudio_destructor(MagOmxComponentAudio thiz, MagOmxComponentAudioVtable vtab){
 	AGILE_LOGV("Enter!");
 
-	destroyMagMiniDB(thiz->mParametersDB);
-    Mag_DestroyMutex(thiz->mhMutex);
+	destroyMagMiniDB(&thiz->mParametersDB);
+    Mag_DestroyMutex(&thiz->mhMutex);
 }

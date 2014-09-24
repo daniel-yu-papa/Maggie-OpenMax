@@ -30,7 +30,7 @@ enum MsgPayloadType {
     TypeDouble,
     TypePointer,
     TypeString,
-    TypeMessage,
+    TypeMessage
 };
 
 typedef struct mag_item{
@@ -90,7 +90,7 @@ typedef struct mag_message{
 typedef MagMessage_t* MagMessageHandle;
 
 MagMessageHandle createMagMessage(struct MagLooper *looper, ui32 what, ui32 target);
-void             destroyMagMessage(MagMessageHandle msg);
+void             destroyMagMessage(MagMessageHandle *pMsg);
 
 /*
 * definitions of Looper
@@ -157,10 +157,10 @@ typedef struct MagLooper{
 typedef MagLooper_t* MagLooperHandle;
 
 MagLooperHandle createLooper(const char *pName);
-void destroyLooper(MagLooperHandle hlooper);
+void destroyLooper(MagLooperHandle *phlooper);
 
 MagHandlerHandle createHandler(MagLooperHandle hLooper, fnOnMessageReceived cb, void *priv);
-void destroyHandler(MagHandlerHandle hHandler);
+void destroyHandler(MagHandlerHandle *phHandler);
 
 #ifdef __cplusplus
 }
