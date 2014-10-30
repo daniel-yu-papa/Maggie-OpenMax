@@ -14,7 +14,7 @@ PLATFORM_TO_TARGET_MAP = {
     'cygwin'     : 'x86-unknown-cygwin',
 }
   
-CROSS_PLATFORMS   = ['arm-unknown-linux', 'arm-android-linux']
+CROSS_PLATFORMS   = ['arm-unknown-linux', 'arm-android-linux', 'arm-a0m3-linux']
   
 def DefaultTarget():
     if PLATFORM_TO_TARGET_MAP.has_key(sys.platform):

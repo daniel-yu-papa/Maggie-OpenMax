@@ -1135,6 +1135,37 @@ static MagMessageHandle virtual_GetSharedBufferMsg(OMX_HANDLETYPE hPort){
     return hPortImpl->mSharedBufferMsg;
 }
 
+/*Get the output buffer that holds the generated data from the Component*/
+static OMX_BUFFERHEADERTYPE* virtual_GetOutputBuffer(OMX_HANDLETYPE hPort){
+    MagOmxPortImpl hPortImpl = NULL;
+    OMX_BUFFERHEADERTYPE *pBufHeader;
+
+    hPortImpl = ooc_cast(hPort, MagOmxPortImpl);
+    hPortImpl->getOutputNode(hPortImpl, &pBufHeader, OMX_TRUE);
+    return pBufHeader;
+}
+
+/*Attach the input buffer header to the output message and post it*/
+static OMX_ERRORTYPE virtual_PostOutputBufferMsg(OMX_HANDLETYPE hPort, OMX_BUFFERHEADERTYPE* pBufHeader){
+    MagOmxPortImpl hPortImpl = NULL;
+
+    if (pBufHeader == NULL){
+        AGILE_LOGE("Input pBufHeader is NULL, quit!");
+        return OMX_ErrorBadParameter;
+    }
+
+    hPortImpl = ooc_cast(hPort, MagOmxPortImpl);
+    if (hPortImpl->mOutputBufferMsg == NULL){
+        hPortImpl->mOutputBufferMsg = hPortImpl->createMessage(hPort, MagOmxPortImpl_OutputBufferMsg);
+    }
+
+    hPortImpl->mOutputBufferMsg->setPointer(hPortImpl->mOutputBufferMsg, "buffer_header", (void *)pBufHeader, MAG_FALSE);
+    hPortImpl->mOutputBufferMsg->postMessage(hPortImpl->mOutputBufferMsg, 0);
+
+    return OMX_ErrorNone;
+}
+
+#if 0
 /*called from MagOMX_ProceedBuffer() to provide the destinated/source buffer*/
 static MagMessageHandle virtual_GetOutputBufferMsg(OMX_HANDLETYPE hPort){
     MagOmxPortImpl hPortImpl = NULL;
@@ -1162,6 +1193,7 @@ static MagMessageHandle virtual_GetOutputBufferMsg(OMX_HANDLETYPE hPort){
 
     return hPortImpl->mOutputBufferMsg;
 }
+#endif
 
 /*Member functions*/
 static MagMessageHandle MagOmxPortImpl_createMessage(OMX_HANDLETYPE handle, ui32 what) {
@@ -1456,7 +1488,8 @@ static void MagOmxPortImpl_initialize(Class this){
     MagOmxPortImplVtableInstance.MagOmxPort.RegisterBufferHandler = virtual_RegisterBufferHandler;
     MagOmxPortImplVtableInstance.MagOmxPort.SendEvent             = virtual_SendEvent;
     MagOmxPortImplVtableInstance.MagOmxPort.GetSharedBufferMsg    = virtual_GetSharedBufferMsg;
-    MagOmxPortImplVtableInstance.MagOmxPort.GetOutputBufferMsg    = virtual_GetOutputBufferMsg;
+    MagOmxPortImplVtableInstance.MagOmxPort.GetOutputBuffer       = virtual_GetOutputBuffer;
+    MagOmxPortImplVtableInstance.MagOmxPort.PostOutputBufferMsg   = virtual_PostOutputBufferMsg;
 
     MagOmxPortImplVtableInstance.MagOMX_AllocateBuffer            = NULL;
     MagOmxPortImplVtableInstance.MagOMX_FreeBuffer                = NULL;

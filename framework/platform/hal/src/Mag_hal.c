@@ -101,6 +101,7 @@ MagErr_t Mag_ReleaseMutex(MagMutexHandle handler){
     }
 }
 
+/*return current system time in ns*/
 ui64 Mag_GetSystemTime(i32 clock)
 {
 #if defined(HAVE_POSIX_CLOCKS)

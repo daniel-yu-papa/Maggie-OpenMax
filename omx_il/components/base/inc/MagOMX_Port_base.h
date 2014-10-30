@@ -112,8 +112,11 @@ Virtuals(MagOmxPort, Base)
     /*Get Shared buffer message*/
     MagMessageHandle (*GetSharedBufferMsg)(OMX_HANDLETYPE hPort);
 
-    /*Get the output buffer message that holds the generated data from the Component*/
-    MagMessageHandle (*GetOutputBufferMsg)(OMX_HANDLETYPE hPort);
+    /*Get the output buffer that holds the generated data from the Component*/
+    OMX_BUFFERHEADERTYPE* (*GetOutputBuffer)(OMX_HANDLETYPE hPort);
+
+    /*Attach the input buffer header to the output message and post it*/
+    OMX_ERRORTYPE (*PostOutputBufferMsg)(OMX_HANDLETYPE hPort, OMX_BUFFERHEADERTYPE* pBufHeader);
 
     /*Get the port domain tpye*/
     OMX_PORTDOMAINTYPE (*GetDomainType)(OMX_HANDLETYPE hPort);
@@ -162,6 +165,9 @@ ClassMembers(MagOmxPort, Base, \
     void          (*setState)(MagOmxPort root, MagOmxPort_State_t st); \
 
     void          (*resetBufferSupplier)(MagOmxPort root); \
+
+    void           (*setAttachedComponent)(MagOmxPort root, OMX_HANDLETYPE comp); \
+    OMX_HANDLETYPE (*getAttachedComponent)(MagOmxPort root); \
 )
     OMX_PARAM_PORTDEFINITIONTYPE *mpPortDefinition;
     MagMiniDBHandle              mParametersDB;
@@ -174,6 +180,8 @@ ClassMembers(MagOmxPort, Base, \
     OMX_BOOL                     mIsTunneled;
     MagOmxPort_BufferPolicy_t    mBufferPolicy;
     MagOmxPort_State_t           mState;
+
+    OMX_HANDLETYPE               mAttachedComponent;
 
     OMX_U8                       mPortName[32];
 

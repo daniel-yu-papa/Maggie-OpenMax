@@ -7,6 +7,12 @@
 
 #define HANDLER_MAX_NUM 5
 
+#define MSG_1_DELAY 0
+#define MSG_2_DELAY 1100
+#define MSG_3_DELAY 1200
+#define MSG_4_DELAY 1300
+#define MSG_5_DELAY 1400
+
 static ui32 handler_index = 0;
 
 class Comp_A{
@@ -65,7 +71,20 @@ void Comp_A::onMsg_Test_1(MagMessageHandle msg){
     boolean ret;
     char *value;
     char *sidx;
-    
+    i64 tnow;
+    i64 tpost;
+
+    tnow = Mag_GetSystemTime(MAG_SYSTEM_TIME_MONOTONIC) / 1000ll;
+    ret = msg->findInt64(msg, "tpost", &tpost);
+    if (!ret){
+        AGILE_LOGE("failed to find the tpost i64!");
+        return;
+    } 
+
+    if ((tnow > tpost + MSG_1_DELAY + 500) || (tnow < tpost + MSG_1_DELAY - 500)){
+        AGILE_LOGE("msg1: wrong delay action! tdiff %lld vs %d", tnow - tpost, MSG_1_DELAY);
+    }
+
     ret = msg->findString(msg, "msg", &value);
     if (!ret){
         AGILE_LOGE("failed to find the msg string!");
@@ -77,8 +96,10 @@ void Comp_A::onMsg_Test_1(MagMessageHandle msg){
         AGILE_LOGE("failed to find the idx string!");
         return;
     } 
+
+
     AGILE_LOGD("handler %d: do message %s action[index: %s]!", msg->mTarget, value, sidx);
-    usleep(100000);
+    // usleep(100000);
 }
 
 void Comp_A::onMsg_Test_2(MagMessageHandle msg){
@@ -86,7 +107,20 @@ void Comp_A::onMsg_Test_2(MagMessageHandle msg){
     boolean ret;
     char *value;
     i32 idx;
+    i64 tnow;
+    i64 tpost;
+
+    tnow = Mag_GetSystemTime(MAG_SYSTEM_TIME_MONOTONIC) / 1000ll;
+    ret = msg->findInt64(msg, "tpost", &tpost);
+    if (!ret){
+        AGILE_LOGE("failed to find the tpost i64!");
+        return;
+    } 
     
+    if ((tnow > tpost + MSG_2_DELAY + 300) || (tnow < tpost + MSG_2_DELAY - 300)){
+        AGILE_LOGE("msg2: wrong delay action! tdiff %lld vs %d", tnow - tpost, MSG_2_DELAY);
+    }
+
     ret = msg->findString(msg, "msg", &value);
     if (!ret){
         AGILE_LOGE("failed to find the msg string!");
@@ -106,7 +140,20 @@ void Comp_A::onMsg_Test_3(MagMessageHandle msg){
     boolean ret;
     char *value;
     i32 idx;
+    i64 tnow;
+    i64 tpost;
+
+    tnow = Mag_GetSystemTime(MAG_SYSTEM_TIME_MONOTONIC) / 1000ll;
+    ret = msg->findInt64(msg, "tpost", &tpost);
+    if (!ret){
+        AGILE_LOGE("failed to find the tpost i64!");
+        return;
+    } 
     
+    if ((tnow > tpost + MSG_3_DELAY + 300) || (tnow < tpost + MSG_3_DELAY - 300)){
+        AGILE_LOGE("msg3: wrong delay action! tdiff %lld vs %d", tnow - tpost, MSG_3_DELAY);
+    }
+
     ret = msg->findString(msg, "msg", &value);
     if (!ret){
         AGILE_LOGE("failed to find the msg string!");
@@ -126,7 +173,20 @@ void Comp_A::onMsg_Test_4(MagMessageHandle msg){
     boolean ret;
     char *value;
     i32 idx;
+    i64 tnow;
+    i64 tpost;
+
+    tnow = Mag_GetSystemTime(MAG_SYSTEM_TIME_MONOTONIC) / 1000ll;
+    ret = msg->findInt64(msg, "tpost", &tpost);
+    if (!ret){
+        AGILE_LOGE("failed to find the tpost i64!");
+        return;
+    } 
     
+    if ((tnow > tpost + MSG_4_DELAY + 300) || (tnow < tpost + MSG_4_DELAY - 300)){
+        AGILE_LOGE("msg4: wrong delay action! tdiff %lld vs %d", tnow - tpost, MSG_4_DELAY);
+    }
+
     ret = msg->findString(msg, "msg", &value);
     if (!ret){
         AGILE_LOGE("failed to find the msg string!");
@@ -147,7 +207,20 @@ void Comp_A::onMsg_Test_5(MagMessageHandle msg){
     char *value;
     i32 idx;
     MagMessageHandle back_msg;
+    i64 tnow;
+    i64 tpost;
+
+    tnow = Mag_GetSystemTime(MAG_SYSTEM_TIME_MONOTONIC) / 1000ll;
+    ret = msg->findInt64(msg, "tpost", &tpost);
+    if (!ret){
+        AGILE_LOGE("failed to find the tpost i64!");
+        return;
+    } 
     
+    if ((tnow > tpost + MSG_5_DELAY + 300) || (tnow < tpost + MSG_5_DELAY - 300)){
+        AGILE_LOGE("msg5: wrong delay action! tdiff %lld vs %d", tnow - tpost, MSG_5_DELAY);
+    }
+
     ret = msg->findString(msg, "msg", &value);
     if (!ret){
         AGILE_LOGE("failed to find the msg string!");
@@ -225,6 +298,7 @@ MagMessageHandle Comp_A::createMessage(ui32 what, ui32 handlerID) {
 _status_t Comp_A::getLooper(){
     if (NULL == mLooper){
         mLooper = createLooper(LOOPER_NAME);
+        mLooper->setPriority(mLooper, MagLooper_Priority_High);
     }
 
     if (NULL != mLooper){
@@ -232,7 +306,6 @@ _status_t Comp_A::getLooper(){
         for (i = 0; i < HANDLER_MAX_NUM; i++){
             if (NULL == mMsgHandler[i]){
                 mMsgHandler[i] = createHandler(mLooper, onMessageReceived, (void *)this);
-
                 if (NULL != mMsgHandler[i]){
                     mLooper->registerHandler(mLooper, mMsgHandler[i]);
                 }else{
@@ -388,26 +461,31 @@ int main(){
     
     //sleep(5);
     char buf[64];
-    for (i = 0; i < 10; i++){
+    
+    for (i = 0; i < 50000; i++){
         sprintf(buf, "num%d", i);
         msg1->setString(msg1, "num", buf);
-        msg1->postMessage(msg1, 200);
-        usleep(10000);
+        msg1->setInt64(msg1, "tpost", Mag_GetSystemTime(MAG_SYSTEM_TIME_MONOTONIC) / 1000ll);
+        msg1->postMessage(msg1, MSG_1_DELAY); 
 
         msg2->setInt32(msg2, "num", i);
-        msg2->postMessage(msg2, 0);
-        usleep(2000);
+        msg1->setInt64(msg2, "tpost", Mag_GetSystemTime(MAG_SYSTEM_TIME_MONOTONIC) / 1000ll);
+        msg2->postMessage(msg2, MSG_2_DELAY);
 
         msg3->setInt32(msg3, "num", i);
-        msg3->postMessage(msg3, 100);
-        usleep(3000);
+        msg1->setInt64(msg3, "tpost", Mag_GetSystemTime(MAG_SYSTEM_TIME_MONOTONIC) / 1000ll);
+        msg3->postMessage(msg3, MSG_3_DELAY);
 
         msg4->setInt32(msg4, "num", i);
-        msg4->postMessage(msg4, 50);
-        usleep(400);
+        msg1->setInt64(msg4, "tpost", Mag_GetSystemTime(MAG_SYSTEM_TIME_MONOTONIC) / 1000ll);
+        msg4->postMessage(msg4, MSG_4_DELAY);
 
         msg5->setInt32(msg5, "num", i);
-        msg5->postMessage(msg5, 400);
+        msg1->setInt64(msg5, "tpost", Mag_GetSystemTime(MAG_SYSTEM_TIME_MONOTONIC) / 1000ll);
+        msg5->postMessage(msg5, MSG_5_DELAY);
+
+        // usleep(MSG_1_DELAY + MSG_2_DELAY + MSG_3_DELAY + MSG_4_DELAY + MSG_5_DELAY + 2000);
+        usleep(MSG_5_DELAY + 2000);
     }
     
     obj->waitOnAllDone();

@@ -100,7 +100,7 @@ void             destroyMagMessage(MagMessageHandle *pMsg);
 
 typedef struct Event {
     List_t node;
-    i64 mWhenMs;
+    i64 mWhenUS;
     struct mag_message *mMessage;
 }MagLooperEvent_t;
 
@@ -113,6 +113,12 @@ typedef struct MagHandler{
 
     ui32 (*id)(struct MagHandler *h);
 }MagHandler_t;
+
+typedef enum{
+    MagLooper_Priority_Normal,
+    MagLooper_Priority_Low,
+    MagLooper_Priority_High
+}MagLooperPriority_t;
 
 typedef MagHandler_t* MagHandlerHandle;
 
@@ -134,7 +140,7 @@ typedef struct MagLooper{
     ui32 mLooperID;
     ui32 mHandlerID;
 
-    i64 mDelayEvtWhenMS;
+    i64 mDelayEvtWhenUS;
 
     i32 mFreeNodeNum;
     boolean mEventInExecuting;
@@ -147,11 +153,12 @@ typedef struct MagLooper{
     _status_t (*suspend)(struct MagLooper *self);
     _status_t (*resume)(struct MagLooper *self);
     void      (*clear)(struct MagLooper *self);
-    void (*postMessage)(struct MagLooper *self, MagMessage_t *msg, i64 delayUs);
+    void (*postMessage)(struct MagLooper *self, MagMessage_t *msg, i64 delayUS);
 
     ui32 (*getHandlerID)(struct MagLooper *self);
     _status_t (*waitOnAllDone)(struct MagLooper *self);
     void (*setMergeMsg)(struct MagLooper *self);
+    void (*setPriority)(struct MagLooper *self, MagLooperPriority_t pri);
 }MagLooper_t;
 
 typedef MagLooper_t* MagLooperHandle;

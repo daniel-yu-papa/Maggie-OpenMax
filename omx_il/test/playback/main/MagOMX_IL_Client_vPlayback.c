@@ -10,6 +10,8 @@
 OMX_STATETYPE gVdecState    = OMX_StateMax;
 OMX_STATETYPE gDisplayState = OMX_StateMax;
 
+static FILE *gTestFile = NULL;
+
 typedef struct {
 	OMX_BUFFERHEADERTYPE *bufHeader;
 	OMX_U32 bufIndex;
@@ -19,6 +21,7 @@ typedef struct {
 static Buffer_t inBuffer[OMX_IL_INPUT_BUFFER_NUMBER];
 
 static OMX_BOOL gIsStopped = OMX_FALSE;
+static OMX_BOOL gIsFileEnded = OMX_FALSE;
 
 static OMX_ERRORTYPE vDecEventHandler(
     OMX_HANDLETYPE hComponent,
@@ -111,15 +114,26 @@ static OMX_ERRORTYPE vDecEmptyBufferDone(
 	OMX_PTR pAppData,
     OMX_BUFFERHEADERTYPE* pBuffer) {
 
+	OMX_U8 data[OMX_IL_INPUT_BUFFER_SIZE];
 	OMX_U32 index = *(OMX_U32 *)(pBuffer->pAppPrivate);
 
 	AGILE_LOGD("get buffer %d returned, buffer header: 0x%x", index, pBuffer);
 	inBuffer[index].isBusy = OMX_FALSE;
 
-	if (!gIsStopped){
+	if ((!gIsStopped) && (!gIsFileEnded)){
+		size_t read_number;
+
 		inBuffer[index].isBusy = OMX_TRUE;
+		read_number = fread(data, 1, OMX_IL_INPUT_BUFFER_SIZE, gTestFile);
+		memcpy(inBuffer[index].bufHeader->pBuffer, data, read_number);
+		inBuffer[index].bufHeader->nFilledLen = read_number;
 		OMX_EmptyThisBuffer(hComponent, pBuffer);
-		usleep(1000);
+
+		if (read_number < OMX_IL_INPUT_BUFFER_SIZE){
+			printf("\nReach the end of the file. exit the stream processing!\n");
+			gIsFileEnded = OMX_TRUE;
+		}
+		/*usleep(1000);*/
 	}
 }
 
@@ -136,7 +150,7 @@ static OMX_ERRORTYPE vDecFillBufferDone(
 	if (!gIsStopped){
 		inBuffer[index].isBusy = OMX_TRUE;
 		OMX_FillThisBuffer(hComponent, pBuffer);
-		usleep(1000);
+		/*usleep(1000);*/
 	}
 }
 
@@ -201,8 +215,15 @@ int main(int argc, char** argv){
 	OMX_PARAM_PORTDEFINITIONTYPE sPortDef;
 	OMX_U32 i;
 	char c;
+	OMX_U8 data[OMX_IL_INPUT_BUFFER_SIZE];
 
 	AGILE_LOGV("start!");
+
+	gTestFile = fopen("./test.stream","r");
+	if (gTestFile == NULL){
+		AGILE_LOGE("Failed to open the file: ./test.stream");
+	    exit(1);
+	}
 
     initHeader(&sPortDef, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
 
@@ -324,10 +345,16 @@ int main(int argc, char** argv){
 		    }
 		    
 		    for (i = 0; i < OMX_IL_INPUT_BUFFER_NUMBER; i++){
+		    	size_t read_number;
+
 		    	inBuffer[i].isBusy = OMX_TRUE;
+		    	read_number = fread(data, 1, OMX_IL_INPUT_BUFFER_SIZE, gTestFile);
+		    	memcpy(inBuffer[i].bufHeader->pBuffer, data, read_number);
+		    	inBuffer[i].bufHeader->nFilledLen = read_number;
+
 		    	AGILE_LOGV("send out the buffer: 0x%p", inBuffer[i].bufHeader);
 				OMX_EmptyThisBuffer(hVdec, inBuffer[i].bufHeader);
-				usleep(10000);
+				/*usleep(1000);*/
 		    }
         }else if (c == 's'){
         	printf("do stop action!\n");

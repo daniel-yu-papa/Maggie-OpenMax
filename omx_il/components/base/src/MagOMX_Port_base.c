@@ -248,6 +248,15 @@ static void MagOmxPort_setState(MagOmxPort root, MagOmxPort_State_t st){
     root->mState = st;
 }
 
+static void MagOmxPort_setAttachedComponent(MagOmxPort root, OMX_HANDLETYPE comp){
+    root->mAttachedComponent = comp;
+}
+
+
+static OMX_HANDLETYPE MagOmxPort_getAttachedComponent(MagOmxPort root){
+    return root->mAttachedComponent;
+}
+
 /*Class Constructor/Destructor*/
 static void MagOmxPort_initialize(Class this){
     AGILE_LOGV("Enter!");
@@ -271,7 +280,8 @@ static void MagOmxPort_initialize(Class this){
     MagOmxPortVtableInstance.RegisterBufferHandler = NULL;
     MagOmxPortVtableInstance.SendEvent             = NULL;
     MagOmxPortVtableInstance.GetSharedBufferMsg    = NULL;
-    MagOmxPortVtableInstance.GetOutputBufferMsg    = NULL;
+    MagOmxPortVtableInstance.GetOutputBuffer       = NULL;
+    MagOmxPortVtableInstance.PostOutputBufferMsg   = NULL;
     MagOmxPortVtableInstance.GetDomainType         = NULL;
     MagOmxPortVtableInstance.SetPortSpecificDef    = NULL;
     MagOmxPortVtableInstance.GetPortSpecificDef    = NULL;
@@ -321,7 +331,10 @@ static void MagOmxPort_constructor(MagOmxPort thiz, const void *params){
     thiz->setBufferPolicy          = MagOmxPort_setBufferPolicy;
     thiz->setState                 = MagOmxPort_setState;
     thiz->resetBufferSupplier      = MagOmxPort_resetBufferSupplier;
-    
+
+    thiz->setAttachedComponent     = MagOmxPort_setAttachedComponent;
+    thiz->getAttachedComponent     = MagOmxPort_getAttachedComponent;
+
     thiz->mpPortDefinition = (OMX_PARAM_PORTDEFINITIONTYPE *)mag_mallocz(sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
     MAG_ASSERT(thiz->mpPortDefinition);
 
@@ -343,6 +356,8 @@ static void MagOmxPort_constructor(MagOmxPort thiz, const void *params){
     thiz->mIsTunneled            = OMX_FALSE;
     thiz->mBufferPolicy          = kNoneSharedBuffer;
     thiz->mState                 = kPort_State_Stopped;
+    thiz->mAttachedComponent     = NULL;
+
     strncpy((char *)thiz->mPortName, (char *)lparam->name, 32);
 
     Mag_CreateMutex(&thiz->mhMutex);

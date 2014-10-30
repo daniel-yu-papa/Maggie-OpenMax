@@ -1,0 +1,4 @@
+LoadTool('gcc-generic', env, gcc_cross_prefix='arm-linux-gnueabihf')
+
+env['EXTRA_CC_FLAGS'] = ['-fPIC']
+env['STRIP'] = ''

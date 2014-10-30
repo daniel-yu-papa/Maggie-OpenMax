@@ -7,6 +7,8 @@
 #define START_PORT_INDEX 0
 #define PORT_NUMBER      1
 
+static FILE *gDisplayFile = NULL;
+
 AllocateClass(MagOmxComponent_DispTest, MagOmxComponentVideo);
 
 static OMX_ERRORTYPE localSetupComponent(
@@ -18,6 +20,11 @@ static OMX_ERRORTYPE localSetupComponent(
 	MagOmxComponent     dispComp;
 
 	AGILE_LOGV("enter!");
+
+	gDisplayFile = fopen("./output.stream","wb+");
+	if (gDisplayFile == NULL){
+		AGILE_LOGE("Failed to open the file: ./output.stream");
+	}
 
 	param.portIndex    = START_PORT_INDEX;
 	param.isInput      = OMX_TRUE;
@@ -111,8 +118,15 @@ static OMX_ERRORTYPE virtual_ComponentRoleEnum(
 static OMX_ERRORTYPE virtual_ProceedBuffer(
                     OMX_IN  OMX_HANDLETYPE hComponent, 
                     OMX_IN  OMX_BUFFERHEADERTYPE *srcbufHeader,
-                    OMX_IN  OMX_BUFFERHEADERTYPE *destbufHeader){
-	AGILE_LOGV("display buffer: 0x%x", srcbufHeader);
+                    OMX_IN  OMX_HANDLETYPE hDestPort){
+	if ((srcbufHeader->pBuffer != NULL) && (srcbufHeader->nFilledLen > 0) && (gDisplayFile)){
+		fwrite(srcbufHeader->pBuffer, 1, srcbufHeader->nFilledLen, gDisplayFile);
+		AGILE_LOGV("display buffer: 0x%x, write out %d bytes data to the file", 
+		        srcbufHeader, srcbufHeader->nFilledLen);
+	}else{
+		AGILE_LOGV("Failed to write out %d data to the file %p", 
+			        srcbufHeader->nFilledLen, gDisplayFile);
+	}
 	return OMX_ErrorNone;
 }
 

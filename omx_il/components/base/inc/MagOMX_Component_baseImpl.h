@@ -24,6 +24,12 @@ enum{
     /*MagOmxComponentImpl_PortDataFlowMsg + port index: the data flow message for each port*/
 };
 
+/*the notification from the attached port*/
+typedef enum{
+    MagOMX_Component_Notify_StartTime = 0,
+    MagOMX_Component_Notify_MediaTimeRequest,
+    MagOMX_Component_Notify_ReferenceTimeUpdate
+}MagOMX_Component_Notify_Type_t;
 
 typedef OMX_ERRORTYPE (*doStateTransition)(OMX_IN OMX_HANDLETYPE hComponent);
 
@@ -91,7 +97,41 @@ Virtuals(MagOmxComponentImpl, MagOmxComponent)
     OMX_ERRORTYPE (*MagOMX_ProceedBuffer)(
                     OMX_IN  OMX_HANDLETYPE hComponent, 
                     OMX_IN  OMX_BUFFERHEADERTYPE *srcbufHeader,
-                    OMX_IN  OMX_BUFFERHEADERTYPE *destbufHeader);   
+                    OMX_IN  OMX_HANDLETYPE hDestPort);  
+
+    /*Do av sync action*/
+    OMX_ERRORTYPE  (*MagOMX_DoAVSync)(
+                    OMX_IN  OMX_HANDLETYPE hComponent, 
+                    OMX_IN  OMX_TIME_MEDIATIMETYPE *mediaTime);
+
+    /*Set av sync component status changing OR Set av sync scale changing*/
+    OMX_ERRORTYPE  (*MagOMX_SetAVSyncStatus)(
+                    OMX_IN  OMX_HANDLETYPE hComponent,
+                    OMX_IN  OMX_TIME_UPDATETYPE type,
+                    OMX_IN  OMX_S32 status);
+
+    /*return OMX_ErrorUnsupportedSetting: the component doesn't support to be set as reference clock provider*/
+    OMX_ERRORTYPE  (*MagOMX_SetRefClock)(
+                    OMX_IN  OMX_HANDLETYPE hComponent,
+                    OMX_IN  OMX_TIME_CONFIG_ACTIVEREFCLOCKUPDATETYPE *rc);
+
+    /*the actions to be done by sub-component while adding the port*/
+    OMX_ERRORTYPE  (*MagOMX_DoAddPortAction)(
+                    OMX_IN  OMX_HANDLETYPE hComponent, 
+                    OMX_IN  OMX_U32 portIndex, 
+                    OMX_IN  OMX_HANDLETYPE hPort);
+    
+    /*handle the notification from attached port*/
+    OMX_ERRORTYPE  (*MagOMX_Notify)(
+                    OMX_IN OMX_HANDLETYPE hComponent,
+                    OMX_IN MagOMX_Component_Notify_Type_t notifyIndex,
+                    OMX_IN OMX_PTR pNotifyData);
+
+    /*get the rendering delay value in microseconds*/
+    OMX_ERRORTYPE  (*MagOMX_GetRenderDelay)(
+                    OMX_IN OMX_HANDLETYPE hComponent,
+                    OMX_OUT OMX_U32 *pRenderDelay);
+
 EndOfVirtuals;
 
 ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
@@ -124,6 +164,12 @@ ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
                         OMX_IN MagOmxComponentImpl hComponent,
                         OMX_IN OMX_HANDLETYPE hInPort,
                         OMX_IN OMX_HANDLETYPE hOutPort); \
+
+    /*the port notify the attached component*/
+    OMX_ERRORTYPE    (*notify)(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN MagOMX_Component_Notify_Type_t notifyIndex,
+                        OMX_IN OMX_PTR pNotifyData); \
 )
     MagLooperHandle  mLooper;
     MagHandlerHandle mMsgHandler;

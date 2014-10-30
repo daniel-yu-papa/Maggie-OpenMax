@@ -127,8 +127,29 @@ static OMX_ERRORTYPE virtual_ComponentRoleEnum(
 static OMX_ERRORTYPE virtual_ProceedBuffer(
                     OMX_IN  OMX_HANDLETYPE hComponent, 
                     OMX_IN  OMX_BUFFERHEADERTYPE *srcbufHeader,
-                    OMX_IN  OMX_BUFFERHEADERTYPE *destbufHeader){
+                    OMX_IN  OMX_HANDLETYPE hDestPort){
+	MagOmxPort port;
+	OMX_BUFFERHEADERTYPE *destbufHeader;
+
+	if (hDestPort == NULL){
+		return OMX_ErrorBadParameter;
+	}
+	
+    port = ooc_cast(hDestPort, MagOmxPort);
+    destbufHeader = MagOmxPortVirtual(port)->GetOutputBuffer(port);
+
 	AGILE_LOGV("src buffer: 0x%x, dest buffer: 0x%x", srcbufHeader, destbufHeader);
+	if ((srcbufHeader->pBuffer != NULL) && (srcbufHeader->nFilledLen > 0)){
+		if ((destbufHeader->pBuffer != NULL) && (destbufHeader->nAllocLen >= srcbufHeader->nFilledLen)){
+			memcpy(destbufHeader->pBuffer, srcbufHeader->pBuffer, srcbufHeader->nFilledLen);
+			destbufHeader->nFilledLen = srcbufHeader->nFilledLen;
+
+			MagOmxPortVirtual(port)->PostOutputBufferMsg(port, destbufHeader);
+		}else{
+			AGILE_LOGE("destinate buffer(%p) is not valid OR size mis-match(src filled: %d, dest: %d)",
+				        destbufHeader->pBuffer, srcbufHeader->nFilledLen, destbufHeader->nAllocLen);
+		}
+	}
 	return OMX_ErrorNone;
 }
 

@@ -17,6 +17,22 @@
 
 #define STRINGIFY(x) case x: return #x
 
+#define MagOMX_MIN(X,Y)  \
+(__extension__  \
+({  \
+   typeof(X) __x=(X), __y=(Y);   \
+   (__x<__y)?__x:__y;  \
+}) \
+)
+
+#define MagOMX_MAX(X,Y)  \
+(__extension__  \
+({  \
+   typeof(X) __x=(X), __y=(Y);   \
+   (__x>__y)?__x:__y;  \
+}) \
+)
+
 typedef enum OMX_EXTSTATETRANSTYPE
 {
     OMX_TransitionStateNone = 0,
@@ -43,6 +59,11 @@ typedef struct{
     OMX_VERSIONTYPE nVersion;
     OMX_U32 nPortIndex;
 }MagOMX_Port_Header_t;
+
+typedef enum{
+    AVSYNC_PLAY = 0,
+    AVSYNC_DROP
+}MagOMX_AVSync_Action_t;
 
 /** construct and initialize component
  * This is called only upon @ref OMX_GetHandle(), to instantiate component.

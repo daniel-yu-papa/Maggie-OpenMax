@@ -13,6 +13,36 @@ static MagOmxComponentImpl getBase(OMX_HANDLETYPE hComponent) {
     return ooc_cast(hComponent, MagOmxComponentImpl);
 }
 
+static OMX_BOOL isPortParam(OMX_IN OMX_INDEXTYPE nParamIndex){
+    if (nParamIndex > OMX_IndexAudioStartUnused){
+        if (nParamIndex < OMX_IndexOtherStartUnused){
+            return OMX_TRUE;
+        }else{
+            switch (nParamIndex){
+                case OMX_IndexParamOtherPortFormat:
+                case OMX_IndexConfigTimeCurrentMediaTime:
+                case OMX_IndexConfigTimeCurrentWallTime:
+                case OMX_IndexConfigTimeMediaTimeRequest:
+                case OMX_IndexConfigTimeClientStartTime:
+                case OMX_IndexConfigTimePosition:
+                case OMX_IndexConfigTimeCurrentReference:
+                case OMX_IndexConfigTimeRenderingDelay:
+                case OMX_IndexConfigCallbackRequest:
+                case OMX_IndexParamReadOnlyBuffers:
+                    return OMX_TRUE;
+                default:
+                    return OMX_FALSE;
+            }
+        }
+    }else{
+        if(nParamIndex < OMX_IndexPortStartUnused){
+            return OMX_FALSE;
+        }else{
+            return OMX_TRUE;
+        }
+    } 
+}
+
 static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
     MagOmxComponent     root;
     MagOmxComponentImpl base;
@@ -139,7 +169,11 @@ static void onBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
 
         if (MagOmxComponentImplVirtual(base)->MagOMX_ProceedBuffer){
             if (!isFlushing){
-                if (destPort){
+                ret = MagOmxComponentImplVirtual(base)->MagOMX_ProceedBuffer(base, 
+                                                                             srcBufHeader,
+                                                                             hDestPort);
+
+                /*if (destPort){
                     outputBufMsg = MagOmxPortVirtual(destPort)->GetOutputBufferMsg(hDestPort);
                     if (outputBufMsg){
                         if (!outputBufMsg->findPointer(outputBufMsg, "buffer_header", (void **)&destBufHeader)){
@@ -148,7 +182,7 @@ static void onBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
                         }
                         ret = MagOmxComponentImplVirtual(base)->MagOMX_ProceedBuffer(base, 
                                                                                      srcBufHeader,
-                                                                                     destBufHeader);
+                                                                                     hDestPort);
                         outputBufMsg->postMessage(outputBufMsg, 0);
                     }else{
                         COMP_LOGE(root, "failed to get outputBufMsg");
@@ -157,7 +191,7 @@ static void onBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
                     ret = MagOmxComponentImplVirtual(base)->MagOMX_ProceedBuffer(base, 
                                                                                  srcBufHeader,
                                                                                  NULL);
-                }
+                }*/
             }
 
             if (ret == OMX_ErrorNone){
@@ -693,7 +727,7 @@ static OMX_ERRORTYPE MagOMX_SetParameter_internal(
             break;
 
         default:
-            if (nIndex > OMX_IndexAudioStartUnused && nIndex < OMX_IndexOtherStartUnused){
+            if (isPortParam(nIndex)){
                 /*the parameters or configures for port*/
                 OMX_U32 portID;
                 MagOmxPort port;
@@ -938,7 +972,7 @@ static OMX_ERRORTYPE MagOMX_GetParameter_internal(
             break;
             
         default:
-            if (nIndex > OMX_IndexAudioStartUnused && nIndex < OMX_IndexOtherStartUnused){
+            if (isPortParam(nIndex)){
                 /*the parameters or configures for port*/
                 OMX_U32 portID;
                 MagOmxPort port;
@@ -1936,12 +1970,20 @@ static OMX_ERRORTYPE MagOmxComponentImpl_disablePort(OMX_HANDLETYPE hComponent, 
 static void MagOmxComponentImpl_addPort(MagOmxComponentImpl hComponent, 
                                         OMX_U32 portIndex, 
                                         OMX_HANDLETYPE hPort){
+    MagOmxPort portRoot;
 
     if ((NULL == hPort) || (NULL == hComponent)){
         return;
     }
 
+    portRoot = ooc_cast(hPort, MagOmxPort);
+
     hComponent->mPortTreeRoot =  rbtree_insert(hComponent->mPortTreeRoot, portIndex, hPort);
+    portRoot->setAttachedComponent(portRoot, hComponent);
+
+    if (MagOmxComponentImplVirtual(hComponent)->MagOMX_DoAddPortAction){
+        MagOmxComponentImplVirtual(hComponent)->MagOMX_DoAddPortAction(hComponent, portIndex, hPort);
+    }
 }
 
 static OMX_HANDLETYPE MagOmxComponentImpl_getPort(MagOmxComponentImpl hComponent, 
@@ -2027,6 +2069,22 @@ static OMX_ERRORTYPE MagOmxComponentImpl_setupPortDataFlow(
     return OMX_ErrorNone;
 }
 
+/*the port notify the attached component to config it*/
+static OMX_ERRORTYPE MagOmxComponentImpl_notify(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN MagOMX_Component_Notify_Type_t notifyIndex,
+                        OMX_IN OMX_PTR pNotifyData){
+    OMX_ERRORTYPE ret;
+
+    if (MagOmxComponentImplVirtual(hComponent)->MagOMX_Notify){
+        ret = MagOmxComponentImplVirtual(hComponent)->MagOMX_Notify(hComponent, notifyIndex, pNotifyData);
+    }else{
+        COMP_LOGE(getRoot(hComponent), "the pure virtual function MagOMX_Notify is not overrided!");
+        ret = OMX_ErrorNotImplemented;
+    }
+    return ret;
+}
+
 /*Class Constructor/Destructor*/
 
 static void MagOmxComponentImpl_initialize(Class this){
@@ -2102,6 +2160,7 @@ static void MagOmxComponentImpl_constructor(MagOmxComponentImpl thiz, const void
     thiz->sendEmptyBufferDoneEvent = MagOmxComponentImpl_sendEmptyBufferDoneEvent;
     thiz->sendFillBufferDoneEvent  = MagOmxComponentImpl_sendFillBufferDoneEvent;
     thiz->setupPortDataFlow        = MagOmxComponentImpl_setupPortDataFlow;
+    thiz->notify                   = MagOmxComponentImpl_notify;
 
     thiz->mLooper                  = NULL;
     thiz->mMsgHandler              = NULL;
