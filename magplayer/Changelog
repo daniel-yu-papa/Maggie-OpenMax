@@ -1,0 +1,180 @@
+Entries are sorted chronologically from oldest to youngest within each release,
+Releases are sorted from youngest to oldest.
+
+version 0.4.10
+2014-11-19 17:00
+
+- Support MP3 playback for bg3cd-A0-M4
+
+*******************************
+version 0.4.9
+2014-11-17 17:00
+
+- For the special rtsp stream, the h.264 SPS & PPS included in SDP:a=fmtp: sprop-parameter-sets is complete content, no need further parsing in es packet processing
+  and only add the SPS&PPS header to the start of the H.264 stream.
+
+********************************
+version 0.4.8
+2014-11-13 17:00
+
+- apply the different buffering/avsync policy for different inpur stream. for ipcam rtsp stream, no buffering and no avsync
+
+********************************
+version 0.4.7
+2014-11-12 11:07
+
+- fixed the issue: the stream track does not sort ascending if some streams are not supported. It causes the playback corruption. 
+
+********************************
+version 0.4.6
+2014-11-11 11:07
+
+- fixed the issue: switching between V&A stream with single V stream or single A stream causes the playback failure
+
+********************************
+version 0.4.5
+2014-11-10 15:55
+
+- add the support to ip camera rtsp and video clip playback[no buffering, no avsync]
+
+********************************
+version 0.4.1
+2014-10-24 14:15
+
+-Add the feature to get calculated rgb value from decoded video frame
+
+********************************
+version 0.4.1
+2014-10-14 15:38
+
+-fixed the playback completion cause the platform dead(porting to bg3-cd 256M)
+
+********************************
+version 0.4.0
+2014-10-13 11:00
+
+-ported to bg3-cd 256M version
+
+********************************
+version 0.3.9
+2014-09-24 17:40
+
+-fixed the audio buffer threshold issue and recover the audio bd number to 16
+
+********************************
+version 0.3.8
+2014-09-24 11:40
+
+- porting to new a0 platform for audio playback issue
+
+********************************
+version 0.3.7
+2014-09-22 15:05
+
+- porting to new a0 platform
+- partially fixed the bitrate is 0 inside the video stream, which causes the video stream buffer allocation is wrong. to add the video width/height judgement.
+
+********************************
+version 0.3.6
+2014-08-22 17:56
+
+- Fixed the issue: the player has chance to be dead while playing another url. 
+  It is because the prepare() is changed from sync to async operation, but the early getDuration() is not handled properly. 
+
+*********************************
+version 0.3.5
+2014-08-22
+
+- Fixed the issue: failed to start the stream playing(buffer loading always indicates 0%) if the player resets before the preparing is complete
+
+*********************************
+version 0.3.4
+2014-08-19
+
+- fixed the issue: the stream playing freezes while repeating the playing after several seeking actions
+
+**********************************
+version 0.3.3
+2014-08-18 14:46
+
+- fixed the issue: stream playing freezes after completing the seek action 
+
+**********************************
+version 0.3.2
+2014-08-18
+
+- fixed the stream playing stopped after several buffering processes
+
+***********************************
+version 0.3.1
+2014-08-15
+
+- add the feature to get the stream frames loading speed after the demuxer. 
+- fixed the bug: pause could not be working in buffering state
+
+***********************************
+version 0.3.0
+2014-08-11
+
+- To report out the buffer filling percentage in buffering stage during the playing
+- Add the buffer monitoring feature to get the time length of video/audio buffer anytime
+- fixed the bug: the time between starting play and displaying the first video frame is longer than the expection
+
+***********************************
+version 0.2.7
+2014-08-04
+
+- Changed the demuxer buffer reporting logic: it firstly checks the low level of the buffer and then goes to high level checking.
+
+***********************************
+version 0.2.6
+2014-07-30
+
+- Fixed the playback errors in the calling sequenece of pause()-> multiple seek()-> play().
+
+***********************************
+version 0.2.5
+2014-07-29
+
+- Fixed the playback hanging up issue in the calling sequenece of pause()-> seek()-> play().
+
+***********************************
+version 0.2.4
+2014-07-28
+
+- To push the first I frame to the codec and screen out P/B frames before that
+
+***********************************
+version 0.2.3
+2014-07-26
+
+- fixed the demuxer module: readingframe thread crashing issue while doing reset()
+
+***********************************
+version 0.2.2
+2014-07-24
+
+- add the feature of matching video output resolution to the HDMI output resolution automatically
+
+***********************************
+version 0.2.1
+2014-07-23
+
+- fixed the video playback failure after the previous one stoped
+- fixed the specific internet video stream could not be played
+- fixed the getCurrentPosition issue in seeking state
+- fixed the seek failure issue
+
+***********************************
+version 0.1.1
+2014-07-17
+
+- add the version control
+- fixed the reset() runs before stop() while playback completes 
+
+************************************
+version 0.1: initial release
+2014-07-01
+
+- play, stop, pause, seekTo, volume up/down, get duration, get current position
+ 
