@@ -1,6 +1,11 @@
 #include "MagVideoPipeline.h"
 #include "MagPipelineFactory.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "Magply_Pipeline"
+
 MagVideoPipeline::MagVideoPipeline(Pipeline_Type_t type):
 										mPipeline(NULL),
 									    mType(type){
@@ -21,8 +26,12 @@ MagMessageHandle MagVideoPipeline::getMagPlayerNotifier(){
 	return getPipelineImpl()->getMagPlayerNotifier();
 }
 
-_status_t MagVideoPipeline::setup(i32 trackID, TrackInfo_t *sInfo){
-	return getPipelineImpl()->setup(trackID, sInfo);
+_status_t MagVideoPipeline::init(i32 trackID, TrackInfo_t *sInfo){
+	return getPipelineImpl()->init(trackID, sInfo);
+}
+
+_status_t MagVideoPipeline::setup(){
+	return getPipelineImpl()->setup();
 }
 
 _status_t MagVideoPipeline::start(){
@@ -49,8 +58,8 @@ _status_t MagVideoPipeline::reset(){
 	return getPipelineImpl()->reset();
 }
 
-void *MagVideoPipeline::getClkConnectedComp(i32 *port){
-	return getPipelineImpl()->getClkConnectedComp(port);
+_status_t MagVideoPipeline::getClkConnectedComp(i32 *port, void **ppComp){
+	return getPipelineImpl()->getClkConnectedComp(port, ppComp);
 }
 
 MagVideoPipelineImplBase *MagVideoPipeline::getPipelineImpl(){

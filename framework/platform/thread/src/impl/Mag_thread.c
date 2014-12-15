@@ -11,7 +11,7 @@
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "magFramework-Thread"
+#define MODULE_TAG "Magfw_Thread"
 
 static _status_t loopEntryWrapper(void *userData){
     MagThread_t *user =  (MagThread_t *)userData;

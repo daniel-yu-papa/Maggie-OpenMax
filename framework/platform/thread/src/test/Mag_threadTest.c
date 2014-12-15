@@ -1,5 +1,5 @@
 #include <stdio.h>
-
+#include <unistd.h>
 #include "Mag_thread.h"
 #include "Mag_agilelog.h"
 #include "Mag_mem.h"
@@ -96,5 +96,7 @@ int main(){
     Mag_DestroyThread(&gThreads_eat);
     Mag_DestroyThread(&gThreads_work);
     Mag_DestroyThread(&gThreads_sleep);
+
+    return 0;
 }
 

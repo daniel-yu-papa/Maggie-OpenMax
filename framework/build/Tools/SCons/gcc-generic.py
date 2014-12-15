@@ -5,9 +5,12 @@ def generate(env, gcc_cross_prefix=None, gcc_strict=True, gcc_stop_on_warning=No
 
     ### compiler flags
     if gcc_strict:
+        env['CCFLAGS'] = ""
+        env['CFLAGS'] = ""
         env.AppendUnique(CCFLAGS = ['-pedantic', '-Werror', '-Wno-variadic-macros', '-Wno-long-long'])
         env.AppendUnique(CFLAGS  = ['-Wmissing-prototypes', '-Wmissing-declarations'])
     else:
+        env['CCFLAGS'] = ""
         env.AppendUnique(CCFLAGS = ['-Wall'])
     
     compiler_defines = ['-D_REENTRANT']

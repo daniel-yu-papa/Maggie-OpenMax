@@ -4,7 +4,7 @@
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "magPlayerDriver"
+#define MODULE_TAG "Magply_Driver"
 
 MagPlayerDriver::MagPlayerDriver(void *client, notify_client_callback_f cb):
                                                     mPrivData(client),

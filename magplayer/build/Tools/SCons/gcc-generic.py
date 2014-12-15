@@ -1,14 +1,17 @@
 import os
 
-def generate(env, gcc_cross_prefix=None, gcc_strict=True, gcc_stop_on_warning=None, gcc_extra_options=''):
+def generate(env, gcc_cross_prefix=None, gcc_strict=False, gcc_stop_on_warning=None, gcc_extra_options=''):
     if gcc_stop_on_warning == None: gcc_stop_on_warning = env['stop_on_warning']
 
     ### compiler flags
     if gcc_strict:
-        env.AppendUnique(CCFLAGS = ['-pedantic', '-Wall',  '-W',  '-Wundef', '-Wno-long-long'])
+        env['CCFLAGS'] = ""
+        env['CFLAGS'] = ""
+        env.AppendUnique(CCFLAGS = ['-pedantic', '-Werror', '-Wno-variadic-macros', '-Wno-long-long', '-Wno-multichar'])
         env.AppendUnique(CFLAGS  = ['-Wmissing-prototypes', '-Wmissing-declarations'])
     else:
-        env.AppendUnique(CCFLAGS = ['-Wall'])
+        env['CCFLAGS'] = ""
+        env.AppendUnique(CCFLAGS = ['-Wall', '-Wno-multichar'])
     
     compiler_defines = ['-D_REENTRANT', '-D__STDC_CONSTANT_MACROS']
     env.AppendUnique(CCFLAGS  = compiler_defines)

@@ -1,12 +1,12 @@
 #include "Mag_ooc.h"
 #include <string.h>
 #include <stdlib.h>
-#include "Mag_hal.h"
+#include "Mag_agilelog.h"
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "magFramework-OOC"
+#define MODULE_TAG "Magfw_OOC"
 
 
 /**	Base Class.
@@ -73,16 +73,16 @@ inherit_vtable_from_parent( const Class self )
 		}
 }
 
-
 void
 _ooc_init_class( const Class self )
 {
-	if( self->c.vtable->_class == NULL ) {
-
-		if( ooc_class_has_parent( self ) )
+	if( self->c.vtable->_init_flag != OOC_COMPONENT_INITIALIZED ) {
+		if( ooc_class_has_parent( self ) ){
 			_ooc_init_class( self->parent );
+		}
 
-		self->c.vtable->_class = self;
+		self->c.vtable->_class         = self;
+		self->c.vtable->_init_flag     = OOC_COMPONENT_INITIALIZED;
 		self->c.vtable->_destroy_check = NULL;
 
 		invalidate_vtable( self );

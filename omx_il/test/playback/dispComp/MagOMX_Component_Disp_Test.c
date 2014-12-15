@@ -4,7 +4,7 @@
 
 #define COMPONENT_NAME "OMX.Mag.display.test"
 #define ROLE_NAME      "video_display.all"
-#define START_PORT_INDEX 0
+#define START_PORT_INDEX kCompPortStartNumber
 #define PORT_NUMBER      1
 
 static FILE *gDisplayFile = NULL;

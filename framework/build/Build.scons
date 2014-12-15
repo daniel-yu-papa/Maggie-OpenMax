@@ -8,20 +8,20 @@ from glob import glob
 # reusable functions and data structures
 #######################################################
 def LoadTool(name, env, **kw):
-    config_path = GetBuildPath('#/'+env['build_path_prefix']+'/build/Tools/SCons')
+    config_path = GetBuildPath('#/framework/build/Tools/SCons')
     file, path, desc = imp.find_module(name, [config_path])
     module = imp.load_module(name, file, path, desc)
     module.generate(env, **kw)
 
 def GlobSources(drct, patterns, excluded_files=[]):
-    root = GetBuildPath('#/'+env['build_path_prefix']+'/'+drct)
+    root = GetBuildPath('#/framework/'+drct)
     files = []
     for pattern in Split(patterns):
         files += glob(root+'/'+pattern)
     return [drct+'/'+os.path.basename(x) for x in  files if os.path.basename(x) not in excluded_files]
     
 def GetDirPath(dir):
-    return '#/'+env['build_path_prefix']+'/'+dir
+    return '#/framework/'+dir
     
 def DeclareBuildDir(dir):
     env.VariantDir(dir, GetDirPath(dir), duplicate=0)
@@ -76,7 +76,7 @@ class LibraryModule(Module):
                  extra_lib_path        = [],
                  shared                = False,
                  install               = False,
-                 installHeaders        = False) :
+                 install_header_dirs   = []) :
         build_source_dirs = [source_root+'/'+drct for drct in build_source_dirs]        
         Module.__init__(self, 
                         name, 
@@ -128,12 +128,12 @@ class LibraryModule(Module):
                     env.AddPostAction(inst, env['STRIP']+' $TARGETS');
             Default(inst)
             
-        if installHeaders is True:
-            targetDir = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/include/'+env['build_path_prefix'])
+        if install_header_dirs:
+            targetDir = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/include/framework')
             if not os.path.exists(targetDir):  
                 os.makedirs(targetDir)
-            for subdir in Split(self.build_include_dirs):
-                absoluteDir = env.GetBuildPath('#/'+env['build_path_prefix']+'/'+subdir)
+            for subdir in install_header_dirs:
+                absoluteDir = env.GetBuildPath('#/framework/'+subdir)
                 print 'enter the dir: '+absoluteDir
                 os.chdir(absoluteDir)
                 headerFiles = []
@@ -171,7 +171,7 @@ def Application(name, dir, deps,
 Import("env")
 
 ### try to read in any target specific configuration
-target_config_file = env.GetBuildPath('#/'+env['build_path_prefix']+'/build/Targets/'+env['target']+'/Config.scons')
+target_config_file = env.GetBuildPath('#/build/Targets/'+env['target']+'/Config.scons')
 if os.path.exists(target_config_file):
     # Load the target-specific config file    
     execfile(target_config_file)
@@ -209,14 +209,13 @@ else:
 #  
 AGILELOG_LIB_PATH = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib')
 
-FRAMEWORK_COMMON_INC_PATH = """inc 
-                               agilelog/inc 
-                               agilelog/external/tinyxml2"""
+AGILELOG_INC_PATH = "../Targets/"+env['target']+"/"+env['build_config']+"/include/framework"
+
+FRAMEWORK_COMMON_INC_PATH = """inc"""
 
 FRAMEWORK_CORE_INC_PATH = """core/base/inc 
                              core/db/inc 
                              core/event/inc 
-                             core/hashtable/inc 
                              core/looper/inc 
                              core/message/inc 
                              core/ooc/inc"""
@@ -228,43 +227,39 @@ FRAMEWORK_PLATFORM_INC_PATH = """platform/hal/inc
 
 LibraryModule(name                  = 'MagCore_Base',
               build_source_dirs     = ['core/base/src/impl'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
+              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH)+Split(AGILELOG_INC_PATH))
 
 LibraryModule(name                  = 'MagCore_DB',
               build_source_dirs     = ['core/db/src/impl'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
+              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH)+Split(AGILELOG_INC_PATH))
 
 LibraryModule(name                  = 'MagCore_Event',
               build_source_dirs     = ['core/event/src/impl'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
-
-LibraryModule(name                  = 'MagCore_HashTable',
-              build_source_dirs     = ['core/hashtable/src/impl'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
+              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH)+Split(AGILELOG_INC_PATH))
 
 LibraryModule(name                  = 'MagCore_Looper',
               build_source_dirs     = ['core/looper/src/impl'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
+              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH)+Split(AGILELOG_INC_PATH))
 
 LibraryModule(name                  = 'MagCore_Message',
               build_source_dirs     = ['core/message/src/impl'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
+              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH)+Split(AGILELOG_INC_PATH))
 
 LibraryModule(name                  = 'MagCore_OOC',
               build_source_dirs     = ['core/ooc/src/impl'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
+              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH)+Split(AGILELOG_INC_PATH))
 
 LibraryModule(name                  = 'MagPlatform_Hal',
               build_source_dirs     = ['platform/hal/src'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
+              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH)+Split(AGILELOG_INC_PATH))
 
 LibraryModule(name                  = 'MagPlatform_Mem',
               build_source_dirs     = ['platform/memory/src/impl'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
+              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH)+Split(AGILELOG_INC_PATH))
 
 LibraryModule(name                  = 'MagPlatform_Thread',
               build_source_dirs     = ['platform/thread/src/impl'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))
+              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH)+Split(AGILELOG_INC_PATH))
 
 
 Application(name    = 'MagPlatform_RbTreeTest', 
@@ -284,13 +279,6 @@ Application(name    = 'MagPlatform_DBTest',
 Application(name    = 'MagPlatform_EventTest', 
                 dir     = 'core/event/src/test', 
                 deps    = ['MagCore_Event', 'MagCore_Base', 'MagPlatform_Hal'],
-                extra_libs = ['librt.so', 'libpthread.so', 'libMagAgilelog.so'],
-                extra_lib_path = AGILELOG_LIB_PATH,
-                install = True)
-
-Application(name    = 'MagPlatform_HashTableTest', 
-                dir     = 'core/hashtable/src/test', 
-                deps    = ['MagCore_HashTable', 'MagCore_Base', 'MagPlatform_Hal'],
                 extra_libs = ['librt.so', 'libpthread.so', 'libMagAgilelog.so'],
                 extra_lib_path = AGILELOG_LIB_PATH,
                 install = True)
@@ -334,7 +322,6 @@ LibraryModule(name                  = 'MagFramework',
               build_source_dirs     = ['core/base/src/impl',
                                        'core/db/src/impl',
                                        'core/event/src/impl',
-                                       'core/hashtable/src/impl',
                                        'core/looper/src/impl',
                                        'core/message/src/impl',
                                        'core/ooc/src/impl',
@@ -342,9 +329,9 @@ LibraryModule(name                  = 'MagFramework',
                                        'platform/memory/src/impl',
                                        'platform/thread/src/impl',
                                        'version'],
-              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH),
+              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH)+Split(AGILELOG_INC_PATH),
               extra_libs            = ['librt.so', 'libpthread.so', 'libMagAgilelog.so'],
               extra_lib_path        = AGILELOG_LIB_PATH,
               shared                =  True,
               install               =  True,
-              installHeaders        =  True)
+              install_header_dirs   =  Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH))

@@ -1,4 +1,0 @@
-LoadTool('gcc-generic', env)
-
-env['EXTRA_CC_FLAGS'] = ['-fPIC']
-env['STRIP'] = ''

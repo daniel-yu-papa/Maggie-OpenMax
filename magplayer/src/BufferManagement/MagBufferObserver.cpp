@@ -4,7 +4,7 @@
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "MagBufferObserver"
+#define MODULE_TAG "Magply_BuffMgr"
 
 #define DEFAULT_CONFIG_FILE_PATH "/data/etc/mag"
 
@@ -98,15 +98,20 @@ void MagBufferObserver::setMediaPlayerNotifier(MagMessageHandle msg){
 	mMediaPlayerNotifier = msg;
 }
 
-_status_t MagBufferObserver::start(BufferPolicy_t *pPolicy){
+_status_t MagBufferObserver::start(void *pPolicy){
 	_status_t ret = MAG_NO_ERROR;
+	Demuxer_BufferPolicy_t *pDemuxerPolicy;
+	ContentPipe_BufferPolicy_t *pCPPolicy;
 
 	loadConfigFile();
 
-	if (mType == kBufferObserver_ContentPipe)
-		memcpy(pPolicy, &mPolicy.contentPipe, sizeof(BufferPolicy_t));
-	else
-		memcpy(pPolicy, &mPolicy.demuxerStream, sizeof(BufferPolicy_t));
+	if (mType == kBufferObserver_ContentPipe){
+		pCPPolicy = static_cast<ContentPipe_BufferPolicy_t *>(pPolicy);
+		memcpy(pCPPolicy, &mPolicy.contentPipe, sizeof(ContentPipe_BufferPolicy_t));
+	}else{
+		pDemuxerPolicy = static_cast<Demuxer_BufferPolicy_t *>(pPolicy);
+		memcpy(pDemuxerPolicy, &mPolicy.demuxerStream, sizeof(Demuxer_BufferPolicy_t));
+	}
 
 	mIsRunning = true;
 
@@ -126,7 +131,7 @@ void MagBufferObserver::reset(){
 }
 
 void MagBufferObserver::setDefaultPolicy(LoadedBufferPolicy_t *policy){
-	policy->contentPipe.videoBufferPoolSize = 30;
+	policy->contentPipe.BufferSize = 30;
 	policy->contentPipe.kbps = 10000;
 	policy->contentPipe.bufferLowThreshold = 2000;
 	policy->contentPipe.bufferPlayThreshold = 5000;
@@ -135,11 +140,18 @@ void MagBufferObserver::setDefaultPolicy(LoadedBufferPolicy_t *policy){
 	policy->demuxerStream.videoBufferPoolSize = 30;
 	policy->demuxerStream.audioBufferPoolSize = (2 * 1024 * 1024);
 	policy->demuxerStream.otherBufferPoolSize = (2 * 1024 * 1024);
-	policy->demuxerStream.bufferLowThreshold = 2000;
-	policy->demuxerStream.bufferPlayThreshold = 5000;
-	policy->demuxerStream.bufferHighThreshold = 20000;
+	policy->demuxerStream.normalBitRate.bufferLowThreshold = 2000;
+	policy->demuxerStream.normalBitRate.bufferPlayThreshold = 5000;
+	policy->demuxerStream.normalBitRate.bufferHighThreshold = 20000;
+	policy->demuxerStream.highBitRate.bufferLowThreshold = 2000;
+	policy->demuxerStream.highBitRate.bufferPlayThreshold = 5000;
+	policy->demuxerStream.highBitRate.bufferHighThreshold = 20000;
+	policy->demuxerStream.highestBitRate.bufferLowThreshold = 2000;
+	policy->demuxerStream.highestBitRate.bufferPlayThreshold = 5000;
+	policy->demuxerStream.highestBitRate.bufferHighThreshold = 20000;
 	// policy->demuxerStream.bufFlushPlayThreshold = 2000;
 	policy->demuxerStream.kbps = 10000;
+	policy->demuxerStream.memPoolSizeLimit = 0;
 }
 
 _status_t MagBufferObserver::loadConfigFile(){
@@ -164,98 +176,16 @@ _status_t MagBufferObserver::loadConfigFile(){
     
     return res;
 }
-
-_status_t MagBufferObserver::parseChildElement(XMLElement* element, bool isCP){
+_status_t MagBufferObserver::parseBufThresholdElement(XMLElement* element, PlayingBufThreshold_t *pObj){
 	i32 value;
     XMLError res;
     XMLElement* ele;
-    BufferPolicy_t *pPolicy;
-    bool defineFullBuffer = false;
-
-    if (isCP){
-    	defineFullBuffer = true;
-    	pPolicy = &mPolicy.contentPipe;
-    }else{
-    	pPolicy = &mPolicy.demuxerStream;
-    }
-
-    if (defineFullBuffer){
-		ele = element->FirstChildElement( "buffer_size" );
-		if (ele){
-			res = ele->QueryIntText( &value );
-			if (XML_SUCCESS == res){
-				pPolicy->videoBufferPoolSize = value;
-			}else{
-				AGILE_LOGE("failed to get the value of the element: buffer_size");
-				return MAG_BAD_VALUE;;
-			}
-		}else{
-			AGILE_LOGE("failed to get the element: buffer_size");
-			return MAG_NAME_NOT_FOUND;
-		}
-    }else{
-    	ele = element->FirstChildElement( "video_buffer_size" );
-		if (ele){
-			res = ele->QueryIntText( &value );
-			if (XML_SUCCESS == res){
-				pPolicy->videoBufferPoolSize = value;
-			}else{
-				AGILE_LOGE("failed to get the value of the element: video_buffer_size");
-				return MAG_BAD_VALUE;;
-			}
-		}else{
-			AGILE_LOGE("failed to get the element: video_buffer_size");
-			return MAG_NAME_NOT_FOUND;
-		}
-
-		ele = element->FirstChildElement( "audio_buffer_size" );
-		if (ele){
-			res = ele->QueryIntText( &value );
-			if (XML_SUCCESS == res){
-				pPolicy->audioBufferPoolSize = (value * 1024);
-			}else{
-				AGILE_LOGE("failed to get the value of the element: audio_buffer_size");
-				return MAG_BAD_VALUE;;
-			}
-		}else{
-			AGILE_LOGE("failed to get the element: audio_buffer_size");
-			return MAG_NAME_NOT_FOUND;
-		}
-
-		ele = element->FirstChildElement( "other_buffer_size" );
-		if (ele){
-			res = ele->QueryIntText( &value );
-			if (XML_SUCCESS == res){
-				pPolicy->otherBufferPoolSize = (value * 1024);
-			}else{
-				AGILE_LOGE("failed to get the value of the element: other_buffer_size");
-				return MAG_BAD_VALUE;;
-			}
-		}else{
-			AGILE_LOGE("failed to get the element: other_buffer_size");
-			return MAG_NAME_NOT_FOUND;
-		}
-    }
-
-	ele = element->FirstChildElement( "kbps" );
-	if (ele){
-		res = ele->QueryIntText( &value );
-		if (XML_SUCCESS == res){
-			pPolicy->kbps = value;
-		}else{
-			AGILE_LOGE("failed to get the value of the element: kbps");
-			return MAG_BAD_VALUE;;
-		}
-	}else{
-		AGILE_LOGE("failed to get the element: kpbs");
-		return MAG_NAME_NOT_FOUND;
-	}
 
 	ele = element->FirstChildElement( "low_level" );
 	if (ele){
 		res = ele->QueryIntText( &value );
 		if (XML_SUCCESS == res){
-			pPolicy->bufferLowThreshold = value;
+			pObj->bufferLowThreshold = value;
 		}else{
 			AGILE_LOGE("failed to get the value of the element: low_level");
 			return MAG_BAD_VALUE;;
@@ -269,7 +199,7 @@ _status_t MagBufferObserver::parseChildElement(XMLElement* element, bool isCP){
 	if (ele){
 		res = ele->QueryIntText( &value );
 		if (XML_SUCCESS == res){
-			pPolicy->bufferPlayThreshold = value;
+			pObj->bufferPlayThreshold = value;
 		}else{
 			AGILE_LOGE("failed to get the value of the element: play_level");
 			return MAG_BAD_VALUE;;
@@ -283,7 +213,7 @@ _status_t MagBufferObserver::parseChildElement(XMLElement* element, bool isCP){
 	if (ele){
 		res = ele->QueryIntText( &value );
 		if (XML_SUCCESS == res){
-			pPolicy->bufferHighThreshold = value;
+			pObj->bufferHighThreshold = value;
 		}else{
 			AGILE_LOGE("failed to get the value of the element: high_level");
 			return MAG_BAD_VALUE;;
@@ -292,6 +222,194 @@ _status_t MagBufferObserver::parseChildElement(XMLElement* element, bool isCP){
 		AGILE_LOGE("failed to get the element: high_level");
 		return MAG_NAME_NOT_FOUND;
 	}
+
+	return MAG_NO_ERROR;
+}
+
+_status_t MagBufferObserver::parseChildElement(XMLElement* element, bool isCP){
+	i32 value;
+    XMLError res;
+    _status_t err;
+    XMLElement* ele;
+    Demuxer_BufferPolicy_t *pDemuxerPolicy;
+    ContentPipe_BufferPolicy_t *pCPipePolicy;
+
+    if (isCP){
+    	pCPipePolicy = &mPolicy.contentPipe;
+    	ele = element->FirstChildElement( "kbps" );
+		if (ele){
+			res = ele->QueryIntText( &value );
+			if (XML_SUCCESS == res){
+				pCPipePolicy->kbps = value;
+			}else{
+				AGILE_LOGE("failed to get the value of the element: kbps");
+				return MAG_BAD_VALUE;;
+			}
+		}else{
+			AGILE_LOGE("failed to get the element: kpbs");
+			return MAG_NAME_NOT_FOUND;
+		}
+
+		ele = element->FirstChildElement( "buffer_size" );
+		if (ele){
+			res = ele->QueryIntText( &value );
+			if (XML_SUCCESS == res){
+				pCPipePolicy->BufferSize = value;
+			}else{
+				AGILE_LOGE("failed to get the value of the element: buffer_size");
+				return MAG_BAD_VALUE;;
+			}
+		}else{
+			AGILE_LOGE("failed to get the element: buffer_size");
+			return MAG_NAME_NOT_FOUND;
+		}
+
+		ele = element->FirstChildElement( "low_level" );
+		if (ele){
+			res = ele->QueryIntText( &value );
+			if (XML_SUCCESS == res){
+				pCPipePolicy->bufferLowThreshold = value;
+			}else{
+				AGILE_LOGE("failed to get the value of the element: low_level");
+				return MAG_BAD_VALUE;;
+			}
+		}else{
+			AGILE_LOGE("failed to get the element: low_level");
+			return MAG_NAME_NOT_FOUND;
+		}
+
+		ele = element->FirstChildElement( "play_level" );
+		if (ele){
+			res = ele->QueryIntText( &value );
+			if (XML_SUCCESS == res){
+				pCPipePolicy->bufferPlayThreshold = value;
+			}else{
+				AGILE_LOGE("failed to get the value of the element: play_level");
+				return MAG_BAD_VALUE;;
+			}
+		}else{
+			AGILE_LOGE("failed to get the element: play_level");
+			return MAG_NAME_NOT_FOUND;
+		}
+
+		ele = element->FirstChildElement( "high_level" );
+		if (ele){
+			res = ele->QueryIntText( &value );
+			if (XML_SUCCESS == res){
+				pCPipePolicy->bufferHighThreshold = value;
+			}else{
+				AGILE_LOGE("failed to get the value of the element: high_level");
+				return MAG_BAD_VALUE;;
+			}
+		}else{
+			AGILE_LOGE("failed to get the element: high_level");
+			return MAG_NAME_NOT_FOUND;
+		}
+    }else{
+    	pDemuxerPolicy = &mPolicy.demuxerStream;
+    	ele = element->FirstChildElement( "kbps" );
+		if (ele){
+			res = ele->QueryIntText( &value );
+			if (XML_SUCCESS == res){
+				pDemuxerPolicy->kbps = value;
+			}else{
+				AGILE_LOGE("failed to get the value of the element: kbps");
+				return MAG_BAD_VALUE;;
+			}
+		}else{
+			AGILE_LOGE("failed to get the element: kpbs");
+			return MAG_NAME_NOT_FOUND;
+		}
+
+    	ele = element->FirstChildElement( "video_buffer_size" );
+		if (ele){
+			res = ele->QueryIntText( &value );
+			if (XML_SUCCESS == res){
+				pDemuxerPolicy->videoBufferPoolSize = value;
+			}else{
+				AGILE_LOGE("failed to get the value of the element: video_buffer_size");
+				return MAG_BAD_VALUE;;
+			}
+		}else{
+			AGILE_LOGE("failed to get the element: video_buffer_size");
+			return MAG_NAME_NOT_FOUND;
+		}
+
+		ele = element->FirstChildElement( "audio_buffer_size" );
+		if (ele){
+			res = ele->QueryIntText( &value );
+			if (XML_SUCCESS == res){
+				pDemuxerPolicy->audioBufferPoolSize = (value * 1024);
+			}else{
+				AGILE_LOGE("failed to get the value of the element: audio_buffer_size");
+				return MAG_BAD_VALUE;;
+			}
+		}else{
+			AGILE_LOGE("failed to get the element: audio_buffer_size");
+			return MAG_NAME_NOT_FOUND;
+		}
+
+		ele = element->FirstChildElement( "other_buffer_size" );
+		if (ele){
+			res = ele->QueryIntText( &value );
+			if (XML_SUCCESS == res){
+				pDemuxerPolicy->otherBufferPoolSize = (value * 1024);
+			}else{
+				AGILE_LOGE("failed to get the value of the element: other_buffer_size");
+				return MAG_BAD_VALUE;;
+			}
+		}else{
+			AGILE_LOGE("failed to get the element: other_buffer_size");
+			return MAG_NAME_NOT_FOUND;
+		}
+
+		ele = element->FirstChildElement( "mem_pool_limit" );
+		if (ele){
+			res = ele->QueryIntText( &value );
+			if (XML_SUCCESS == res){
+				pDemuxerPolicy->memPoolSizeLimit = (value * 1024);
+			}else{
+				AGILE_LOGE("failed to get the value of the element: mem_pool_limit");
+				return MAG_BAD_VALUE;;
+			}
+		}else{
+			AGILE_LOGE("failed to get the element: mem_pool_limit");
+			return MAG_NAME_NOT_FOUND;
+		}
+
+		ele = element->FirstChildElement( "normal_bitrate_stream" );
+		if (ele){
+			err = parseBufThresholdElement(ele, &pDemuxerPolicy->normalBitRate);
+			if (err != MAG_NO_ERROR){
+				return MAG_NAME_NOT_FOUND;
+			}
+		}else{
+			AGILE_LOGE("failed to get the element: normal_bitrate_stream");
+			return MAG_NAME_NOT_FOUND;
+		}
+
+		ele = element->FirstChildElement( "high_bitrate_stream" );
+		if (ele){
+			err = parseBufThresholdElement(ele, &pDemuxerPolicy->highBitRate);
+			if (err != MAG_NO_ERROR){
+				return MAG_NAME_NOT_FOUND;
+			}
+		}else{
+			AGILE_LOGE("failed to get the element: high_bitrate_stream");
+			return MAG_NAME_NOT_FOUND;
+		}
+
+		ele = element->FirstChildElement( "highest_bitrate_stream" );
+		if (ele){
+			err = parseBufThresholdElement(ele, &pDemuxerPolicy->highestBitRate);
+			if (err != MAG_NO_ERROR){
+				return MAG_NAME_NOT_FOUND;
+			}
+		}else{
+			AGILE_LOGE("failed to get the element: highest_bitrate_stream");
+			return MAG_NAME_NOT_FOUND;
+		}
+    }
 
 	return MAG_NO_ERROR;
 }
@@ -322,18 +440,31 @@ _status_t MagBufferObserver::parseXMLConfig(){
     }
 
     AGILE_LOGV("ContentPipe: bufSize[%d], low[%d ms], play[%d ms], high[%d ms]",
-    	        mPolicy.contentPipe.videoBufferPoolSize,
+    	        mPolicy.contentPipe.BufferSize,
     	        mPolicy.contentPipe.bufferLowThreshold,
     	        mPolicy.contentPipe.bufferPlayThreshold,
     	        mPolicy.contentPipe.bufferHighThreshold);
 
-    AGILE_LOGV("Demuxer: VbufSize[%d ms][%d kbps], AbufSize[%d kB], ObufSize[%d kB], low[%d ms], play[%d ms], high[%d ms]",
+    AGILE_LOGV("Demuxer: VbufSize[%d ms][%d kbps], AbufSize[%d kB], ObufSize[%d kB], MemPoolSize[%d kB]",
     	        mPolicy.demuxerStream.videoBufferPoolSize,
     	        mPolicy.demuxerStream.kbps,
     	        mPolicy.demuxerStream.audioBufferPoolSize,
     	        mPolicy.demuxerStream.otherBufferPoolSize,
-    	        mPolicy.demuxerStream.bufferLowThreshold,
-    	        mPolicy.demuxerStream.bufferPlayThreshold,
-    	        mPolicy.demuxerStream.bufferHighThreshold);
+    	        mPolicy.demuxerStream.memPoolSizeLimit);
+
+    AGILE_LOGV("Demuxer: NormalBitRate Stream - low[%d ms], play[%d ms], high[%d ms]",
+    	        mPolicy.demuxerStream.normalBitRate.bufferLowThreshold,
+    	        mPolicy.demuxerStream.normalBitRate.bufferPlayThreshold,
+    	        mPolicy.demuxerStream.normalBitRate.bufferHighThreshold);
+
+    AGILE_LOGV("Demuxer: HighBitRate Stream - low[%d ms], play[%d ms], high[%d ms]",
+    	        mPolicy.demuxerStream.highBitRate.bufferLowThreshold,
+    	        mPolicy.demuxerStream.highBitRate.bufferPlayThreshold,
+    	        mPolicy.demuxerStream.highBitRate.bufferHighThreshold);
+
+    AGILE_LOGV("Demuxer: HighestBitRate Stream - low[%d ms], play[%d ms], high[%d ms]",
+    	        mPolicy.demuxerStream.highestBitRate.bufferLowThreshold,
+    	        mPolicy.demuxerStream.highestBitRate.bufferPlayThreshold,
+    	        mPolicy.demuxerStream.highestBitRate.bufferHighThreshold);
     return res;
 }

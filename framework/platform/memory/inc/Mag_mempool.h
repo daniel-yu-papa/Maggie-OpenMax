@@ -14,8 +14,8 @@ extern "C" {
 #define BUF_ALIGN(size, align) (((unsigned int)((size)/(align)) + 1)*align)
 
 typedef enum{
-    NO_AUTO_EXPANDING, /*if the mempool is used up, it would not create another mempool automatically*/
-    AUTO_EXPANDING     /*if the mempool is used up, it would create another mempool automatically*/
+    NO_AUTO_EXPANDING,  /*if the mempool is used up, it would not create another mempool automatically*/
+    AUTO_EXPANDING      /*if the mempool is used up, it would create another mempool automatically*/
 }magMemPoolCtrl_t;
 
 typedef struct{
@@ -25,6 +25,8 @@ typedef struct{
     List_t unusedMBListHead;    /*no order. used to list the unused magMemBlock_t for later using*/
     unsigned int MemPoolTotal;  /* the total number of the mempools */
     magMemPoolCtrl_t ctrlFlag;
+    ui32 totalBufSize;          /*total allocated buffer size*/
+    ui32 bufferLimit;            /*in Bytes. 0: no limitation*/
 }magMemPoolMgr_t;
 
 typedef struct magMempoolInternal_t{
@@ -34,6 +36,7 @@ typedef struct magMempoolInternal_t{
     List_t freeMBListHead;      /*the free MB nearest to the Mem Pool is always the first node in the list*/   
     List_t *activeMBNode;       /*point to the MB that hit the allocation in the nearest time*/
     unsigned int index;         /* the index of the mempool in terms of the creation time*/
+    boolean empty;              /* show the empty or not*/
 }magMempoolInternal_t;
 
 typedef struct{
@@ -47,7 +50,8 @@ typedef struct{
 typedef magMemPoolMgr_t* magMempoolHandle;
 
 magMempoolHandle magMemPoolCreate(unsigned int bytes, ui32 flags);
-void *magMemPoolGetBuffer(magMempoolHandle hMemPool, unsigned int bytes);
+void magMemPoolSetBufLimit(magMempoolHandle hMemPool, ui32 top_size);
+MagErr_t magMemPoolGetBuffer(magMempoolHandle hMemPool, unsigned int bytes, void **ppBuf);
 MagErr_t magMemPoolPutBuffer(magMempoolHandle hMemPool, void *pBuf);
 MagErr_t magMemPoolReset(magMempoolHandle hMemPool);
 void magMemPoolDestroy(magMempoolHandle *phMemPool);

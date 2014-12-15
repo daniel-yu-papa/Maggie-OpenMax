@@ -12,14 +12,15 @@ public:
 
     virtual void setMagPlayerNotifier(MagMessageHandle notifyMsg);
     virtual MagMessageHandle getMagPlayerNotifier();
-    virtual _status_t setup(i32 trackID, TrackInfo_t *sInfo);
+    virtual _status_t init(i32 trackID, TrackInfo_t *sInfo);
+    virtual _status_t setup();
     virtual _status_t start();
     virtual _status_t stop();
     virtual _status_t pause();
     virtual _status_t resume();
     virtual _status_t flush();
     virtual _status_t reset();
-    virtual void *getClkConnectedComp(i32 *port);
+    virtual _status_t getClkConnectedComp(i32 *port, void **ppComp);
     
 protected:
     MagVideoPipelineImplBase *getPipelineImpl();

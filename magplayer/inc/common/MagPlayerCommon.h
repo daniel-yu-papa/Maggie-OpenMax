@@ -1,10 +1,7 @@
 #ifndef __MAG_PLAYER_COMMON_H__
 #define __MAG_PLAYER_COMMON_H__
 
-#include "OMX_Audio.h"
-#include "OMX_AudioExt.h"
-#include "OMX_Video.h"
-#include "OMX_VideoExt.h"
+#include "MagOMX_IL.h"
 
 #define STRINGIFY(x) case x: return #x
 
@@ -29,6 +26,11 @@ enum {
     MAG_PREPARE_FAILURE,
     MAG_READ_ABORT,
     MAG_DEMUXER_ABORT
+};
+
+enum {
+    PIPELINE_NOTIFY_FillThisBuffer      = 'filb',
+    PIPELINE_NOTIFY_PlaybackComplete    = 'plcm'
 };
 
 #endif

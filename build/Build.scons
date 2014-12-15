@@ -1,0 +1,13 @@
+import sys
+import os
+import imp
+import shutil
+from glob import glob
+
+#######################################################
+# Main Build
+#######################################################
+Import("env")
+
+for subdir in ['agilelog/build', 'framework/build', 'omx_il/build', 'magplayer/build']:
+    SConscript(GetBuildPath("#/%s/Build.scons" % subdir), variant_dir='Targets/'+env['target']+'/'+env['build_config']+'/'+subdir.split('/', 1)[0], exports='env', duplicate=0)

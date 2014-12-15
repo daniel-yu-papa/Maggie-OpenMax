@@ -19,10 +19,10 @@ Virtuals(MagOmxPortVideo, MagOmxPortImpl)
 EndOfVirtuals;
 
 ClassMembers(MagOmxPortVideo, MagOmxPortImpl, \
+    /*add the supported video format from the vendor port */
 	void (*addFormat)(MagOmxPortVideo hPort, MagOMX_Video_PortFormat_t *pFormat); \
 )
     MagMutexHandle         mhMutex;
-    MagMiniDBHandle        mParametersDB;
     /*
      *mPortFormatList.next links to the default port format(highest preference format)
      *the later nodes are lower preference formats

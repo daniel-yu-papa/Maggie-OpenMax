@@ -1,5 +1,10 @@
 #include "MagOMX_Port_base.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "MagOMX_CompBase"
+
 AllocateClass(MagOmxPort, Base);
 
 static void checkPortParameters(MagOmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *setDef){
@@ -16,13 +21,25 @@ static OMX_U8 *MagOmxPort_getPortName(MagOmxPort hPort){
     return hPort->mPortName;
 }
 
+static void MagOmxPort_copyPortDef(MagOmxPort root, OMX_PARAM_PORTDEFINITIONTYPE *pDest, OMX_PARAM_PORTDEFINITIONTYPE *pSrc){
+    pDest->eDir               = pSrc->eDir;
+    pDest->nBufferCountActual = pSrc->nBufferCountActual;
+    pDest->nBufferCountMin    = pSrc->nBufferCountMin;
+    pDest->nBufferSize        = pSrc->nBufferSize;
+    pDest->bEnabled           = pSrc->bEnabled;
+    pDest->bPopulated         = pSrc->bPopulated;
+
+    pDest->bBuffersContiguous = pSrc->bBuffersContiguous;
+    pDest->nBufferAlignment   = pSrc->nBufferAlignment;
+}
+
 static OMX_ERRORTYPE MagOmxPort_getPortDefinition(MagOmxPort hPort, OMX_PARAM_PORTDEFINITIONTYPE *getDef){
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     void *portDef = NULL;
     OMX_PORTDOMAINTYPE domain;
 
     Mag_AcquireMutex(hPort->mhMutex);
-    memcpy(getDef, hPort->mpPortDefinition, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
+    hPort->copyPortDef(hPort, getDef, hPort->mpPortDefinition);
     if (MagOmxPortVirtual(hPort)->GetPortSpecificDef){
         domain = MagOmxPortVirtual(hPort)->GetDomainType(hPort);
         if (domain == OMX_PortDomainAudio){
@@ -31,7 +48,8 @@ static OMX_ERRORTYPE MagOmxPort_getPortDefinition(MagOmxPort hPort, OMX_PARAM_PO
             portDef = &getDef->format.video;
         }else if (domain == OMX_PortDomainImage){
             portDef = &getDef->format.image;
-        }else if (domain == OMX_PortDomainOther){
+        }else if ((domain == OMX_PortDomainOther) ||
+                  (domain == OMX_PortDomainOther_Clock)){
             portDef = &getDef->format.other;
         }else{
             PORT_LOGE(hPort, "invalid port domain: %d", domain);
@@ -44,7 +62,7 @@ static OMX_ERRORTYPE MagOmxPort_getPortDefinition(MagOmxPort hPort, OMX_PARAM_PO
         if (portDef)
             MagOmxPortVirtual(hPort)->GetPortSpecificDef(hPort, portDef);
     }else{
-        PORT_LOGE(hPort, "The pure virtual function (SetPortSpecificDef) is not overrided!");
+        PORT_LOGE(hPort, "The pure virtual function (GetPortSpecificDef) is not overrided!");
         ret = OMX_ErrorUndefined;
     }
     Mag_ReleaseMutex(hPort->mhMutex);
@@ -66,7 +84,7 @@ static OMX_ERRORTYPE MagOmxPort_setPortDefinition(MagOmxPort hPort, OMX_PARAM_PO
 
     Mag_AcquireMutex(hPort->mhMutex);
     checkPortParameters(hPort, setDef);
-    memcpy(hPort->mpPortDefinition, setDef, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
+    hPort->copyPortDef(hPort, hPort->mpPortDefinition, setDef);
 
     if (MagOmxPortVirtual(hPort)->SetPortSpecificDef){
         if (domain == OMX_PortDomainAudio){
@@ -84,6 +102,7 @@ static OMX_ERRORTYPE MagOmxPort_setPortDefinition(MagOmxPort hPort, OMX_PARAM_PO
 
         if (portDef)
             MagOmxPortVirtual(hPort)->SetPortSpecificDef(hPort, portDef);
+        PORT_LOGI(hPort, "actual buffer number is %d!", hPort->mpPortDefinition->nBufferCountActual);
     }else{
         PORT_LOGE(hPort, "The pure virtual function (SetPortSpecificDef) is not overrided!");
     }
@@ -281,7 +300,7 @@ static void MagOmxPort_initialize(Class this){
     MagOmxPortVtableInstance.SendEvent             = NULL;
     MagOmxPortVtableInstance.GetSharedBufferMsg    = NULL;
     MagOmxPortVtableInstance.GetOutputBuffer       = NULL;
-    MagOmxPortVtableInstance.PostOutputBufferMsg   = NULL;
+    MagOmxPortVtableInstance.SendOutputBuffer      = NULL;
     MagOmxPortVtableInstance.GetDomainType         = NULL;
     MagOmxPortVtableInstance.SetPortSpecificDef    = NULL;
     MagOmxPortVtableInstance.GetPortSpecificDef    = NULL;
@@ -334,6 +353,7 @@ static void MagOmxPort_constructor(MagOmxPort thiz, const void *params){
 
     thiz->setAttachedComponent     = MagOmxPort_setAttachedComponent;
     thiz->getAttachedComponent     = MagOmxPort_getAttachedComponent;
+    thiz->copyPortDef              = MagOmxPort_copyPortDef;
 
     thiz->mpPortDefinition = (OMX_PARAM_PORTDEFINITIONTYPE *)mag_mallocz(sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
     MAG_ASSERT(thiz->mpPortDefinition);

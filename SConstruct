@@ -1,2 +1,1 @@
-SConscript(['framework/agilelog/build/Boot.scons',
-            'framework/build/Boot.scons'])
+SConscript('build/Boot.scons')

@@ -1,6 +1,7 @@
 #include "Mag_msg.h"
 #include "Mag_agilelog.h"
 #include <stdio.h>
+#include <unistd.h>
 
 static int  thread_ids[3] = {1,2,3};
 static unsigned int loops = 100;
@@ -31,6 +32,7 @@ static void *post_msg_thread(void *arg){
         AGILE_LOGI("send the %d message from thread(%d)", count, index);
         count++;
     }
+    return NULL;
 }
 
 int main(){
@@ -53,5 +55,6 @@ int main(){
     }
 
     Mag_MsgChannelDestroy(&handle);
+    return 0;
 }
 

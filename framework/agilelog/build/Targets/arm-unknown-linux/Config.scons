@@ -1,4 +1,0 @@
-LoadTool('gcc-generic', env, gcc_cross_prefix='arm-marvell-linux-gnueabi')
-
-env['EXTRA_CC_FLAGS'] = []
-env['STRIP'] = ''

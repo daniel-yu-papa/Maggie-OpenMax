@@ -1,5 +1,10 @@
 #include "MagOMX_Port_audio.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "MagOMX_CompAudio"
+
 AllocateClass(MagOmxPortAudio, MagOmxPortImpl);
 
 static MagOmxPortAudio getAudioPort(OMX_HANDLETYPE hPort){
@@ -9,11 +14,11 @@ static MagOmxPortAudio getAudioPort(OMX_HANDLETYPE hPort){
     return v;
 }
 
-static OMX_PORTDOMAINTYPE virtual_GetDomainType(OMX_HANDLETYPE hPort){
+static OMX_PORTDOMAINTYPE virtual_MagOmxPortAudio_GetDomainType(OMX_HANDLETYPE hPort){
 	return OMX_PortDomainAudio;
 }
 
-static OMX_ERRORTYPE virtual_SetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFormat){
+static OMX_ERRORTYPE virtual_MagOmxPortAudio_SetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFormat){
 	MagOmxPortAudio aPort;
 	OMX_AUDIO_PORTDEFINITIONTYPE *pAudioDef = (OMX_AUDIO_PORTDEFINITIONTYPE *)pFormat;
 	List_t *next;
@@ -40,7 +45,7 @@ static OMX_ERRORTYPE virtual_SetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFor
 	return OMX_ErrorNone;
 }
 
-static OMX_ERRORTYPE virtual_GetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFormat){
+static OMX_ERRORTYPE virtual_MagOmxPortAudio_GetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFormat){
 	MagOmxPortAudio aPort;
 	OMX_AUDIO_PORTDEFINITIONTYPE *pAudioDef = (OMX_AUDIO_PORTDEFINITIONTYPE *)pFormat;
 	List_t *next;
@@ -66,11 +71,11 @@ static OMX_ERRORTYPE virtual_GetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFor
 	return OMX_ErrorNone;
 }
 
-static OMX_ERRORTYPE virtual_SetParameter(OMX_HANDLETYPE hPort, OMX_INDEXTYPE nIndex, OMX_PTR pPortParam){
+static OMX_ERRORTYPE virtual_MagOmxPortAudio_SetParameter(OMX_HANDLETYPE hPort, OMX_INDEXTYPE nIndex, OMX_PTR pPortParam){
 	return OMX_ErrorNone;
 }
 
-static OMX_ERRORTYPE virtual_GetParameter(OMX_HANDLETYPE hPort, OMX_INDEXTYPE nIndex, OMX_PTR pPortParam){
+static OMX_ERRORTYPE virtual_MagOmxPortAudio_GetParameter(OMX_HANDLETYPE hPort, OMX_INDEXTYPE nIndex, OMX_PTR pPortParam){
 	MagOmxPortAudio aPort;
 	OMX_U32 i;
 	List_t *next;
@@ -118,11 +123,11 @@ static void MagOmxPortAudio_addFormat(MagOmxPortAudio hPort, MagOMX_Audio_PortFo
 
 /*Class Constructor/Destructor*/
 static void MagOmxPortAudio_initialize(Class this){
-	MagOmxPortAudioVtableInstance.MagOmxPortImpl.MagOmxPort.GetDomainType       = virtual_GetDomainType;
-	MagOmxPortAudioVtableInstance.MagOmxPortImpl.MagOmxPort.SetPortSpecificDef  = virtual_SetPortSpecificDef;
-	MagOmxPortAudioVtableInstance.MagOmxPortImpl.MagOmxPort.GetPortSpecificDef  = virtual_GetPortSpecificDef;
-	MagOmxPortAudioVtableInstance.MagOmxPortImpl.MagOmxPort.SetParameter        = virtual_SetParameter;
-	MagOmxPortAudioVtableInstance.MagOmxPortImpl.MagOmxPort.GetParameter        = virtual_GetParameter;
+	MagOmxPortAudioVtableInstance.MagOmxPortImpl.MagOmxPort.GetDomainType       = virtual_MagOmxPortAudio_GetDomainType;
+	MagOmxPortAudioVtableInstance.MagOmxPortImpl.MagOmxPort.SetPortSpecificDef  = virtual_MagOmxPortAudio_SetPortSpecificDef;
+	MagOmxPortAudioVtableInstance.MagOmxPortImpl.MagOmxPort.GetPortSpecificDef  = virtual_MagOmxPortAudio_GetPortSpecificDef;
+	MagOmxPortAudioVtableInstance.MagOmxPortImpl.MagOmxPort.SetParameter        = virtual_MagOmxPortAudio_SetParameter;
+	MagOmxPortAudioVtableInstance.MagOmxPortImpl.MagOmxPort.GetParameter        = virtual_MagOmxPortAudio_GetParameter;
 }
 
 /*

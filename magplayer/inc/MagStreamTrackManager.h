@@ -13,14 +13,20 @@ enum TrackType_t{
     TRACK_UNKNOWN = 0,
     TRACK_VIDEO,
     TRACK_AUDIO,
-    TRACK_SUBTITLE,
+    TRACK_SUBTITLE
 };
 
 enum TrackStatus_t{
     TRACK_STOP = 0,
     TRACK_PAUSE,
     TRACK_PLAY,
-    TRACK_PLAY_COMPLETE,
+    TRACK_PLAY_COMPLETE
+};
+
+enum BufferPolicyType_t{
+    BUFFER_POLICY_NORMAL,
+    BUFFER_POLICY_LOW,
+    BUFFER_POLICY_LOWEST
 };
 
 typedef struct{
@@ -42,14 +48,8 @@ typedef struct{
     i64 duration;                 /*stream duration in ms*/
     i64 start_time;               /*stream start time in ms*/
 
-    void *avCodecContext;         /*avCodec context used for decoding the video/auido stream*/
-    void *avFrame;                /*the decoded video/audio frame*/
-
-    ui32 top_rgb;                 /*the rgb value of the top half video frame*/
-    ui32 bottom_rgb;              /*the rgb value of the bottom half video frame*/
-
-    i64 last_pts;                 /*the pts of previous video/audio packet*/
-    MAG_BOOL_t generatePTS;       /*MAG_TRUE: to generate the pts by itself, MAG_FALSE: use stream PTS*/
+    void *avformat;               /*from ffmpeg lib*/
+    void *avstream;               /*from ffmpeg lib*/
 }TrackInfo_t;
 
 typedef struct{
@@ -99,6 +99,10 @@ public:
 
     ui32           doFrameStat(ui32 frame_size);
     
+    void           setBufferLimit(ui32 limit);
+
+    bool           getSetBufLevelChange();
+    
     MagMutexHandle mMutex;
 private:
     _status_t putMediaBuffer(List_t *list_head, MediaBuffer_t *mb);
@@ -118,10 +122,12 @@ private:
     BufferStatus_t mBufferStatus;
     MagESFormat *mEsFormatter;
 
+    bool mBufLevelChange;
     bool mIsFull;
     bool mIsRunning;
 
     List_t mFrameStatList;
+    ui32 mBufferLimit;
 };
 
 class Stream_Track_Manager{
@@ -144,7 +150,7 @@ public:
 
     _status_t   attachBufferObserver(MagBufferObserver *pObserver);
 	_status_t   dettachBufferObserver(MagBufferObserver *pObserver);
-	_status_t   setBufferPolicy(BufferPolicy_t *pPolicy);
+	_status_t   setBufferPolicy(Demuxer_BufferPolicy_t *pPolicy);
     
     _status_t   start();
     _status_t   stop();
@@ -175,7 +181,7 @@ private:
     // BufferStatus_t mBufferStatus;
 
 	MagBufferObserver *mpObserver;
-	BufferPolicy_t mBufManagePolicy;
+	Demuxer_BufferPolicy_t mBufManagePolicy;
 	MagThreadHandle mhReadingFramesEntry;
 
     MagEventGroupHandle mPlayingEvtGroup;
@@ -186,5 +192,10 @@ private:
 
     /*for the live stream, such as rtsp etc, the stream should be played ASAP. So the buffering logic should be disabled*/
     i32 mDisableBufferMgr;
+
+    enum BufferPolicyType_t mBufferingType;
+    ui32 mSBufLowThreshold;
+    ui32 mSBufPlayThreshold;
+    ui32 mSBufHighThreshold;
 };
 #endif

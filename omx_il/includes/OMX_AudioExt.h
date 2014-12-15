@@ -1,5 +1,5 @@
-#ifndef OMX_AudioExt_h
-#define OMX_AudioExt_h
+#ifndef OMX_Audio_Ext_h
+#define OMX_Audio_Ext_h
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,7 +26,7 @@ typedef enum OMX_AUDIO_CODINGEXTTYPE {
 
 typedef enum OMX_AUDIO_PCMMODEEXTTYPE {
     OMX_AUDIO_PCMModeExtUnused=OMX_AUDIO_PCMModeVendorStartUnused,
-    OMX_AUDIO_PCMModeBluray,    /**< Blu-ray LPCM */
+    OMX_AUDIO_PCMModeBluray    /**< Blu-ray LPCM */
 } OMX_AUDIO_PCMMODEEXTTYPE;
 
 
@@ -72,13 +72,13 @@ typedef struct OMX_AUDIO_PARAM_AC3TYPE {
                                         rate or unknown bit rates */
     OMX_U32 nSampleRate;           /**< Sampling rate of the source data.  Use 0 for
                                         variable or unknown sampling rate. */
-    // TODO: check if we need to differentiates EAC3 (DD+) and define AC3 format
-    //       type if needed.
+    /*TODO: check if we need to differentiates EAC3 (DD+) and define AC3 format
+          type if needed.*/
 } OMX_AUDIO_PARAM_AC3TYPE;
 
 
 /** DTS params */
-// TODO: check the DTS decoder proposal from DD and sync to it.
+/*TODO: check the DTS decoder proposal from DD and sync to it.*/
 typedef struct OMX_AUDIO_PARAM_DTSTYPE {
     OMX_U32 nSize;                 /**< size of the structure in bytes */
     OMX_VERSIONTYPE nVersion;      /**< OMX specification version information */

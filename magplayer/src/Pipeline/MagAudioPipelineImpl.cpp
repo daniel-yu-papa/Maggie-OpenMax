@@ -1,11 +1,12 @@
 #include "MagAudioPipelineImpl.h"
-#include "MagPlayer.h"
+#include "MagPlayerCommon.h"
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "AudioPipelineImpl"
+#define MODULE_TAG "Magply_Pipeline"
 
+#define LOOPER_NAME "MagAudioPipeline"
 
 #define AUDIO_ES_DUMP_FILE_NAME "/lmp/magplayer_audio.es"
 
@@ -39,7 +40,7 @@ MagMessageHandle MagAudioPipelineImpl::getMagPlayerNotifier(){
     return mMagPlayerNotifier;
 }
 
-_status_t MagAudioPipelineImpl::setup(i32 trackID, TrackInfo_t *sInfo){
+_status_t MagAudioPipelineImpl::init(i32 trackID, TrackInfo_t *sInfo){
     if (mState != ST_INIT){
         AGILE_LOGE("it is in invalid state: (%s)! quit ...", state2String(mState));
         return MAG_INVALID_OPERATION;
@@ -55,6 +56,11 @@ _status_t MagAudioPipelineImpl::setup(i32 trackID, TrackInfo_t *sInfo){
         AGILE_LOGD("Create the file: %s -- OK!", AUDIO_ES_DUMP_FILE_NAME);
     }
 #endif
+    return MAG_NO_ERROR;
+}
+
+_status_t MagAudioPipelineImpl::setup(){
+    return MAG_NO_ERROR;
 }
 
 _status_t MagAudioPipelineImpl::start(){
@@ -140,8 +146,8 @@ _status_t MagAudioPipelineImpl::reset(){
     return MAG_NO_ERROR;
 }
 
-void *MagAudioPipelineImpl::getClkConnectedComp(i32 *port){
-    return NULL;
+_status_t MagAudioPipelineImpl::getClkConnectedComp(i32 *port, void **ppComp){
+    return MAG_NO_ERROR;
 }
 
 _status_t MagAudioPipelineImpl::setVolume(fp32 leftVolume, fp32 rightVolume){
@@ -160,7 +166,7 @@ void MagAudioPipelineImpl::proceedMediaBuffer(MediaBuffer_t *buf){
 
 void MagAudioPipelineImpl::notifyPlaybackComplete(){
     /*simulate the video playback complete and then notify the APP*/
-    mMagPlayerNotifier->setInt32(mMagPlayerNotifier, "what", MagPlayer::kWhatPlayComplete);
+    mMagPlayerNotifier->setInt32(mMagPlayerNotifier, "what", PIPELINE_NOTIFY_PlaybackComplete);
     mMagPlayerNotifier->setInt32(mMagPlayerNotifier, "track-id", mTrackID);
     mMagPlayerNotifier->setMessage(mMagPlayerNotifier, "reply", mEmptyThisBufferMsg, MAG_FALSE);
     mMagPlayerNotifier->postMessage(mMagPlayerNotifier, 0);
@@ -227,7 +233,7 @@ void MagAudioPipelineImpl::postFillThisBuffer(){
     if (mMagPlayerNotifier != NULL){
         if ((mState == ST_PLAY) && (!mIsFlushed)){
             if (needData()){
-                mMagPlayerNotifier->setInt32(mMagPlayerNotifier, "what", MagPlayer::kWhatFillThisBuffer);
+                mMagPlayerNotifier->setInt32(mMagPlayerNotifier, "what", PIPELINE_NOTIFY_FillThisBuffer);
                 mMagPlayerNotifier->setMessage(mMagPlayerNotifier, "reply", mEmptyThisBufferMsg, MAG_FALSE);
                 mMagPlayerNotifier->postMessage(mMagPlayerNotifier, 0);
             }else{
@@ -300,4 +306,4 @@ _status_t MagAudioPipelineImpl::getLooper(){
     return MAG_NO_ERROR;
 }
 
-
+#undef LOOPER_NAME

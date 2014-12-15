@@ -5,7 +5,7 @@
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "magPlayer"
+#define MODULE_TAG "Magply_Main"
 
 
 #define LOOPER_NAME "MagPlayerLooper"
@@ -246,7 +246,7 @@ void MagPlayer::onPrepared(MagMessageHandle msg){
                 mDemuxer->setPlayingTrackID(0);
                 /*construct the video pipeline*/
                 if (mVideoPipeline == NULL){
-                    mVideoPipeline = new MagVideoPipeline(MARVELL_AMP_PIPELINE);
+                    mVideoPipeline = new MagVideoPipeline(MAG_OMX_PIPELINE);
                     msg = createMessage(MagMsg_ComponentNotify);
                     msg->setInt32(msg, "track-idx", 0);
                     mVideoPipeline->setMagPlayerNotifier(msg);
@@ -255,7 +255,7 @@ void MagPlayer::onPrepared(MagMessageHandle msg){
                     msg->setInt32(msg, "track-idx", 0);
                 }
                 
-                mVideoPipeline->setup(0, mTrackTable->trackTableList[0]);
+                mVideoPipeline->init(0, mTrackTable->trackTableList[0]);
             }
 
             if (mTrackTable->audioTrackNum > 0){
@@ -263,7 +263,7 @@ void MagPlayer::onPrepared(MagMessageHandle msg){
 
                 /*construct the audio pipeline*/
                 if (mAudioPipeline == NULL){
-                    mAudioPipeline = new MagAudioPipeline(MARVELL_AMP_PIPELINE); 
+                    mAudioPipeline = new MagAudioPipeline(MAG_OMX_PIPELINE); 
                     msg = createMessage(MagMsg_ComponentNotify);
                     msg->setInt32(msg, "track-idx", mTrackTable->videoTrackNum);
                     mAudioPipeline->setMagPlayerNotifier(msg);
@@ -271,7 +271,7 @@ void MagPlayer::onPrepared(MagMessageHandle msg){
                     msg = mAudioPipeline->getMagPlayerNotifier();
                     msg->setInt32(msg, "track-idx", mTrackTable->videoTrackNum);
                 }
-                mAudioPipeline->setup(mTrackTable->videoTrackNum, 
+                mAudioPipeline->init(mTrackTable->videoTrackNum, 
                                       mTrackTable->trackTableList[mTrackTable->videoTrackNum]);
             }
 
@@ -283,23 +283,20 @@ void MagPlayer::onPrepared(MagMessageHandle msg){
             getParameters(kMediaPlayerConfig_AvSyncDisable, MagParamTypeInt32, &p);
             AGILE_LOGV("Disable AV Sync - %s", noAVSync ? "Yes" : "No");
 
-            if (!noAVSync){
-                if (mClock == NULL)
-                    mClock = new MagClock(MARVELL_AMP_CLOCK); 
-
-                i32 audioPort;
-                i32 videoPort;
-                void *audioComp = NULL;
-                void *videoComp = NULL;
-
-                if (mAudioPipeline != NULL)
-                    audioComp = mAudioPipeline->getClkConnectedComp(&audioPort);
-
-                if (mVideoPipeline != NULL)
-                    videoComp = mVideoPipeline->getClkConnectedComp(&videoPort);
-                
-                mClock->setup(audioComp, audioPort, videoComp, videoPort);
+            if (mClock == NULL){
+                mClock = new MagClock(MAG_OMX_CLOCK); 
             }
+
+            if (mAVPipelineMgr == NULL)
+                mAVPipelineMgr = new MagPipelineManager(mClock);
+
+            if (mVideoPipeline)
+                mAVPipelineMgr->addVideoPipeline(mVideoPipeline, !noAVSync ? MAG_TRUE : MAG_FALSE);
+
+            if (mAudioPipeline)
+                mAVPipelineMgr->addAudioPipeline(mAudioPipeline, !noAVSync ? MAG_TRUE : MAG_FALSE);
+
+            mAVPipelineMgr->setup();
 
             mState = ST_PREPARED;
             if (mLeftVolume >= 0.0 && mRightVolume >= 0.0)
@@ -358,26 +355,16 @@ void MagPlayer::onPlay(MagMessageHandle msg){
     if (ST_BUFFERING == mState){
         if (!mbIsPlayed){
             /*first playing after the buffering is complete*/
-            if (NULL != mVideoPipeline)
-                mVideoPipeline->start();
-
-            if (NULL != mAudioPipeline)
-                mAudioPipeline->start();
-
-            if (NULL != mClock)
-                mClock->start();
-
+            if (NULL != mAVPipelineMgr){
+                mAVPipelineMgr->start();
+            }
+            
             mbIsPlayed = true;
         }else{
             /*pause/play sequence while the buffer is in low level*/
-            if (mVideoPipeline)
-                mVideoPipeline->resume();
-
-            if (mAudioPipeline)
-                mAudioPipeline->resume();
-
-            if (mClock)
-                mClock->resume();
+            if (NULL != mAVPipelineMgr){
+                mAVPipelineMgr->resume();
+            }
         }
 
         mState = ST_PLAYING;
@@ -392,14 +379,9 @@ void MagPlayer::onPlay(MagMessageHandle msg){
             // }
         }
         if (!buffer_play){
-            if (mClock)
-                mClock->resume();
-
-            if (mVideoPipeline)
-                mVideoPipeline->resume();
-
-            if (mAudioPipeline)
-                mAudioPipeline->resume();
+            if (NULL != mAVPipelineMgr){
+                mAVPipelineMgr->resume();
+            }
 
             mState = ST_PLAYING;   
         }
@@ -448,27 +430,13 @@ void MagPlayer::doResetAction(){
     if ((ST_PLAYING == mState) ||
         (ST_PAUSED == mState) ||
         (ST_BUFFERING == mState)){
-        if (NULL != mClock)
-            mClock->stop();
-
-        if (NULL != mVideoPipeline){
-            mVideoPipeline->stop();
+        if (NULL != mAVPipelineMgr){
+            mAVPipelineMgr->stop();
         }
-
-        if (NULL != mAudioPipeline){
-            mAudioPipeline->stop();
-        } 
     }
 
-    if (NULL != mClock)
-        mClock->reset();
-
-    if (NULL != mVideoPipeline){
-        mVideoPipeline->reset();
-    }
-
-    if (NULL != mAudioPipeline){
-        mAudioPipeline->reset();
+    if (NULL != mAVPipelineMgr){
+        mAVPipelineMgr->reset();
     }
 
     mSource->Close();
@@ -497,14 +465,9 @@ void MagPlayer::onStop(MagMessageHandle msg){
         if (mDemuxer)
             mDemuxer->readyToFlush();
 
-        if (NULL != mClock)
-            mClock->stop();
-
-        if (NULL != mVideoPipeline)
-            mVideoPipeline->stop();
-
-        if (NULL != mAudioPipeline)
-            mAudioPipeline->stop();
+        if (NULL != mAVPipelineMgr){
+            mAVPipelineMgr->stop();
+        }
 
         if (mDemuxer)
             mDemuxer->flush();
@@ -541,6 +504,7 @@ _status_t MagPlayer::stop(){
 void MagPlayer::onPause(MagMessageHandle msg){
     i32 buffer_pause = 0;
     boolean ret;
+    ui8 flag;
 
     AGILE_LOGD("Enter!");
     if (ST_PLAYING == mState){
@@ -555,15 +519,12 @@ void MagPlayer::onPause(MagMessageHandle msg){
             // }
         }
 
-        if (mClock)
-            mClock->pause();
-
-        if (!buffer_pause){
-            if (mVideoPipeline)
-                mVideoPipeline->pause();
-
-            if (mAudioPipeline)
-                mAudioPipeline->pause();
+        if (NULL != mAVPipelineMgr){
+            flag = PAUSE_CLOCK_FLAG;
+            if (!buffer_pause){
+                flag |= PAUSE_AV_FLAG;
+            }
+            mAVPipelineMgr->pause(flag);
         }
 
         if (buffer_pause){
@@ -573,11 +534,10 @@ void MagPlayer::onPause(MagMessageHandle msg){
         }
     }else if (ST_BUFFERING == mState){
         AGILE_LOGV("Do pause action in buffering state!");
-        if (mVideoPipeline)
-            mVideoPipeline->pause();
-
-        if (mAudioPipeline)
-            mAudioPipeline->pause();
+        if (NULL != mAVPipelineMgr){
+            flag = PAUSE_AV_FLAG;
+            mAVPipelineMgr->pause(flag);
+        }
 
         mState = ST_PAUSED;
     }else if (ST_PAUSED == mState){
@@ -681,14 +641,9 @@ void MagPlayer::onFlush(MagMessageHandle msg){
         if (mDemuxer)
             mDemuxer->readyToFlush();
 
-        if (NULL != mClock)
-            mClock->stop();
-
-        if (NULL != mVideoPipeline)
-            mVideoPipeline->flush();
-
-        if (NULL != mAudioPipeline)
-            mAudioPipeline->flush();
+        if (NULL != mAVPipelineMgr){
+            mAVPipelineMgr->flush();
+        }
 
         if (mDemuxer)
             mDemuxer->flush();
@@ -878,8 +833,8 @@ _status_t MagPlayer::setVolume(float leftVolume, float rightVolume){
     if ((mState >= ST_PREPARED ) &&
          (mState != ST_ERROR)){
         AGILE_LOGV("enter[lv=%f, rv=%f]!", leftVolume, rightVolume);
-        if (mAudioPipeline)
-            mAudioPipeline->setVolume(leftVolume, rightVolume);
+        if (mAVPipelineMgr)
+            mAVPipelineMgr->setVolume(leftVolume, rightVolume);
     }else{
         mLeftVolume = leftVolume;
         mRightVolume = rightVolume;
@@ -894,14 +849,10 @@ _status_t MagPlayer::resumeTo(){
     ret = mDemuxer->resume();
 
     if (ret == MAG_NO_ERROR){
-        if (mVideoPipeline)
-            mVideoPipeline->resume();
 
-        if (mAudioPipeline)
-            mAudioPipeline->resume();
-
-        if (NULL != mClock)
-            mClock->start();
+        if (mAVPipelineMgr != NULL){
+            mAVPipelineMgr->resume();
+        }
     }
     AGILE_LOGV("exit!");
     return MAG_NO_ERROR;
@@ -1537,6 +1488,8 @@ void MagPlayer::initialize(){
     mInfoPriv                = NULL;
     mVideoPipeline           = NULL;
     mAudioPipeline           = NULL;
+    mAVPipelineMgr           = NULL;
+    mClock                   = NULL;
     mpContentPipeObserver    = NULL;
     mpDemuxerStreamObserver  = NULL;
 
@@ -1795,19 +1748,6 @@ void MagPlayer::getBufferStatus(BufferStatistic_t  *pBufSt){
     pBufSt->video_buffer_time = videoBufSt;
     pBufSt->audio_buffer_time = audioBufSt;
     pBufSt->loadingSpeed      = loadingSpeed;
-}
-
-void MagPlayer::getPictureRGB(PictureRGB_t *pPicRGB){
-    AGILE_LOGV("enter!");
-    if ((ST_PLAYING   == mState) ||
-        (ST_BUFFERING == mState) ||
-        (ST_PAUSED    == mState)){
-        pPicRGB->top_rgb = mTrackTable->trackTableList[0]->top_rgb;
-        pPicRGB->bottom_rgb = mTrackTable->trackTableList[0]->bottom_rgb;
-    }else{
-        pPicRGB->top_rgb = 0;
-        pPicRGB->bottom_rgb = 0;
-    }
 }
 
 _status_t MagPlayer::buildAudioPipeline(){

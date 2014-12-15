@@ -8,13 +8,14 @@ typedef struct{
 }BufferStatistic_t;
 
 typedef struct{
-	unsigned int top_rgb;
-	unsigned int bottom_rgb;
+	unsigned int top_left_rgb;
+	unsigned int top_right_rgb;
+	unsigned int bottom_left_rgb;
+	unsigned int bottom_right_rgb;
 }PictureRGB_t;
 
 typedef enum invoke_id_t{
-    INVOKE_ID_GET_BUFFER_STATUS = 0x1000,
-    INVOKE_ID_GET_PICTURE_RGB
+    INVOKE_ID_GET_BUFFER_STATUS = 0x1000
 }INVOKE_ID_t;
 
 #endif

@@ -11,6 +11,7 @@
 
 typedef enum{
     MAG_ErrNone = 0,
+    MAG_NoMore,
     MAG_Failure,
     MAG_NoMemory,
     MAG_ErrMutexCreate,
@@ -32,7 +33,7 @@ typedef enum{
 enum {
     MAG_OK                  = 0,    /*// Everything's swell.*/
     MAG_NO_ERROR            = 0,    /*// No errors.*/
-    
+
     MAG_UNKNOWN_ERROR       = 0x8000,
 
     MAG_NO_MEMORY           = -ENOMEM,

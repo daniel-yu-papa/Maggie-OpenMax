@@ -1,5 +1,10 @@
 #include "MagOMX_Port_video.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "MagOMX_CompVideo"
+
 AllocateClass(MagOmxPortVideo, MagOmxPortImpl);
 
 static MagOmxPortVideo getVideoPort(OMX_HANDLETYPE hPort){
@@ -9,11 +14,11 @@ static MagOmxPortVideo getVideoPort(OMX_HANDLETYPE hPort){
     return v;
 }
 
-static OMX_PORTDOMAINTYPE virtual_GetDomainType(OMX_HANDLETYPE hPort){
+static OMX_PORTDOMAINTYPE virtual_MagOmxPortVideo_GetDomainType(OMX_HANDLETYPE hPort){
 	return OMX_PortDomainVideo;
 }
 
-static OMX_ERRORTYPE virtual_SetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFormat){
+static OMX_ERRORTYPE virtual_MagOmxPortVideo_SetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFormat){
 	MagOmxPortVideo vPort;
 	OMX_VIDEO_PORTDEFINITIONTYPE *pVideoDef = (OMX_VIDEO_PORTDEFINITIONTYPE *)pFormat;
 	List_t *next;
@@ -42,7 +47,7 @@ static OMX_ERRORTYPE virtual_SetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFor
 	return OMX_ErrorNone;
 }
 
-static OMX_ERRORTYPE virtual_GetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFormat){
+static OMX_ERRORTYPE virtual_MagOmxPortVideo_GetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFormat){
 	MagOmxPortVideo vPort;
 	OMX_VIDEO_PORTDEFINITIONTYPE *pVideoDef = (OMX_VIDEO_PORTDEFINITIONTYPE *)pFormat;
 	List_t *next;
@@ -70,11 +75,11 @@ static OMX_ERRORTYPE virtual_GetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFor
 	return OMX_ErrorNone;
 }
 
-static OMX_ERRORTYPE virtual_SetParameter(OMX_HANDLETYPE hPort, OMX_INDEXTYPE nIndex, OMX_PTR pPortParam){
+static OMX_ERRORTYPE virtual_MagOmxPortVideo_SetParameter(OMX_HANDLETYPE hPort, OMX_INDEXTYPE nIndex, OMX_PTR pPortParam){
 	return OMX_ErrorNone;
 }
 
-static OMX_ERRORTYPE virtual_GetParameter(OMX_HANDLETYPE hPort, OMX_INDEXTYPE nIndex, OMX_PTR pPortParam){
+static OMX_ERRORTYPE virtual_MagOmxPortVideo_GetParameter(OMX_HANDLETYPE hPort, OMX_INDEXTYPE nIndex, OMX_PTR pPortParam){
 	MagOmxPortVideo vPort;
 	OMX_U32 i;
 	List_t *next;
@@ -128,11 +133,11 @@ static void MagOmxPortVideo_addFormat(MagOmxPortVideo hPort, MagOMX_Video_PortFo
 static void MagOmxPortVideo_initialize(Class this){
 	AGILE_LOGV("Enter!");
 
-	MagOmxPortVideoVtableInstance.MagOmxPortImpl.MagOmxPort.GetDomainType       = virtual_GetDomainType;
-	MagOmxPortVideoVtableInstance.MagOmxPortImpl.MagOmxPort.SetPortSpecificDef  = virtual_SetPortSpecificDef;
-	MagOmxPortVideoVtableInstance.MagOmxPortImpl.MagOmxPort.GetPortSpecificDef  = virtual_GetPortSpecificDef;
-	MagOmxPortVideoVtableInstance.MagOmxPortImpl.MagOmxPort.SetParameter        = virtual_SetParameter;
-	MagOmxPortVideoVtableInstance.MagOmxPortImpl.MagOmxPort.GetParameter        = virtual_GetParameter;
+	MagOmxPortVideoVtableInstance.MagOmxPortImpl.MagOmxPort.GetDomainType       = virtual_MagOmxPortVideo_GetDomainType;
+	MagOmxPortVideoVtableInstance.MagOmxPortImpl.MagOmxPort.SetPortSpecificDef  = virtual_MagOmxPortVideo_SetPortSpecificDef;
+	MagOmxPortVideoVtableInstance.MagOmxPortImpl.MagOmxPort.GetPortSpecificDef  = virtual_MagOmxPortVideo_GetPortSpecificDef;
+	MagOmxPortVideoVtableInstance.MagOmxPortImpl.MagOmxPort.SetParameter        = virtual_MagOmxPortVideo_SetParameter;
+	MagOmxPortVideoVtableInstance.MagOmxPortImpl.MagOmxPort.GetParameter        = virtual_MagOmxPortVideo_GetParameter;
 }
 
 /*
@@ -155,7 +160,6 @@ static void MagOmxPortVideo_constructor(MagOmxPortVideo thiz, const void *params
     thiz->addFormat             = MagOmxPortVideo_addFormat;
 
     Mag_CreateMutex(&thiz->mhMutex);
-    thiz->mParametersDB = createMagMiniDB(64);
     INIT_LIST(&thiz->mPortFormatList);
 
     thiz->mpPortDefinition = (OMX_VIDEO_PORTDEFINITIONTYPE *)mag_mallocz(sizeof(OMX_VIDEO_PORTDEFINITIONTYPE));
@@ -187,6 +191,5 @@ static void MagOmxPortVideo_destructor(MagOmxPortVideo thiz, MagOmxPortVideoVtab
     	next = thiz->mPortFormatList.next;
     }
 
-    destroyMagMiniDB(&thiz->mParametersDB);
     Mag_DestroyMutex(&thiz->mhMutex);
 }

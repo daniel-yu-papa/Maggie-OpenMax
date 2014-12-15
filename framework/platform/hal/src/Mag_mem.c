@@ -5,7 +5,7 @@
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "magFramework-Memory"
+#define MODULE_TAG "Magfw_Memory"
 
 static size_t max_alloc_size= INT_MAX;
 

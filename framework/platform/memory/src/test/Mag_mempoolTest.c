@@ -1,6 +1,7 @@
 #include "Mag_mempool.h"
 #include "Mag_msg.h"
 #include <time.h>
+#include <unistd.h>
 
 struct msgMemPool{
     int count;
@@ -24,7 +25,7 @@ static void *fillBufferEntry(void *arg){
     
     for (i = 0; i < TESTING_LOOPS; i++){
         count++;
-        pBuf = magMemPoolGetBuffer(hmp, BASE_BYTES + loop);
+        magMemPoolGetBuffer(hmp, BASE_BYTES + loop, &pBuf);
         msg.buffer = pBuf;
         msg.count = count;
         Mag_MsgChannelSend(hMsgChanl, &msg, sizeof(struct msgMemPool));
@@ -42,6 +43,7 @@ static void *fillBufferEntry(void *arg){
         usleep(5);
     }
     sleep(2);
+    return NULL;
 }
 
 static void emptyBufferReceiver(void *msg, void *priv){
@@ -77,4 +79,6 @@ int main(){
     magMemPoolDestroy(&memPoolHandle);
     AGILE_LOGD("after magMemPoolDestroy");
     Mag_MsgChannelDestroy(&hMsgChanl);
+
+    return 0;
 }

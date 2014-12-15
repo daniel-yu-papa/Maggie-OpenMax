@@ -1,7 +1,12 @@
 #include "MagPipelineFactory.h"
-#include "MrvlAMPVideoPipeline.h"
-#include "MrvlAMPAudioPipeline.h"
-#include "MrvlAMPClock.h"
+#include "Omxil_VideoPipeline.h"
+#include "Omxil_AudioPipeline.h"
+#include "Omxil_Clock.h"
+
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "Magply_Pipeline"
 
 MAG_SINGLETON_STATIC_INSTANCE(MagPipelineFactory)
 
@@ -17,8 +22,8 @@ MagVideoPipelineImplBase *MagPipelineFactory::createVideoPipeline(Pipeline_Type_
 	MagVideoPipelineImplBase *obj = NULL;
 
 	switch (type){
-		case MARVELL_AMP_PIPELINE:
-			obj = new MrvlAMPVideoPipeline();
+		case MAG_OMX_PIPELINE:
+			obj = new OmxilVideoPipeline();
 			break;
 
 		default:
@@ -31,8 +36,8 @@ MagAudioPipelineImplBase *MagPipelineFactory::createAudioPipeline(Pipeline_Type_
 	MagAudioPipelineImplBase *obj = NULL;
 
 	switch (type){
-		case MARVELL_AMP_PIPELINE:
-			obj = new MrvlAMPAudioPipeline();
+		case MAG_OMX_PIPELINE:
+			obj = new OmxilAudioPipeline();
 			break;
 			
 		default:
@@ -45,8 +50,8 @@ MagClockImplBase *MagPipelineFactory::createClock(Clock_Type_t type){
 	MagClockImplBase *obj = NULL;
 
 	switch (type){
-		case MARVELL_AMP_CLOCK:
-			obj = new MrvlAMPClock();
+		case MAG_OMX_CLOCK:
+			obj = new OmxilClock();
 			break;
 			
 		default:

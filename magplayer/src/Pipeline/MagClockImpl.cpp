@@ -1,7 +1,31 @@
 #include "MagClockImpl.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "Magply_Pipeline"
 
-_status_t MagClockImpl::setup(void *AudioComp, ui32 AudioPort, void *VideoComp, ui32 VideoPort){
+_status_t MagClockImpl::connectVideoPipeline(void *pVpl){
+	return MAG_NO_ERROR;
+}
+
+_status_t MagClockImpl::connectAudioPipeline(void *pApl){
+	return MAG_NO_ERROR;
+}
+
+_status_t MagClockImpl::disconnectVideoPipeline(void *pVpl){
+	return MAG_NO_ERROR;
+}
+
+_status_t MagClockImpl::disconnectAudioPipeline(void *pApl){
+	return MAG_NO_ERROR;
+}
+
+_status_t MagClockImpl::init(){
+	return MAG_NO_ERROR;
+}
+
+_status_t MagClockImpl::setup(){
 	return MAG_NO_ERROR;
 }
 

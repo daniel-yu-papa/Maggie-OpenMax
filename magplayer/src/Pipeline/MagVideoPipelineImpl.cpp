@@ -1,11 +1,12 @@
 #include "MagVideoPipelineImpl.h"
-#include "MagPlayer.h"
+#include "MagPlayerCommon.h"
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "VideoPipelineImpl"
+#define MODULE_TAG "Magply_Pipeline"
 
+#define LOOPER_NAME "MagVideoPipeline"
 
 #define VIDEO_ES_DUMP_FILE_NAME "/lmp/magplayer_video.es"
 
@@ -39,7 +40,7 @@ MagMessageHandle MagVideoPipelineImpl::getMagPlayerNotifier(){
     return mMagPlayerNotifier;
 }
 
-_status_t MagVideoPipelineImpl::setup(i32 trackID, TrackInfo_t *sInfo){
+_status_t MagVideoPipelineImpl::init(i32 trackID, TrackInfo_t *sInfo){
     if (mState != ST_INIT){
         AGILE_LOGE("it is in invalid state: (%s)! quit ...", state2String(mState));
         return MAG_INVALID_OPERATION;
@@ -55,6 +56,10 @@ _status_t MagVideoPipelineImpl::setup(i32 trackID, TrackInfo_t *sInfo){
         AGILE_LOGD("Create the file: %s -- OK!", VIDEO_ES_DUMP_FILE_NAME);
     }
 #endif
+    return MAG_NO_ERROR;
+}
+
+_status_t MagVideoPipelineImpl::setup(){
     return MAG_NO_ERROR;
 }
 
@@ -140,8 +145,8 @@ _status_t MagVideoPipelineImpl::reset(){
     return MAG_NO_ERROR;
 }
 
-void *MagVideoPipelineImpl::getClkConnectedComp(i32 *port){
-    return NULL;
+_status_t MagVideoPipelineImpl::getClkConnectedComp(i32 *port, void **ppComp){
+    return MAG_NO_ERROR;
 }
 
 void MagVideoPipelineImpl::proceedMediaBuffer(MediaBuffer_t *buf){
@@ -156,7 +161,7 @@ void MagVideoPipelineImpl::proceedMediaBuffer(MediaBuffer_t *buf){
 
 void MagVideoPipelineImpl::notifyPlaybackComplete(){
     /*simulate the video playback complete and then notify the APP*/
-    mMagPlayerNotifier->setInt32(mMagPlayerNotifier, "what", MagPlayer::kWhatPlayComplete);
+    mMagPlayerNotifier->setInt32(mMagPlayerNotifier, "what", PIPELINE_NOTIFY_PlaybackComplete);
     mMagPlayerNotifier->setInt32(mMagPlayerNotifier, "track-id", mTrackID);
     mMagPlayerNotifier->setMessage(mMagPlayerNotifier, "reply", mEmptyThisBufferMsg, MAG_FALSE);
     mMagPlayerNotifier->postMessage(mMagPlayerNotifier, 0);
@@ -221,7 +226,7 @@ void MagVideoPipelineImpl::postFillThisBuffer(){
     if (mMagPlayerNotifier != NULL){
         if ((mState == ST_PLAY) && (!mIsFlushed)){
             if (needData()){
-                mMagPlayerNotifier->setInt32(mMagPlayerNotifier, "what", MagPlayer::kWhatFillThisBuffer);
+                mMagPlayerNotifier->setInt32(mMagPlayerNotifier, "what", PIPELINE_NOTIFY_FillThisBuffer);
                 mMagPlayerNotifier->setMessage(mMagPlayerNotifier, "reply", mEmptyThisBufferMsg, MAG_FALSE);
                 mMagPlayerNotifier->postMessage(mMagPlayerNotifier, 0);
             }else{
@@ -294,4 +299,4 @@ _status_t MagVideoPipelineImpl::getLooper(){
     return MAG_NO_ERROR;
 }
 
-
+#undef LOOPER_NAME

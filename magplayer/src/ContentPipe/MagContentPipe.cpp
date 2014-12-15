@@ -3,7 +3,7 @@
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "magPlayerContentPipe"
+#define MODULE_TAG "Magply_ContentPipe"
 
 #define LOOPER_NAME "ComponentPipeLooper"
 

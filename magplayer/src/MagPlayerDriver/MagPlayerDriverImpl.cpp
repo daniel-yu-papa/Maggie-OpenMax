@@ -8,7 +8,7 @@
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "magPlayerDriver"
+#define MODULE_TAG "Magply_Driver"
 
 MagPlayerDriverImpl::MagPlayerDriverImpl(void *client, notify_client_callback_f cb):
                                                                 mpClient(client),
@@ -251,15 +251,6 @@ _status_t MagPlayerDriverImpl::invoke(const ui32 methodID, const void *request, 
             }
             break;
 
-        case INVOKE_ID_GET_PICTURE_RGB:
-            if (reply != NULL){
-                PictureRGB_t *pPicRGB = static_cast<PictureRGB_t *>(reply);
-                mpPlayer->getPictureRGB(pPicRGB);
-            }else{
-                AGILE_LOGE("Failed to do INVOKE_ID_GET_PICTURE_RGB. reply=NULL");
-            }
-            break;
-
         default:
             break;
     }
@@ -269,6 +260,8 @@ _status_t MagPlayerDriverImpl::invoke(const ui32 methodID, const void *request, 
 ui32     MagPlayerDriverImpl::getVersion(){
     if (mpPlayer)
         return mpPlayer->getVersion();
+    
+    return 0;
 }
 
 _status_t MagPlayerDriverImpl::setVolume(float leftVolume, float rightVolume){

@@ -1,6 +1,7 @@
 #include "Mag_event.h"
 #include <pthread.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
@@ -31,6 +32,7 @@ static void *inc_count(void *arg){
     }
     all_count += count;
     Mag_SetEvent(evtGrpElem[index]);
+    return NULL;
 }
 
 static void *watch_count(void *arg){
@@ -42,7 +44,9 @@ static void *watch_count(void *arg){
         count++;
     }
     AGILE_LOGI("exit watch_count");
+    return NULL;
 }
+
 static void evtGrpElem1_callback(void *arg){
     AGILE_LOGD("do evtGrpElem[%d]_callback\n", *((int *)arg));
 }

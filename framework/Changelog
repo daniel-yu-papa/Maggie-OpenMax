@@ -1,6 +1,13 @@
 Entries are sorted chronologically from oldest to youngest within each release,
 Releases are sorted from youngest to oldest.
 
+version 0.2.4
+2014-11-27
+
+- adjust the memory pool expansion strategy: always allocate the new memory pool that the size is as same as the previous one
+- add the memory limitation notification logic
+
+**************************************
 version 0.2.3
 2014-08-12
 

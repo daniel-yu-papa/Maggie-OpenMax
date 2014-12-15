@@ -1,6 +1,11 @@
 #include "MagOMX_Port_baseImpl.h"
 #include "MagOMX_Component_baseImpl.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "MagOMX_CompBase"
+
 #define LOOPER_NAME        "PortImplLooper"
 
 AllocateClass(MagOmxPortImpl, MagOmxPort);
@@ -126,7 +131,12 @@ static OMX_ERRORTYPE allocateBufferInternal(
      */
 
     *ppBufferHdr = pPortBufHeader;
-    if (++base->mBuffersTotal == root->getDef_BufferCountActual(root)){
+
+    if (root->getDef_BufferCountActual(root) > 0){
+        ++base->mBuffersTotal;
+    }
+
+    if (base->mBuffersTotal == root->getDef_BufferCountActual(root)){
         base->mFreeBuffersNum = base->mBuffersTotal;
         PORT_LOGD(root, "buffer populates(%d)", base->mBuffersTotal);
         root->setDef_Populated(root, OMX_TRUE);
@@ -185,7 +195,12 @@ static OMX_ERRORTYPE useBufferInternal(
     list_add_tail(&bufNode->node, &base->mBufferList);
 
     *ppBufferHdr = pPortBufHeader;
-    if (++base->mBuffersTotal == root->getDef_BufferCountActual(root)){
+
+    if (root->getDef_BufferCountActual(root) > 0){
+        ++base->mBuffersTotal;
+    }
+
+    if (base->mBuffersTotal == root->getDef_BufferCountActual(root)){
         base->mFreeBuffersNum = base->mBuffersTotal;
         PORT_LOGD(root, "buffer populates(%d)", base->mBuffersTotal);
         root->setDef_Populated(root, OMX_TRUE);
@@ -768,6 +783,8 @@ recheck:
                     PORT_LOGE(root, "failed to do UseBuffer");
                     return err;
                 }
+            }else{
+                PORT_LOGE(root, "Failed to do MagOMX_AllocateBuffer(), index %d", i);
             }
         }
 
@@ -948,6 +965,7 @@ static OMX_ERRORTYPE virtual_FillThisBuffer(
 
 static OMX_BOOL checkPortsCompatible(OMX_PARAM_PORTDEFINITIONTYPE *outPorDef, OMX_PARAM_PORTDEFINITIONTYPE *inPorDef){
     if (outPorDef->eDomain == inPorDef->eDomain){
+#if 0
         if (outPorDef->eDomain == OMX_PortDomainAudio){
             if (outPorDef->format.audio.eEncoding != inPorDef->format.audio.eEncoding){
                 AGILE_LOGE("Mismatching Audio Encoding: oport[%d] - iport[%d]",
@@ -973,6 +991,7 @@ static OMX_BOOL checkPortsCompatible(OMX_PARAM_PORTDEFINITIONTYPE *outPorDef, OM
                 return OMX_FALSE;
             }
         }
+#endif
         return OMX_TRUE;
     }else{
         return OMX_FALSE;
@@ -1001,6 +1020,16 @@ static OMX_ERRORTYPE virtual_SetupTunnel(
     if (hTunneledComp == NULL){
         if (root->isTunneled(root)){
             PORT_LOGV(root, "tear down the tunnel");
+
+            /*Request the tunneled component to do tearing down action accordingly*/
+            tunneledComp = ooc_cast(base->mTunneledComponent, MagOmxComponentImpl);
+            if (MagOmxComponentImplVirtual(tunneledComp)->MagOMX_TearDownTunnel){
+                MagOmxComponentImplVirtual(tunneledComp)->MagOMX_TearDownTunnel(tunneledComp, base->mTunneledPortIndex);
+            }else{
+                PORT_LOGD(root, "The tunneled component[%p] doesn't have the MagOMX_TearDownTunnel overrided!",
+                                 tunneledComp);
+            }
+
             base->mTunneledComponent = NULL;
             base->mTunneledPortIndex = nTunneledPortIndex;
             root->setTunneledFlag(root, OMX_FALSE);
@@ -1012,7 +1041,7 @@ static OMX_ERRORTYPE virtual_SetupTunnel(
         }
     }else{
         if (root->isTunneled(root)){
-            PORT_LOGE(root, "The port is tunneled and unable to tunnel before it is teared down!");
+            PORT_LOGE(root, "The port is tunneled and unable to tunnel again before it is torn down!");
             return OMX_ErrorTunnelingUnsupported;
         }
     }
@@ -1056,20 +1085,20 @@ static OMX_ERRORTYPE virtual_SetupTunnel(
                 pTunnelSetup->eSupplier  = OMX_BufferSupplyInput;
             }
         }
-        PORT_LOGE(root, "Negotiated buffer supplier: %s", 
+        PORT_LOGI(root, "Negotiated buffer supplier: %s", 
                     pTunnelSetup->eSupplier == OMX_BufferSupplyInput ? "input port": "output port");
 
         /*check buffer count*/
-        if (outPortDef.nBufferCountMin > inPortDef.nBufferCountMin){
-            inPortDef.nBufferCountActual  = outPortDef.nBufferCountMin;
-            outPortDef.nBufferCountActual = outPortDef.nBufferCountMin;
-        }else{
-            inPortDef.nBufferCountActual  = inPortDef.nBufferCountMin;
-            outPortDef.nBufferCountActual = inPortDef.nBufferCountMin;
+        if (inPortDef.nBufferCountActual != outPortDef.nBufferCountActual){
+            /*always uses the less buffer count to set up both port of the tunnel*/
+            if (inPortDef.nBufferCountActual > outPortDef.nBufferCountActual){
+                inPortDef.nBufferCountActual = outPortDef.nBufferCountActual;
+            }else{
+                outPortDef.nBufferCountActual = inPortDef.nBufferCountActual;
+            }
+            tunneledPort->setPortDefinition(tunneledPort, &outPortDef);
+            root->setPortDefinition(root, &inPortDef);
         }
-
-        tunneledPort->setPortDefinition(tunneledPort, &outPortDef);
-        root->setPortDefinition(root, &inPortDef);
 
         base->mTunneledComponent = hTunneledComp;
         base->mTunneledPortIndex = nTunneledPortIndex;
@@ -1135,7 +1164,9 @@ static MagMessageHandle virtual_GetSharedBufferMsg(OMX_HANDLETYPE hPort){
     return hPortImpl->mSharedBufferMsg;
 }
 
-/*Get the output buffer that holds the generated data from the Component*/
+/* Get the output buffer that holds the generated data from the Component
+ * It is Block Function
+*/
 static OMX_BUFFERHEADERTYPE* virtual_GetOutputBuffer(OMX_HANDLETYPE hPort){
     MagOmxPortImpl hPortImpl = NULL;
     OMX_BUFFERHEADERTYPE *pBufHeader;
@@ -1146,7 +1177,7 @@ static OMX_BUFFERHEADERTYPE* virtual_GetOutputBuffer(OMX_HANDLETYPE hPort){
 }
 
 /*Attach the input buffer header to the output message and post it*/
-static OMX_ERRORTYPE virtual_PostOutputBufferMsg(OMX_HANDLETYPE hPort, OMX_BUFFERHEADERTYPE* pBufHeader){
+static OMX_ERRORTYPE virtual_SendOutputBuffer(OMX_HANDLETYPE hPort, OMX_BUFFERHEADERTYPE* pBufHeader){
     MagOmxPortImpl hPortImpl = NULL;
 
     if (pBufHeader == NULL){
@@ -1489,7 +1520,7 @@ static void MagOmxPortImpl_initialize(Class this){
     MagOmxPortImplVtableInstance.MagOmxPort.SendEvent             = virtual_SendEvent;
     MagOmxPortImplVtableInstance.MagOmxPort.GetSharedBufferMsg    = virtual_GetSharedBufferMsg;
     MagOmxPortImplVtableInstance.MagOmxPort.GetOutputBuffer       = virtual_GetOutputBuffer;
-    MagOmxPortImplVtableInstance.MagOmxPort.PostOutputBufferMsg   = virtual_PostOutputBufferMsg;
+    MagOmxPortImplVtableInstance.MagOmxPort.SendOutputBuffer      = virtual_SendOutputBuffer;
 
     MagOmxPortImplVtableInstance.MagOMX_AllocateBuffer            = NULL;
     MagOmxPortImplVtableInstance.MagOMX_FreeBuffer                = NULL;

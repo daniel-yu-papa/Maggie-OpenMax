@@ -25,6 +25,7 @@
 #define __MAG_OOC_H__
 
 #include <stddef.h>
+#include "Mag_hal.h"
 
 /*
 * base definitions
@@ -45,6 +46,10 @@
 #define ROM_ALLOC ROM
 #endif
 
+#ifndef OOC_COMPONENT_INITIALIZED
+#define OOC_COMPONENT_INITIALIZED 0x12345678
+#endif
+
 typedef ROM struct ClassTable * Class;
 
 typedef ROM struct _ClassCommonsTable * ClassCommons;
@@ -59,6 +64,7 @@ struct BaseVtable_stru
 	ClassCommons	_class_register_prev;
 	ClassCommons	_class_register_next;
 	int   			(* _destroy_check )( Object );
+	int             _init_flag;
 };
 
 typedef		struct BaseVtable_stru * BaseVtable;
@@ -234,14 +240,13 @@ struct ClassTable
  * @hideinitializer
  */
 
-#define AllocateClass( pClass, pParent )					\
-															\
-	static void   pClass ## _initialize ( Class );	        \
-	static void   pClass ## _constructor( pClass, const void * ); \
+#define AllocateClass( pClass, pParent )					          \
+															          \
+	static void   pClass ## _initialize ( Class );	                  \
+	static void   pClass ## _constructor( pClass, const void * );     \
 	static void   pClass ## _destructor ( pClass, pClass ## Vtable ); \
-	                                                                     \
-	static struct pClass ## Vtable_stru pClass ## VtableInstance={NULL}; \
-															\
+																      \
+	static struct pClass ## Vtable_stru pClass ## VtableInstance={0}; \
 															\
 	ROM_ALLOC												\
 	struct ClassTable pClass ## Class = {					\
@@ -250,7 +255,7 @@ struct ClassTable
 				_OOC_TYPE_CLASS,							\
 				(ROM char *) #pClass						\
 			},												\
-			(Vtable) & pClass ## VtableInstance				\
+			(Vtable) & pClass ## VtableInstance		        \
 		},													\
 		sizeof( struct pClass ## Object ),					\
 		& pParent ## Class,	                                \

@@ -1,4 +1,0 @@
-LoadTool('gcc-generic', env)
-
-### Specific System choices
-env['FRAMEWORK_EXTRA_LIBS']=['pthread']

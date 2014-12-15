@@ -11,6 +11,11 @@
 #include "OMX_Component.h"
 #include "MagOMX_Component_base.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "MagOMX_CompCore"
+
 #define DEFAULT_OMX_COMP_LOAD_PATH "/system/lib/openmax" 
 
 static MagOMX_IL_Core_t *gOmxCore = NULL;
@@ -339,7 +344,7 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_SetupTunnel(
     }
     
     if ((NULL == hOutput) || (NULL == hInput)){
-        AGILE_LOGE("invalid component: in_comp = 0x%p, out_comp = 0x%p", hInput, hOutput);
+        AGILE_LOGE("invalid component: in_comp = %p, out_comp = %p", hInput, hOutput);
         return OMX_ErrorBadParameter;
     }
 
@@ -363,9 +368,9 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_SetupTunnel(
                                                                        nPortOutput, 
                                                                        &tunnelSetup);
         if (ret == OMX_ErrorNone){
-            AGILE_LOGD("connect the in_comp[0x%p:%d] <--> out_comp[0x%p:%d] OK!!!", hCompIn, nPortInput, hCompOut, nPortOutput);
+            AGILE_LOGD("connect the in_comp[%p:%d] <--> out_comp[%p:%d] OK!!!", hCompIn, nPortInput, hCompOut, nPortOutput);
         }else{
-            AGILE_LOGE("failed to do ComponentTunnelRequest() of comp_out (connect the in_comp[0x%p:%d] --> out_comp[0x%p:%d])",
+            AGILE_LOGE("failed to do ComponentTunnelRequest() of comp_out (connect the in_comp[%p:%d] --> out_comp[%p:%d])",
                         hCompIn, nPortInput, hCompOut, nPortOutput);
 
             /*Tear down the tunnel on Output Port*/
@@ -375,15 +380,15 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_SetupTunnel(
                                                                            kInvalidCompPortNumber, 
                                                                            NULL);
             if (ret == OMX_ErrorNone){
-                AGILE_LOGD("To tear down the component[0x%p, %d] tunnel OK!!!", hCompOut, nPortOutput);
+                AGILE_LOGD("To tear down the component[%p, %d] tunnel OK!!!", hCompOut, nPortOutput);
             }else{
-                AGILE_LOGE("Failed to tear down the component[0x%p, %d] tunnel)", hCompOut, nPortOutput);
+                AGILE_LOGE("Failed to tear down the component[%p, %d] tunnel)", hCompOut, nPortOutput);
             }
             Mag_ReleaseMutex(gOmxCore->lock);
             return ret;
         }
     }else{
-        AGILE_LOGE("failed to do ComponentTunnelRequest() of comp_in (connect the in_comp[0x%p:%d] --> out_comp[0x%p:%d])",
+        AGILE_LOGE("failed to do ComponentTunnelRequest() of comp_in (connect the in_comp[%p:%d] --> out_comp[%p:%d])",
                     hCompIn, nPortInput, hCompOut, nPortOutput);
         Mag_ReleaseMutex(gOmxCore->lock);
         return ret;
@@ -452,11 +457,11 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_TeardownTunnel(
     Mag_ReleaseMutex(gOmxCore->lock);
     return OMX_ErrorNone;
 }
-    
-OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_ComponentOfRoleEnum(
-    OMX_OUT OMX_STRING compName,
-    OMX_IN  OMX_STRING role,
-    OMX_IN  OMX_U32 nIndex){
+
+OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_RoleOfComponentEnum(
+    OMX_OUT OMX_STRING role,
+    OMX_IN  OMX_STRING compName,
+    OMX_IN  OMX_U32 nIndex){  
 
     Component_Entry_t *comp;
     
@@ -488,9 +493,9 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_ComponentOfRoleEnum(
  * The role only has one component name depending on the adding time during OMX_Init(). 
  * It only keep the latest one.
  */
-OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_RoleOfComponentEnum(
-    OMX_OUT OMX_STRING role,
-    OMX_IN  OMX_STRING compName,
+OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_ComponentOfRoleEnum(
+    OMX_OUT OMX_STRING compName,
+    OMX_IN  OMX_STRING role,
     OMX_IN  OMX_U32 nIndex){
 
     Component_Entry_t *comp;
@@ -503,7 +508,7 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_RoleOfComponentEnum(
     comp = (Component_Entry_t *)gOmxCore->roleToComponentTable->getItem(gOmxCore->roleToComponentTable, role);
     
     if (comp){
-        if (nIndex < 1){
+        if (nIndex == 1){
             strcpy(compName, comp->regInfo->name);
         }else{
             AGILE_LOGD("the role: %s has only ONE component. the query index:%d is out of range.", 

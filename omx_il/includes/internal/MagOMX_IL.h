@@ -2,6 +2,22 @@
 #define __MAG_OMX_IL_H__
 
 #include "OMX_Core.h"
+#include "OMX_Audio.h"
+#include "OMX_AudioExt.h"
+#include "OMX_Video.h"
+#include "OMX_VideoExt.h"
+#include "OMX_Component.h"
+#include "OMX_ComponentExt.h"
+#include "OMX_RoleNames.h"
+#include "OMX_RoleNamesExt.h"
+#include "OMX_Types.h"
+#include "OMX_Other.h"
+#include "OMX_IVCommon.h"
+#include "OMX_Image.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
 
 /*Mag OMX IL Version definitions*/
 #define kVersionMajor           1
@@ -129,7 +145,7 @@ static inline OMX_U32 getPortIndex(OMX_PTR *pStruct){
     return h->nPortIndex;
 }
 
-static inline OMX_STRING OmxState2String(OMX_STATETYPE state) {
+static inline const char *OmxState2String(OMX_STATETYPE state) {
     switch (state) {
         STRINGIFY(OMX_StateReserved_0x00000000);
         STRINGIFY(OMX_StateLoaded);
@@ -144,7 +160,7 @@ static inline OMX_STRING OmxState2String(OMX_STATETYPE state) {
     }
 }
 
-static inline OMX_STRING OmxTransState2String(OMX_EXTSTATETRANSTYPE state) {
+static inline const char *OmxTransState2String(OMX_EXTSTATETRANSTYPE state) {
     switch (state) {
         STRINGIFY(OMX_TransitionStateNone);
         STRINGIFY(OMX_TransitionStateToIdle);
@@ -155,7 +171,7 @@ static inline OMX_STRING OmxTransState2String(OMX_EXTSTATETRANSTYPE state) {
     }
 }
 
-static inline OMX_STRING OmxParameter2String(OMX_INDEXTYPE nIndex) {
+static inline const char *OmxParameter2String(OMX_INDEXTYPE nIndex) {
     switch (nIndex) {
         STRINGIFY(OMX_IndexParamAudioInit);
         STRINGIFY(OMX_IndexParamImageInit);
@@ -169,5 +185,9 @@ static inline OMX_STRING OmxParameter2String(OMX_INDEXTYPE nIndex) {
         default: return "parameter - unknown";
     }
 }
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif

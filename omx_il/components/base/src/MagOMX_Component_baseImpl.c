@@ -1,5 +1,10 @@
 #include "MagOMX_Component_baseImpl.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "MagOMX_CompBase"
+
 #define LOOPER_NAME        "CompImplLooper"
 #define BUFFER_LOOPER_NAME "CompImplBufLooper"
 
@@ -236,7 +241,7 @@ static OMX_ERRORTYPE doStateLoaded_Idle(OMX_IN OMX_HANDLETYPE hComponent){
     COMP_LOGV(root, "enter!");
     for (n = rbtree_first(base->mPortTreeRoot); n; n = rbtree_next(n)) {
         port = ooc_cast(n->value, MagOmxPort);
-        COMP_LOGV(root, "rbtree port:0x%x, port:0x%x", n->value, port);
+        COMP_LOGV(root, "Traverse port:0x%x, index:%d", port, port->getPortIndex(port));
         if (port->isTunneled(port)){
             if (port->getDef_Enabled(port)){
                 err = MagOmxPortVirtual(port)->AllocateTunnelBuffer(n->value);
@@ -244,6 +249,8 @@ static OMX_ERRORTYPE doStateLoaded_Idle(OMX_IN OMX_HANDLETYPE hComponent){
                     COMP_LOGE(root, "failed to allocate the tunnel buffers!");
                     return err;
                 }
+            }else{
+                COMP_LOGE(root, "The tunneled port is not enabled!");
             }
         }else{
             if (port->getDef_Enabled(port)){
@@ -251,6 +258,8 @@ static OMX_ERRORTYPE doStateLoaded_Idle(OMX_IN OMX_HANDLETYPE hComponent){
                     COMP_LOGE(root, "The port %lld is unpopulated!", n->key);
                     return OMX_ErrorPortUnpopulated;
                 }
+            }else{
+                COMP_LOGE(root, "The non-tunneled port is not enabled!");
             }
         }
     }
@@ -261,7 +270,9 @@ static OMX_ERRORTYPE doStateLoaded_Idle(OMX_IN OMX_HANDLETYPE hComponent){
     else{
         COMP_LOGE(root, "pure virtual func: MagOMX_Prepare() is not overrided!!");
         return OMX_ErrorNotImplemented;
-    }     
+    }   
+    
+    return OMX_ErrorNone; 
 }
 
 static OMX_ERRORTYPE doStateIdle_Loaded(OMX_IN OMX_HANDLETYPE hComponent){
@@ -722,7 +733,53 @@ static OMX_ERRORTYPE MagOMX_SetParameter_internal(
                 COMP_LOGE(root, "[OMX_IndexParamCompBufferSupplier]: failed to find port: %d", value->nPortIndex);
                 return OMX_ErrorBadPortIndex;
             }
-            
+        }
+            break;
+
+        case OMX_IndexConfigTimeUpdate:
+        {
+            OMX_TIME_MEDIATIMETYPE *mt = (OMX_TIME_MEDIATIMETYPE *)pComponentParameterStructure;
+            OMX_ERRORTYPE ret = OMX_ErrorNone;
+
+            if (mt->eUpdateType == OMX_TIME_UpdateClockStateChanged){
+                if (MagOmxComponentImplVirtual(base)->MagOMX_SetAVSyncStatus){
+                    ret = MagOmxComponentImplVirtual(base)->MagOMX_SetAVSyncStatus(base, 
+                                                                                   OMX_TIME_UpdateClockStateChanged, 
+                                                                                   (OMX_S32)(mt->eState));
+                    if (ret != OMX_ErrorNone){
+                        COMP_LOGE(root, "Failed to do MagOMX_SetAVSyncStatus(OMX_TIME_UpdateClockStateChanged), ret = 0x%x", ret);
+                    }
+                }else{
+                    ret = OMX_ErrorUndefined;
+                    COMP_LOGE(root, "pure virtual func: MagOMX_SetAVSyncStatus() is not overrided!!");
+                }
+            }else if (mt->eUpdateType == OMX_TIME_UpdateRequestFulfillment){
+                if (MagOmxComponentImplVirtual(base)->MagOMX_DoAVSync){
+                    ret = MagOmxComponentImplVirtual(base)->MagOMX_DoAVSync(base, mt);
+                    if (ret != OMX_ErrorNone){
+                        COMP_LOGE(root, "Failed to do MagOMX_DoAVSync(), ret = 0x%x", ret);
+                    }
+                }else{
+                    ret = OMX_ErrorUndefined;
+                    COMP_LOGE(root, "pure virtual func: MagOMX_DoAVSync() is not overrided!!");
+                }
+            }else if (mt->eUpdateType == OMX_TIME_UpdateScaleChanged){
+                if (MagOmxComponentImplVirtual(base)->MagOMX_SetAVSyncStatus){
+                    ret = MagOmxComponentImplVirtual(base)->MagOMX_SetAVSyncStatus(base, 
+                                                                                   OMX_TIME_UpdateScaleChanged, 
+                                                                                   mt->xScale);
+                    if (ret != OMX_ErrorNone){
+                        COMP_LOGE(root, "Failed to do MagOMX_SetAVSyncStatus(OMX_TIME_UpdateScaleChanged), ret = 0x%x", ret);
+                    }
+                }else{
+                    ret = OMX_ErrorUndefined;
+                    COMP_LOGE(root, "pure virtual func: MagOMX_SetAVSyncStatus() is not overrided!!");
+                }
+            }else{
+                ret = OMX_ErrorBadParameter;
+                COMP_LOGE(root, "OMX_IndexConfigTimeUpdate: UpdateType %d is not correct!", mt->eUpdateType);
+            }
+            return ret;
         }
             break;
 
@@ -772,6 +829,7 @@ static OMX_ERRORTYPE MagOMX_GetParameter_internal(
     root = getRoot(hComponent);
     base = getBase(hComponent);
     
+    COMP_LOGD(root, "enter");
     switch (nIndex){
         case OMX_IndexParamPriorityMgmt:
         case OMX_IndexConfigPriorityMgmt:
@@ -970,7 +1028,20 @@ static OMX_ERRORTYPE MagOMX_GetParameter_internal(
             
         }
             break;
-            
+        
+        case OMX_IndexConfigExtAddPort:
+        {
+            OMX_CONFIG_UI32TYPE *value = (OMX_CONFIG_UI32TYPE *)pComponentParameterStructure;
+
+            if (MagOmxComponentImplVirtual(base)->MagOMX_AddPortOnRequest){
+                return MagOmxComponentImplVirtual(base)->MagOMX_AddPortOnRequest(base, &value->uValue);
+            }else{
+                COMP_LOGV(root, "pure virtual func: MagOMX_AddPortOnRequest() is not overrided!!");
+                return OMX_ErrorUndefined;
+            }
+        }   
+            break;
+
         default:
             if (isPortParam(nIndex)){
                 /*the parameters or configures for port*/
@@ -978,24 +1049,28 @@ static OMX_ERRORTYPE MagOMX_GetParameter_internal(
                 MagOmxPort port;
 
                 portID = getPortIndex(pComponentParameterStructure);
-                port = ooc_cast(base->getPort(base, portID), MagOmxPort);
-
-                if (port){
-                    return MagOmxPortVirtual(port)->GetParameter(port, nIndex, pComponentParameterStructure);
+                if (portID == OMX_ALL){
+                    goto component_handle;
                 }else{
-                    COMP_LOGE(root, "To get port parameter[0x%x] - Failure. (port is invalid)", nIndex);
-                    return OMX_ErrorBadPortIndex;
+                    port = ooc_cast(base->getPort(base, portID), MagOmxPort);
+
+                    if (port){
+                        return MagOmxPortVirtual(port)->GetParameter(port, nIndex, pComponentParameterStructure);
+                    }else{
+                        COMP_LOGE(root, "To get port parameter[0x%x] - Failure. (port is invalid)", nIndex);
+                        return OMX_ErrorBadPortIndex;
+                    }
                 }
-            }else{
-                /*pass it to sub-component for processing*/
-                if (MagOmxComponentImplVirtual(base)->MagOMX_GetParameter)
-                    return MagOmxComponentImplVirtual(base)->MagOMX_GetParameter(hComponent, nIndex, pComponentParameterStructure);
-                else{
-                    COMP_LOGE(root, "pure virtual func: MagOMX_GetParameter() is not overrided!!");
-                    return OMX_ErrorNotImplemented;
-                } 
             }
-            break;
+
+component_handle:
+            /*pass it to sub-component for processing*/
+            if (MagOmxComponentImplVirtual(base)->MagOMX_GetParameter)
+                return MagOmxComponentImplVirtual(base)->MagOMX_GetParameter(hComponent, nIndex, pComponentParameterStructure);
+            else{
+                COMP_LOGE(root, "pure virtual func: MagOMX_GetParameter() is not overrided!!");
+                return OMX_ErrorNotImplemented;
+            } 
     }
     return OMX_ErrorNone;
 }
@@ -1034,7 +1109,7 @@ static OMX_ERRORTYPE virtual_SendCommand(
     }
 
     base = getBase(hComponent);
-    
+
     if (Cmd == OMX_CommandStateSet){
         if (base->mState == OMX_StateMax){
             if (nParam1 == OMX_StateLoaded){
@@ -1052,6 +1127,7 @@ static OMX_ERRORTYPE virtual_SendCommand(
             base->mCmdSetStateMsg->setPointer(base->mCmdSetStateMsg, "cmd_data", pCmdData, MAG_FALSE);
 
             base->mCmdSetStateMsg->postMessage(base->mCmdSetStateMsg, 0);
+            COMP_LOGD(getRoot(hComponent), "send out set state message(param: %d)!", nParam1);
         }
     }else if (Cmd == OMX_CommandFlush){
         if ( !base->mCmdFlushMsg ){
@@ -1210,20 +1286,21 @@ static OMX_ERRORTYPE virtual_ComponentTunnelRequest(
     MagOmxPort tunneledPort;
     OMX_ERRORTYPE ret;
 
-    if ((NULL == hComponent) || (NULL == hTunneledComp)){
-        COMP_LOGE(NULL, "Wrong parameters: hComponent(0x%p), hTunneledComp(0x%p)",
-                    hComponent, hTunneledComp);
+    if (NULL == hComponent){
+        COMP_LOGE(NULL, "Wrong parameters: hComponent(%p)", hComponent);
         return OMX_ErrorBadParameter;
     }
     
     comp = getBase(hComponent);
     port = ooc_cast(comp->getPort(comp, nPort), MagOmxPort);
     
-    tunneledComp = getBase(hTunneledComp);
-    tunneledPort = ooc_cast(tunneledComp->getPort(tunneledComp, nTunneledPort), MagOmxPort);
+    if (hTunneledComp){
+        tunneledComp = getBase(hTunneledComp);
+        tunneledPort = ooc_cast(tunneledComp->getPort(tunneledComp, nTunneledPort), MagOmxPort);
 
-    COMP_LOGD(getRoot(hComponent), "port[0x%x] to tunneledPort[0x%x]", port, tunneledPort);
-
+        COMP_LOGD(getRoot(hComponent), "port[0x%x] to tunneledPort[0x%x]", port, tunneledPort);
+    }
+    
     /*Mag_AcquireMutex(comp->mhMutex);*/
     if ((comp->mState == OMX_StateLoaded) ||
         (!port->getDef_Enabled(port) && !tunneledPort->getDef_Enabled(tunneledPort))){
@@ -1981,6 +2058,10 @@ static void MagOmxComponentImpl_addPort(MagOmxComponentImpl hComponent,
     hComponent->mPortTreeRoot =  rbtree_insert(hComponent->mPortTreeRoot, portIndex, hPort);
     portRoot->setAttachedComponent(portRoot, hComponent);
 
+    if (MagOmxPortVirtual(portRoot)->GetDomainType(portRoot) == OMX_PortDomainOther_Clock){ 
+        hComponent->mhClockPort = hPort;
+    }
+
     if (MagOmxComponentImplVirtual(hComponent)->MagOMX_DoAddPortAction){
         MagOmxComponentImplVirtual(hComponent)->MagOMX_DoAddPortAction(hComponent, portIndex, hPort);
     }
@@ -2076,17 +2157,143 @@ static OMX_ERRORTYPE MagOmxComponentImpl_notify(
                         OMX_IN OMX_PTR pNotifyData){
     OMX_ERRORTYPE ret;
 
-    if (MagOmxComponentImplVirtual(hComponent)->MagOMX_Notify){
-        ret = MagOmxComponentImplVirtual(hComponent)->MagOMX_Notify(hComponent, notifyIndex, pNotifyData);
+    if (MagOmxComponentImplVirtual(hComponent)->MagOMX_Port_Notify){
+        ret = MagOmxComponentImplVirtual(hComponent)->MagOMX_Port_Notify(hComponent, notifyIndex, pNotifyData);
     }else{
-        COMP_LOGE(getRoot(hComponent), "the pure virtual function MagOMX_Notify is not overrided!");
+        COMP_LOGE(getRoot(hComponent), "the pure virtual function MagOMX_Port_Notify is not overrided!");
         ret = OMX_ErrorNotImplemented;
     }
     return ret;
 }
 
-/*Class Constructor/Destructor*/
+/*The port queries the attached component for the information*/
+static OMX_ERRORTYPE MagOmxComponentImpl_query(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN MagOMX_Component_Query_Type_t queryIndex,
+                        OMX_IN OMX_PTR pQueryData){
+    OMX_ERRORTYPE ret;
 
+    if (MagOmxComponentImplVirtual(hComponent)->MagOMX_Port_Query){
+        ret = MagOmxComponentImplVirtual(hComponent)->MagOMX_Port_Query(hComponent, queryIndex, pQueryData);
+    }else{
+        COMP_LOGE(getRoot(hComponent), "the pure virtual function MagOMX_Port_Query is not overrided!");
+        ret = OMX_ErrorNotImplemented;
+    }
+    return ret;
+}
+
+/*called from MagOMX_ProceedBuffer() to send buffer to clock component for av sync*/
+static OMX_ERRORTYPE MagOmxComponentImpl_syncDisplay(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN OMX_BUFFERHEADERTYPE *bufHeader){
+    List_t *freeList;
+    List_t *busyList;
+    MagOMX_Component_Buffer_List_t *node;
+    List_t *tmp;
+    OMX_ERRORTYPE ret = OMX_ErrorNone;
+
+    if (hComponent->mhClockPort){
+        OMX_TIME_CONFIG_MEDIATIMEREQUESTTYPE mtrt;
+        OMX_TICKS offset = 0;
+        MagOmxPort portRoot = NULL;
+
+        freeList = &hComponent->mAVSyncFreeBufLH;
+        busyList = &hComponent->mAVSyncBusyBufLH;
+
+        Mag_AcquireMutex(hComponent->mhAVSyncMutex);
+        if (freeList->next == freeList){
+            /*free list is empty*/
+            node = (MagOMX_Component_Buffer_List_t *)mag_mallocz(sizeof(MagOMX_Component_Buffer_List_t));
+            INIT_LIST(&node->node);
+        }else{
+            node = (MagOMX_Component_Buffer_List_t *)list_entry(freeList->next, MagOMX_Component_Buffer_List_t, node);
+            list_del(&node->node);
+        }
+        node->buffer = bufHeader;
+        list_add_tail(&node->node, busyList);
+        Mag_ReleaseMutex(hComponent->mhAVSyncMutex);
+
+        initHeader(&mtrt, sizeof(OMX_TIME_CONFIG_MEDIATIMEREQUESTTYPE));
+
+        mtrt.pClientPrivate  = hComponent;
+        mtrt.nMediaTimestamp = bufHeader->nTimeStamp;
+        if (MagOmxComponentImplVirtual(hComponent)->MagOMX_GetClockActionOffset){
+            ret = MagOmxComponentImplVirtual(hComponent)->MagOMX_GetClockActionOffset(hComponent, &offset);
+        }else{
+            COMP_LOGE(getRoot(hComponent), "the pure virtual function MagOMX_GetClockActionOffset is not overrided!");
+        }
+        mtrt.nOffset = offset;
+        portRoot = ooc_cast(hComponent->mhClockPort, MagOmxPort);
+        ret = MagOmxPortVirtual(portRoot)->SetParameter(portRoot, 
+                                                        OMX_IndexConfigTimeMediaTimeRequest, 
+                                                        &mtrt);
+    }else{
+        COMP_LOGD(getRoot(hComponent), "No clock port is attached!");
+        ret = OMX_ErrorPortsNotConnected;
+    }
+    return ret;
+}
+
+/*called from MagOMX_DoAVSync() to release the buffer for displaying*/
+static OMX_ERRORTYPE MagOmxComponentImpl_releaseDisplay(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN OMX_TICKS mediaTimestamp,
+                        OMX_IN OMX_BUFFERHEADERTYPE **ppBufHeader){
+
+    List_t *freeList;
+    List_t *busyList;
+    List_t *expected;
+    List_t *tmp;
+    MagOMX_Component_Buffer_List_t *node;
+    OMX_U32 i = 0;
+    OMX_ERRORTYPE ret = OMX_ErrorNone;
+
+    freeList = &hComponent->mAVSyncFreeBufLH;
+    busyList = &hComponent->mAVSyncBusyBufLH;
+
+    *ppBufHeader = NULL;
+    Mag_AcquireMutex(hComponent->mhAVSyncMutex);
+
+    expected = busyList->next;
+    if (expected != busyList){
+        node = (MagOMX_Component_Buffer_List_t *)list_entry(expected, MagOMX_Component_Buffer_List_t, node);
+        if (node->buffer->nTimeStamp == mediaTimestamp){
+            list_del(expected);
+            *ppBufHeader = node->buffer;
+            list_add_tail(expected, freeList);
+        }else{
+            COMP_LOGE(getRoot(hComponent), "the expected buffer timestamp[0x%llx] is not the first one in the busy list",
+                                            mediaTimestamp);
+            tmp = expected->next;
+            while (tmp != busyList){
+                i++;
+                node = (MagOMX_Component_Buffer_List_t *)list_entry(tmp, MagOMX_Component_Buffer_List_t, node);
+                if (node->buffer->nTimeStamp == mediaTimestamp){
+                    list_del(tmp);
+                    *ppBufHeader = node->buffer;
+                    list_add_tail(tmp, freeList);
+                    COMP_LOGD(getRoot(hComponent), "find the buffer timestamp[0x%llx] at place %d", 
+                                                   mediaTimestamp, i);
+                    break;
+                }
+            }
+
+            if (tmp == busyList){
+                COMP_LOGE(getRoot(hComponent), "Failed to find out the timestamp[0x%llx] in the busy list!",
+                                                mediaTimestamp);
+                ret = OMX_ErrorNoMore;
+            }
+        }
+    }else{
+        COMP_LOGE(getRoot(hComponent), "Error happens, the busy list is empty!");
+        ret = OMX_ErrorNoMore;
+    }
+
+    Mag_ReleaseMutex(hComponent->mhAVSyncMutex);
+    return ret;
+}
+
+/*Class Constructor/Destructor*/
 static void MagOmxComponentImpl_initialize(Class this){
     AGILE_LOGV("Enter!");
 
@@ -2161,6 +2368,8 @@ static void MagOmxComponentImpl_constructor(MagOmxComponentImpl thiz, const void
     thiz->sendFillBufferDoneEvent  = MagOmxComponentImpl_sendFillBufferDoneEvent;
     thiz->setupPortDataFlow        = MagOmxComponentImpl_setupPortDataFlow;
     thiz->notify                   = MagOmxComponentImpl_notify;
+    thiz->syncDisplay              = MagOmxComponentImpl_syncDisplay;
+    thiz->releaseDisplay           = MagOmxComponentImpl_releaseDisplay;
 
     thiz->mLooper                  = NULL;
     thiz->mMsgHandler              = NULL;
@@ -2199,8 +2408,14 @@ static void MagOmxComponentImpl_constructor(MagOmxComponentImpl thiz, const void
     thiz->mPorts                   = *((OMX_U32 *)params + 1);
 
     thiz->mFlushingPorts           = kInvalidPortIndex;
-    
+
+    INIT_LIST(&thiz->mAVSyncBusyBufLH);
+    INIT_LIST(&thiz->mAVSyncFreeBufLH);
+
+    thiz->mhClockPort              = NULL;
+
     Mag_CreateMutex(&thiz->mhMutex);
+    Mag_CreateMutex(&thiz->mhAVSyncMutex);
 }
 
 static void MagOmxComponentImpl_destructor(MagOmxComponentImpl thiz, MagOmxComponentImplVtable vtab){

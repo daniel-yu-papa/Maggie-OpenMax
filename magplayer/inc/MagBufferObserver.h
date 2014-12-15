@@ -5,10 +5,39 @@
 #include "MagPlayerCommon.h"
 
 typedef struct{
+	/*in ms unit (do player->pause())*/
+	ui32 bufferLowThreshold;  
+	/*in ms unit (stop reading data)*/
+	ui32 bufferHighThreshold; 
+	/*in ms unit 
+	 *(pause() <UP TO> playthreshold: start play
+	 *stop reading data <DOWN TO> playthreshold: start reading data
+	 */
+	ui32 bufferPlayThreshold; 
+}PlayingBufThreshold_t;
+
+typedef struct{
 	/*used for full buffer size for content pipe*/
 	ui32 videoBufferPoolSize;
 	ui32 audioBufferPoolSize;
 	ui32 otherBufferPoolSize;
+	ui32 kbps;
+	ui32 memPoolSizeLimit;      /*in KB*/
+
+	PlayingBufThreshold_t normalBitRate;
+	PlayingBufThreshold_t highBitRate;
+	PlayingBufThreshold_t highestBitRate;
+    /*
+    * in ms unit
+    * the buffer time for playing after the flushing is done. 
+    */
+	// ui32 bufFlushPlayThreshold;
+}Demuxer_BufferPolicy_t;
+
+typedef struct{
+	/*used for full buffer size for content pipe*/
+	ui32 BufferSize;
+	ui32 kbps;
 
 	/*in ms unit (do player->pause())*/
 	ui32 bufferLowThreshold;  
@@ -19,14 +48,7 @@ typedef struct{
 	 *stop reading data <DOWN TO> playthreshold: start reading data
 	 */
 	ui32 bufferPlayThreshold; 
-    /*
-    * in ms unit
-    * the buffer time for playing after the flushing is done. 
-    */
-	// ui32 bufFlushPlayThreshold;
-
-	ui32 kbps;
-}BufferPolicy_t;
+}ContentPipe_BufferPolicy_t;
 
 typedef enum{
 	kBufferObserver_ContentPipe,
@@ -55,8 +77,8 @@ typedef enum{
 }BufferringEvent_t;
 
 typedef struct{
-	BufferPolicy_t contentPipe;
-	BufferPolicy_t demuxerStream;
+	ContentPipe_BufferPolicy_t contentPipe;
+	Demuxer_BufferPolicy_t     demuxerStream;
 }LoadedBufferPolicy_t;
 
 static inline const char *BufferStatus2String(BufferStatus_t bufST) {
@@ -91,7 +113,7 @@ public:
 	virtual ~MagBufferObserver();
 
 	void update(BufferringEvent_t event, i32 parameter = 0);
-    _status_t start(BufferPolicy_t *pPolicy);
+    _status_t start(void *pPolicy);
     void stop();
     void reset();
     void setMediaPlayerNotifier(MagMessageHandle msg);
@@ -105,6 +127,7 @@ private:
 
 	_status_t parseXMLConfig();
 	_status_t parseChildElement(XMLElement* element, bool isCP);
+	_status_t parseBufThresholdElement(XMLElement* element, PlayingBufThreshold_t *pObj);
 	_status_t loadConfigFile();
     void setDefaultPolicy(LoadedBufferPolicy_t *policy);
 

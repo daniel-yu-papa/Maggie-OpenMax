@@ -5,7 +5,7 @@
 
 #define COMPONENT_NAME "OMX.Mag.vdec.test"
 #define ROLE_NAME      "video_decoder.all"
-#define START_PORT_INDEX 0
+#define START_PORT_INDEX kCompPortStartNumber
 #define PORT_NUMBER      2
 
 AllocateClass(MagOmxComponent_VdecTest, MagOmxComponentVideo);
@@ -144,7 +144,7 @@ static OMX_ERRORTYPE virtual_ProceedBuffer(
 			memcpy(destbufHeader->pBuffer, srcbufHeader->pBuffer, srcbufHeader->nFilledLen);
 			destbufHeader->nFilledLen = srcbufHeader->nFilledLen;
 
-			MagOmxPortVirtual(port)->PostOutputBufferMsg(port, destbufHeader);
+			MagOmxPortVirtual(port)->SendOutputBuffer(port, destbufHeader);
 		}else{
 			AGILE_LOGE("destinate buffer(%p) is not valid OR size mis-match(src filled: %d, dest: %d)",
 				        destbufHeader->pBuffer, srcbufHeader->nFilledLen, destbufHeader->nAllocLen);

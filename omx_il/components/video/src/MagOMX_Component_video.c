@@ -1,5 +1,10 @@
 #include "MagOMX_Component_video.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "MagOMX_CompVideo"
+
 AllocateClass(MagOmxComponentVideo, MagOmxComponentImpl);
 
 static MagOMX_Component_Type_t virtual_MagOmxComponentVideo_getType(
@@ -13,10 +18,12 @@ static OMX_ERRORTYPE virtual_MagOmxComponentVideo_GetParameter(
 					                OMX_INOUT OMX_PTR pComponentParameterStructure){
     MagOmxComponent     root;
     MagOmxComponentImpl base;
+    MagOmxComponentVideo thiz;
     OMX_ERRORTYPE ret = OMX_ErrorNone;
 
     root = ooc_cast(hComponent, MagOmxComponent);
     base = ooc_cast(hComponent, MagOmxComponentImpl);
+    thiz = ooc_cast(hComponent, MagOmxComponentVideo);
 
     switch (nParamIndex){
         case OMX_IndexConfigTimeRenderingDelay:
@@ -32,7 +39,15 @@ static OMX_ERRORTYPE virtual_MagOmxComponentVideo_GetParameter(
             break;
 
         default:
-            return OMX_ErrorUnsupportedIndex;
+        {
+            if (MagOmxComponentVideoVirtual(thiz)->MagOmx_Video_GetParameter){
+                ret = MagOmxComponentVideoVirtual(thiz)->MagOmx_Video_GetParameter(hComponent, nParamIndex, pComponentParameterStructure);
+            }else{
+                COMP_LOGE(root, "The pure virtual function MagOmx_Video_GetParameter() is not overrided!");
+                ret = OMX_ErrorUnsupportedIndex;
+            }
+        }
+            break;
     }
     return ret;
 }
@@ -57,47 +72,8 @@ static OMX_ERRORTYPE virtual_MagOmxComponentVideo_SetParameter(
     Mag_AcquireMutex(thiz->mhMutex);
 
     switch (nIndex){
-    	case OMX_IndexConfigTimeUpdate:
-    		OMX_TIME_MEDIATIMETYPE *mt = (OMX_TIME_MEDIATIMETYPE *)pComponentParameterStructure;
-
-            if (mt->eUpdateType == OMX_TIME_UpdateClockStateChanged){
-                if (MagOmxComponentImplVirtual(base)->MagOMX_SetAVSyncStatus){
-                    ret = MagOmxComponentImplVirtual(base)->MagOMX_SetAVSyncStatus(hComponent, 
-                                                                                   OMX_TIME_UpdateClockStateChanged, 
-                                                                                   (OMX_S32)(mt->eState));
-                    if (ret != OMX_ErrorNone){
-                        COMP_LOGE(root, "Failed to do MagOMX_SetAVSyncStatus(OMX_TIME_UpdateClockStateChanged), ret = 0x%x", ret);
-                    }
-                }else{
-                    COMP_LOGE(root, "pure virtual func: MagOMX_SetAVSyncStatus() is not overrided!!");
-                }
-            }else if (mt->eUpdateType == OMX_TIME_UpdateRequestFulfillment){
-                if (MagOmxComponentImplVirtual(base)->MagOMX_DoAVSync){
-                    ret = MagOmxComponentImplVirtual(base)->MagOMX_DoAVSync(hComponent, mt);
-                    if (ret != OMX_ErrorNone){
-                        COMP_LOGE(root, "Failed to do MagOMX_DoAVSync(), ret = 0x%x", ret);
-                    }
-                }else{
-                    COMP_LOGE(root, "pure virtual func: MagOMX_DoAVSync() is not overrided!!");
-                }
-            }else if (mt->eUpdateType == OMX_TIME_UpdateScaleChanged){
-                if (MagOmxComponentImplVirtual(base)->MagOMX_SetAVSyncStatus){
-                    ret = MagOmxComponentImplVirtual(base)->MagOMX_SetAVSyncStatus(hComponent, 
-                                                                                   OMX_TIME_UpdateScaleChanged, 
-                                                                                   mt->xScale);
-                    if (ret != OMX_ErrorNone){
-                        COMP_LOGE(root, "Failed to do MagOMX_SetAVSyncStatus(OMX_TIME_UpdateScaleChanged), ret = 0x%x", ret);
-                    }
-                }else{
-                    COMP_LOGE(root, "pure virtual func: MagOMX_SetAVSyncStatus() is not overrided!!");
-                }
-            }else{
-                COMP_LOGE(root, "OMX_IndexConfigTimeUpdate: UpdateType %d is not correct!", mt->eUpdateType);
-            }
-    		
-    		break;
-
         case OMX_IndexConfigTimeActiveRefClockUpdate:
+        {
             OMX_TIME_CONFIG_ACTIVEREFCLOCKUPDATETYPE *refClock = (OMX_TIME_CONFIG_ACTIVEREFCLOCKUPDATETYPE *)pComponentParameterStructure;
             if (MagOmxComponentImplVirtual(base)->MagOMX_SetRefClock){
                 ret = MagOmxComponentImplVirtual(base)->MagOMX_SetRefClock(hComponent, refClock);
@@ -108,8 +84,16 @@ static OMX_ERRORTYPE virtual_MagOmxComponentVideo_SetParameter(
                 COMP_LOGE(root, "pure virtual func: MagOMX_SetRefClock() is not overrided!!");
             }
             break;
-
+        }
     	default:
+        {
+            if (MagOmxComponentVideoVirtual(thiz)->MagOmx_Video_SetParameter){
+                ret = MagOmxComponentVideoVirtual(thiz)->MagOmx_Video_SetParameter(hComponent, nIndex, pComponentParameterStructure);
+            }else{
+                COMP_LOGE(root, "The pure virtual function MagOmx_Video_SetParameter() is not overrided!");
+                ret = OMX_ErrorUnsupportedIndex;
+            }
+        }
     		break;
     }
 
@@ -135,12 +119,10 @@ static void MagOmxComponentVideo_constructor(MagOmxComponentVideo thiz, const vo
     chain_constructor(MagOmxComponentVideo, thiz, params);
 
     Mag_CreateMutex(&thiz->mhMutex);
-    thiz->mParametersDB = createMagMiniDB(16);
 }
 
 static void MagOmxComponentVideo_destructor(MagOmxComponentVideo thiz, MagOmxComponentVideoVtable vtab){
 	AGILE_LOGV("Enter!");
 
-	destroyMagMiniDB(&thiz->mParametersDB);
     Mag_DestroyMutex(&thiz->mhMutex);
 }

@@ -5,7 +5,7 @@
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "magFramework-MiniDB"
+#define MODULE_TAG "Magfw_MiniDB"
 
 
 static void MagMiniDB_setInt32(struct mag_minidb *db, const char *name, i32 value){

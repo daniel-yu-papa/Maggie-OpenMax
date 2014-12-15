@@ -8,7 +8,7 @@
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "magPlayerDemuxerBuffMgr"
+#define MODULE_TAG "Magply_BuffMgr"
 
 #define MAX_TRACK_NUMBER 64
 
@@ -31,8 +31,10 @@ Stream_Track::Stream_Track(TrackInfo_t *info):
                                mFrameNum(0),
                                mBufferStatus(kEmpty),
                                mEsFormatter(NULL),
+                               mBufLevelChange(false),
+                               mIsFull(false),
                                mIsRunning(true),
-                               mIsFull(false){
+                               mBufferLimit(0){
     INIT_LIST(&mMBufBusyListHead);
     INIT_LIST(&mMBufFreeListHead);
     INIT_LIST(&mFrameStatList);
@@ -50,6 +52,16 @@ Stream_Track::~Stream_Track(){
     magMemPoolDestroy(&mBufPoolHandle);   
 }
 
+void Stream_Track::setBufferLimit(ui32 limit){
+    mBufferLimit = limit;
+}
+
+bool Stream_Track::getSetBufLevelChange(){
+    bool ret = mBufLevelChange;
+    mBufLevelChange = false;
+    return ret;
+}
+
 _status_t Stream_Track::start(){  
     _status_t ret = MAG_NO_ERROR;
 
@@ -61,6 +73,7 @@ _status_t Stream_Track::start(){
             if (mBufPoolHandle != NULL){
                 AGILE_LOGI("The buffer pool 0x%x is created for %s track!", 
                             mBufPoolHandle, mInfo->type == TRACK_VIDEO ? "video" : mInfo->type == TRACK_AUDIO ? "audio" : "subtitle");
+                magMemPoolSetBufLimit(mBufPoolHandle, mBufferLimit);
             }else{
                 AGILE_LOGE("Failed to create the buffer pool!");
                 ret = MAG_NO_MEMORY;
@@ -229,7 +242,8 @@ ui32  Stream_Track::doFrameStat(ui32 frame_size){
 _status_t     Stream_Track::enqueueFrame(MediaBuffer_t *mb){
     void *buf;
     _status_t ret = MAG_NO_ERROR;
-    
+    MagErr_t err;
+
     if (NULL == mBufPoolHandle){
         if (MAG_NO_ERROR != (ret = start())){
             return ret;
@@ -239,7 +253,7 @@ _status_t     Stream_Track::enqueueFrame(MediaBuffer_t *mb){
     Mag_AcquireMutex(mMutex);
     if (mIsRunning){
         if (!mb->eosFrame){
-            buf = magMemPoolGetBuffer(mBufPoolHandle, mb->buffer_size);
+            err = magMemPoolGetBuffer(mBufPoolHandle, mb->buffer_size, &buf);
             if (NULL != buf){
                 memcpy(buf, mb->buffer, mb->buffer_size);
                 mb->buffer = buf;
@@ -250,9 +264,13 @@ _status_t     Stream_Track::enqueueFrame(MediaBuffer_t *mb){
                 mFrameNum++;
                 putMediaBuffer(&mMBufBusyListHead, mb);
                 mIsFull = false;
+                if (err == MAG_NoMore){
+                    AGILE_LOGI("send out buffer level change request!!");
+                    mBufLevelChange = true;
+                }
             }else{
                 mIsFull = true;
-                AGILE_LOGE("[should not be here] the stream track %s is FULL!!", mInfo->name);
+                AGILE_LOGE("the stream track %s is FULL!!", mInfo->name);
                 ret = MAG_NO_MEMORY;
             }
             doFrameStat(mb->buffer_size);
@@ -363,8 +381,9 @@ Stream_Track_Manager::Stream_Track_Manager(void *pDemuxer, MagMiniDBHandle hPara
                                                         mIsPaused(false),
                                                         mIsFlushed(false),
                                                         mAbortReading(false),
-                                                        mDisableBufferMgr(-1){
-	memset(&mBufManagePolicy, 0, sizeof(BufferPolicy_t));
+                                                        mDisableBufferMgr(-1),
+                                                        mBufferingType(BUFFER_POLICY_NORMAL){
+	memset(&mBufManagePolicy, 0, sizeof(Demuxer_BufferPolicy_t));
 	mhReadingFramesEntry = Mag_CreateThread("ReadingFramesThread", 
 		                                     Stream_Track_Manager::ReadingFramesEntry,
 		                                     static_cast<void *>(this));
@@ -647,6 +666,9 @@ _status_t   Stream_Track_Manager::addStreamTrack(Stream_Track *pTrack){
 	mStreamIDRoot = rbtree_insert(mStreamIDRoot, static_cast<i64>(ti->streamID), static_cast<void *>(pTrack));
     ti->stream_track = static_cast<void *>(pTrack);
 
+    if (ti->type == TRACK_VIDEO)
+        pTrack->setBufferLimit(mBufManagePolicy.memPoolSizeLimit);
+
     return MAG_NO_ERROR;
 }
 
@@ -730,13 +752,18 @@ _status_t   Stream_Track_Manager::dettachBufferObserver(MagBufferObserver *pObse
 	return MAG_NO_ERROR;
 }
 
-_status_t   Stream_Track_Manager::setBufferPolicy(BufferPolicy_t *pPolicy){
+_status_t   Stream_Track_Manager::setBufferPolicy(Demuxer_BufferPolicy_t *pPolicy){
 	if (!pPolicy){
 		AGILE_LOGE("pPolicy is NULL!");
 		return MAG_BAD_VALUE;
 	}
 
-	memcpy(&mBufManagePolicy, pPolicy, sizeof(BufferPolicy_t));
+	memcpy(&mBufManagePolicy, pPolicy, sizeof(Demuxer_BufferPolicy_t));
+
+    mSBufLowThreshold  = mBufManagePolicy.normalBitRate.bufferLowThreshold;
+    mSBufPlayThreshold = mBufManagePolicy.normalBitRate.bufferPlayThreshold;
+    mSBufHighThreshold = mBufManagePolicy.normalBitRate.bufferHighThreshold;
+
 	return MAG_NO_ERROR;
 }
 
@@ -775,6 +802,11 @@ _status_t   Stream_Track_Manager::stop(){
     if (mTrackList)
         destroyTrackInfoList();
     
+    mBufferingType = BUFFER_POLICY_NORMAL;
+    mSBufLowThreshold  = mBufManagePolicy.normalBitRate.bufferLowThreshold;
+    mSBufPlayThreshold = mBufManagePolicy.normalBitRate.bufferPlayThreshold;
+    mSBufHighThreshold = mBufManagePolicy.normalBitRate.bufferHighThreshold;
+
     AGILE_LOGD("Exit!");
     return MAG_NO_ERROR;
 }
@@ -859,7 +891,7 @@ _status_t   Stream_Track_Manager::flush(){
 }
 
 bool Stream_Track_Manager::handleAllPlayingTracksBuffer(){
-    ui32 totalTrackNum;
+    /*ui32 totalTrackNum;*/
     ui32 pTrackIdList[MAX_TRACK_NUMBER];
     ui32 playingTrackNum;
     ui32 i;
@@ -875,6 +907,8 @@ bool Stream_Track_Manager::handleAllPlayingTracksBuffer(){
         if (mAbortReading)
             return false;
     }
+
+    
 
 	// totalTrackNum = mTrackList->totalTrackNum;
 	// pTrackIdList = (ui32 *)mag_mallocz(sizeof(ui32) * totalTrackNum);
@@ -892,28 +926,51 @@ bool Stream_Track_Manager::handleAllPlayingTracksBuffer(){
 		trackID = *(pTrackIdList + i);
 		track = mTrackList->trackTableList[trackID];
 		st = static_cast<Stream_Track *>(track->stream_track);
+
+        if (track->type == TRACK_VIDEO){
+            if (st->getSetBufLevelChange()){
+                if (mBufferingType == BUFFER_POLICY_NORMAL){
+                    mSBufLowThreshold  = mBufManagePolicy.highBitRate.bufferLowThreshold;
+                    mSBufPlayThreshold = mBufManagePolicy.highBitRate.bufferPlayThreshold;
+                    mSBufHighThreshold = mBufManagePolicy.highBitRate.bufferHighThreshold;
+                    mBufferingType = BUFFER_POLICY_LOW;
+                    AGILE_LOGI("change to low buffer policy!");
+                }else if (mBufferingType == BUFFER_POLICY_LOW){
+                    mSBufLowThreshold  = mBufManagePolicy.highestBitRate.bufferLowThreshold;
+                    mSBufPlayThreshold = mBufManagePolicy.highestBitRate.bufferPlayThreshold;
+                    mSBufHighThreshold = mBufManagePolicy.highestBitRate.bufferHighThreshold;
+                    mBufferingType = BUFFER_POLICY_LOWEST;
+                    AGILE_LOGI("change to lowest buffer policy!");
+                }else{
+                    AGILE_LOGE("[should not be here]: It has been in the lowest buffer policy!");
+                }
+            }
+        }
+
 		bufferingTime = st->getBufferingDataTime();
         keyBufSt = st->getBufferStatus();
         if (bufferingTime > 0){
-            if (bufferingTime < mBufManagePolicy.bufferLowThreshold){
-                keyBufSt = kBelowLow; 
-            }else if(bufferingTime < mBufManagePolicy.bufferPlayThreshold){
-                keyBufSt = kBetweenLow_Play;
-            }else if(bufferingTime < mBufManagePolicy.bufferHighThreshold){
-                keyBufSt = kBetweenPlay_High;
+            if (st->getFullness()){
+                AGILE_LOGI("buffer pool is full in buffering time %d ms!", bufferingTime);
+                keyBufSt = kFull;
             }else{
-                if (st->getFullness())
-                    keyBufSt = kFull;
-                else
+                if (bufferingTime < mSBufLowThreshold){
+                    keyBufSt = kBelowLow; 
+                }else if(bufferingTime < mSBufPlayThreshold){
+                    keyBufSt = kBetweenLow_Play;
+                }else if(bufferingTime < mSBufHighThreshold){
+                    keyBufSt = kBetweenPlay_High;
+                }else{
                     keyBufSt = kAboveHigh;
-            } 
+                } 
+            }
         }else{
             keyBufSt = kEmpty;
         }
         streamTrackBufSt = st->getBufferStatus();
 
 		if (streamTrackBufSt != keyBufSt){
-            AGILE_LOGV("stream track %s: buffer status from %s to %s", 
+            AGILE_LOGI("stream track %s: buffer status from %s to %s", 
                         track->name,
                         BufferStatus2String(streamTrackBufSt),
                         BufferStatus2String(keyBufSt));
@@ -927,8 +984,8 @@ bool Stream_Track_Manager::handleAllPlayingTracksBuffer(){
         }
         
         /*report out the buffering percentage in low buffer playing pause status*/
-        if (bufferingTime < mBufManagePolicy.bufferPlayThreshold){
-            ui32 ratio = (bufferingTime * 100) / mBufManagePolicy.bufferPlayThreshold;
+        if (bufferingTime < mSBufPlayThreshold){
+            i32 ratio = (bufferingTime * 100) / mSBufPlayThreshold;
             if ((buffer_percentage == -1) || (buffer_percentage > ratio)){
                 buffer_percentage = ratio;
             }
@@ -977,12 +1034,12 @@ bool Stream_Track_Manager::handleAllPlayingTracksBuffer(){
                              retrieveDataTrack->streamID);
         
         if (res == MAG_NO_MORE_DATA){
-            AGILE_LOGD("quit the reading frames thread because of EOS or error happening on data source!");
+            AGILE_LOGI("quit the reading frames thread because of EOS or error happening on data source!");
             mpObserver->update(kEvent_NoMoreData);
             mIsFlushed = true;
         }
         if ((res == MAG_READ_ABORT) && (!mIsFlushed)){
-            AGILE_LOGD("Abort the frames reading");
+            AGILE_LOGI("Abort the frames reading");
             return false;
         }
     }

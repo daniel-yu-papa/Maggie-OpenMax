@@ -64,6 +64,7 @@ static int virtual_triangle_sellToCustomer(Triangle thiz, int money){
     thiz->mTotalPrice = thiz->mBasePrice + money;
     AGILE_LOGD("[%s]: total price = %d, base price = %d, money = %d", __FUNCTION__, 
                 thiz->mTotalPrice, thiz->mBasePrice, money);
+    return 0;
 }
 
 
@@ -109,6 +110,8 @@ static int virtual_triangleInGold_sellToCustomer(Triangle thiz, int money){
     self->mTotalPrice = self->mBasePrice + money * 10;
     AGILE_LOGD("[%s]: total price = %d, base price = %d, money = %d", __FUNCTION__, 
                 self->mTotalPrice, self->mBasePrice, money);
+
+    return 0;
 }
 
 static void TriangleInGold_initialize(Class this){
@@ -176,5 +179,6 @@ int main( int argc, char **argv ){
     AGILE_LOGD("mTotalPrice=%d, mBasePrice=%d", goldTri->mTotalPrice, goldTri->mBasePrice);
     
     ooc_delete((Object)goldTri);
+    return 0;
 }
 

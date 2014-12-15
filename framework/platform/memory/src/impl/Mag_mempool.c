@@ -4,7 +4,7 @@
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "magFramework-Memory"
+#define MODULE_TAG "Magfw_MemPool"
 
 /*#define MEMPOOL_DEBUG*/
 
@@ -83,7 +83,10 @@ static magMempoolInternal_t *createMemPoolInter(magMempoolHandle hMemPool, unsig
     pInterMP->pMemPoolBuf = pMPBuf;
     pInterMP->activeMBNode = &fmb->node;
     pInterMP->index = ++hMemPool->MemPoolTotal;
-    
+    pInterMP->empty = MAG_TRUE;
+
+    hMemPool->totalBufSize += bytes;
+
     return pInterMP;
     
 failure:
@@ -175,6 +178,7 @@ static MagErr_t allocateBuffer(magMempoolHandle hMemPool, magMempoolInternal_t *
             AGILE_LOGV("MB[s:%d - e:%d] is not the nearest end MB, don't switch activeMB", mb->start, mb->end);
         }
     }
+    mpInter->empty = MAG_FALSE;
 
 #ifdef MEMPOOL_DEBUG
     if (NULL == *getBuffer){
@@ -278,7 +282,7 @@ static magMemBlock_t *findAllocMemBlock(magMempoolHandle hMemPool, void *pBuf){
             debugCount++;
             while (debugNode != &hMemPool->allocatedMBListHead){
                 match_mb = (magMemBlock_t *)list_entry(debugNode, magMemBlock_t, node);
-                AGILE_LOGE("buffer list: #%d - 0x%x", debugCount, match_mb->pBuf);
+                AGILE_LOGE("[0x%x]: buffer list: #%d - 0x%x", hMemPool, debugCount, match_mb->pBuf);
                 if (pBuf == match_mb->pBuf){
                     mb = match_mb;
                     AGILE_LOGE("[0x%x]: the pBuf[0x%x] is at the %dth places in AllocList", hMemPool, pBuf, debugCount);
@@ -334,6 +338,8 @@ static void sortMemPoolList(magMempoolHandle hMemPool){
         l1 = l1->next;
     }
 }
+
+
 magMempoolHandle magMemPoolCreate(unsigned int bytes, ui32 flags){
     magMempoolHandle hMP = NULL;
     magMempoolInternal_t *pInterMP = NULL;
@@ -371,32 +377,45 @@ failure:
     return NULL;
 }
 
-void *magMemPoolGetBuffer(magMempoolHandle hMemPool, unsigned int bytes){
+void magMemPoolSetBufLimit(magMempoolHandle hMemPool, ui32 top_size){
+    hMemPool->bufferLimit = top_size;
+}
+
+MagErr_t magMemPoolGetBuffer(magMempoolHandle hMemPool, unsigned int bytes, void **ppBuf){
     List_t *tmpNodeOuter = NULL;
     magMempoolInternal_t *mpInter = NULL;
     unsigned char * getBuffer = NULL;
-    
+    unsigned int bufSize;
+    MagErr_t ret = MAG_ErrNone;
+
     pthread_mutex_lock(&hMemPool->mutex);
 
+    *ppBuf = NULL;
     tmpNodeOuter = hMemPool->memPoolListHead.next;
 
     while (tmpNodeOuter != &hMemPool->memPoolListHead){
         mpInter = (magMempoolInternal_t *)list_entry(tmpNodeOuter, magMempoolInternal_t, node);
         
-        if (MAG_ErrNone == allocateBuffer(hMemPool, mpInter, bytes, &getBuffer)){
-            if (getBuffer){
-                /* if the memory pool has the free space for the allocation, move it to the head of the memory pool list. 
-                           * It would be firstly used in next allocation.
-                          */
-                list_del(tmpNodeOuter);
-                list_add(tmpNodeOuter, &hMemPool->memPoolListHead);
-                goto find;
+        /*if the node is the first node, currently allocating node, do allocateBuffer anyway
+        * if the node is the 2nd, 3rd, 4th ... node, they should be empty for allocating, 
+        * it would reduce the memory fragments.
+        */
+        if ( (mpInter->node.prev == &hMemPool->memPoolListHead) ||
+             (mpInter->node.prev != &hMemPool->memPoolListHead && mpInter->empty) ){
+            if (MAG_ErrNone == allocateBuffer(hMemPool, mpInter, bytes, &getBuffer)){
+                if (getBuffer){
+                    /* if the memory pool has the free space for the allocation, move it to the head of the memory pool list. 
+                     * It would be firstly used in next allocation.
+                     */
+                    list_del(tmpNodeOuter);
+                    list_add(tmpNodeOuter, &hMemPool->memPoolListHead);
+                    goto find;
+                }
+            }else{
+                pthread_mutex_unlock(&hMemPool->mutex);
+                return MAG_NoMemory;
             }
-        }else{
-            pthread_mutex_unlock(&hMemPool->mutex);
-            return NULL;
         }
-        
         tmpNodeOuter = tmpNodeOuter->next;
     }
 
@@ -407,23 +426,32 @@ void *magMemPoolGetBuffer(magMempoolHandle hMemPool, unsigned int bytes){
         /*reorder the mempool list in the index descending*/
         sortMemPoolList(hMemPool);
         
+        bufSize = mpInter->memPoolSize;
+        /*allocate the buffer of which size is equal to the allocated one. All mem buffer in the mempool has the same size*/
+        mpInter = createMemPoolInter(hMemPool, bufSize);
         /*create new memory pool with 4 x "required buffer size"*/
-        mpInter = createMemPoolInter(hMemPool, BUF_ALIGN((bytes < 4*1024 ? 4*4*1024 : 4*bytes), 4*1024));
+        /*mpInter = createMemPoolInter(hMemPool, BUF_ALIGN((bytes < 4*1024 ? 4*4*1024 : 4*bytes), 4*1024));*/
         if (MAG_ErrNone == allocateBuffer(hMemPool, mpInter, bytes, &getBuffer)){
-            if (getBuffer)
-                goto find;
-            else
+            if (!getBuffer){
                 AGILE_LOGE("[0x%x]: Should not be here. the newly created mem pool should always meet the requirments", hMemPool);
+            }   
         }else{ 
             pthread_mutex_unlock(&hMemPool->mutex);
-            return NULL;
+            return MAG_NoMemory;
+        }
+
+        if ( hMemPool->bufferLimit > 0 && hMemPool->totalBufSize >= hMemPool->bufferLimit ){
+            AGILE_LOGE("[0x%x]: total buffer size[%d] >= limitation[%d], warning!", 
+                        hMemPool, hMemPool->totalBufSize, hMemPool->bufferLimit);
+            ret = MAG_NoMore;
         }
     }
     
 find:
     /*AGILE_LOGV("[0x%x]: find the matching buffer - 0x%x", hMemPool, getBuffer);*/
+    *ppBuf = (void *)getBuffer;
     pthread_mutex_unlock(&hMemPool->mutex);
-    return (void *)getBuffer;
+    return ret;
 }
 
 MagErr_t magMemPoolPutBuffer(magMempoolHandle hMemPool, void *pBuf){
@@ -520,16 +548,23 @@ done:
         }
         firstMB->pBuf  = mpool->pMemPoolBuf + firstMB->start;
 
-#ifdef MEMPOOL_DEBUG        
-        /*debugging*/
+        /*judge if the memory block is empty or not*/
+        mbfreed = (magMemBlock_t *)list_entry(mpool->freeMBListHead.next, 
+                                              magMemBlock_t, node);
+        if (mbfreed->start == 0 && mbfreed->end == (mpool->memPoolSize - 1)){
+            mpool->empty = MAG_TRUE; 
+            AGILE_LOGI("[0x%x]: [mempool index: %d] Empty!!!", hMemPool, mpool->index);
+        }
+
+#ifdef MEMPOOL_DEBUG 
         tmpNode = mpool->freeMBListHead.next;
         AGILE_LOGV("**********");
         while(tmpNode != &mpool->freeMBListHead){
-            mbfreed = (magMemBlock_t *)list_entry(tmpNode, magMemBlock_t, node);
+            mbfreed = (magMemBlock_t *)list_entry(tmpNode, magMemBlock_t, node); 
             AGILE_LOGV("[0x%x]: free mb list: node (start:%d - end:%d)[mempool index: %d]", 
                         hMemPool, mbfreed->start, mbfreed->end, mpool->index);
             tmpNode = tmpNode->next;
-        }
+        } 
         AGILE_LOGV("**********");
 #endif
         pthread_mutex_unlock(&hMemPool->mutex);
@@ -552,7 +587,8 @@ void magMemPoolDestroy(magMempoolHandle *phMemPool){
     magMemBlock_t *mb = NULL;
     magMempoolHandle hMemPool = *phMemPool;
 
-    AGILE_LOGV("enter!");
+    AGILE_LOGV("[0x%x]: To destroy total %d memory pools!", 
+                hMemPool, hMemPool->MemPoolTotal);
     if (NULL == hMemPool){
         AGILE_LOGD("hMemPool is NULL. quit!");
         return;
@@ -598,7 +634,7 @@ void magMemPoolDestroy(magMempoolHandle *phMemPool){
 
     pthread_mutex_destroy(&hMemPool->mutex);
     mag_freep((void **)phMemPool);
-    AGILE_LOGV("exit!");
+    AGILE_LOGV("[0x%x]: destroy exit!", hMemPool);
 }
 
 void magMemPoolDump(magMempoolHandle hMemPool){

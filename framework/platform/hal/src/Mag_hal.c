@@ -8,7 +8,7 @@
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "magFramework-Hal"
+#define MODULE_TAG "Magfw_Hal"
 
 
 void Mag_AssertFailed(const char *expr, const char *file, unsigned int line){

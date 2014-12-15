@@ -4,7 +4,7 @@
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "magPlayerDemuxer"
+#define MODULE_TAG "Magply_Demuxer"
 
 #define MAX_PARAM_DB_ITEMS_NUMBER  64
 
@@ -80,7 +80,7 @@ MagMessageHandle MagDemuxerBaseImpl::createNotifyMsg(){
 _status_t  MagDemuxerBaseImpl::prepare(MagContentPipe *contentPipe, MagBufferObserver *pObserver, MagMiniDBHandle paramDB){
     MagMessageHandle msg;
     _status_t res;
-    BufferPolicy_t policy;
+    Demuxer_BufferPolicy_t policy;
 
     AGILE_LOGV("Enter!");
 
@@ -244,9 +244,8 @@ _status_t MagDemuxerBaseImpl::flush(){
 }
 
 _status_t MagDemuxerBaseImpl::seekTo(i32 msec){
-    ui32 totalTracks;
     TrackInfoTable_t *tb = NULL;
-    i32 i;
+    ui32 i;
     TrackInfo_t *ti;
 
     if (!mIsPrepared){
@@ -256,7 +255,6 @@ _status_t MagDemuxerBaseImpl::seekTo(i32 msec){
 
     tb = getTrackInfoList();
 
-    totalTracks = tb->totalTrackNum;
     if (tb->videoTrackNum > 0){
         for (i = 0; i < tb->videoTrackNum; i++){
             ti = tb->trackTableList[i];

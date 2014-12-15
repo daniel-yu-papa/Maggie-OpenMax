@@ -7,7 +7,7 @@ int main()
 {  
     int i, count = 30;  
     key_t key;  
-    RBTreeNodeHandle root = NULL, node = NULL;  
+    RBTreeNodeHandle root = NULL;  
     int test_addr = 0;
 
     key_t search_key = -1;

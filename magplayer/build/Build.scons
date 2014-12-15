@@ -8,20 +8,20 @@ from glob import glob
 # reusable functions and data structures
 #######################################################
 def LoadTool(name, env, **kw):
-    config_path = GetBuildPath('#/build/Tools/SCons')
+    config_path = GetBuildPath('#/magplayer/build/Tools/SCons')
     file, path, desc = imp.find_module(name, [config_path])
     module = imp.load_module(name, file, path, desc)
     module.generate(env, **kw)
 
 def GlobSources(drct, patterns, excluded_files=[]):
-    root = GetBuildPath('#'+drct)
+    root = GetBuildPath('#/magplayer/'+drct)
     files = []
     for pattern in Split(patterns):
         files += glob(root+'/'+pattern)
     return [drct+'/'+os.path.basename(x) for x in  files if os.path.basename(x) not in excluded_files]
     
 def GetDirPath(dir):
-    return '#/'+dir
+    return '#/magplayer/'+dir
     
 def DeclareBuildDir(dir):
     env.VariantDir(dir, GetDirPath(dir), duplicate=0)
@@ -72,9 +72,10 @@ class LibraryModule(Module):
                  excluded_files        = [],
                  extra_cpp_defines     = [],
                  extra_link_flags      = [],
+                 extra_libs            = [], 
+                 extra_lib_path        = [],
                  shared                = False,
-                 install               = False,
-                 installHeaders        = False) :
+                 install               = False) :
         build_source_dirs = [source_root+'/'+drct for drct in build_source_dirs]        
         Module.__init__(self, 
                         name, 
@@ -114,51 +115,46 @@ class LibraryModule(Module):
         if shared is False:
             self.product = self.env.StaticLibrary(target=name, source=sources)
         else:
-            libs = GetLibraries(Split(linked_modules))
-            self.product = self.env.SharedLibrary(target=name, LIBS=libs, source=sources)
+            libs = GetLibraries(Split(linked_modules))+extra_libs
+            self.product = self.env.SharedLibrary(target=name, LIBS=libs, LIBPATH=extra_lib_path, source=sources)
         self.env.Alias(name, self.product)
+        Default(self.product)
 
         # copy to Targets folder
         if install is True:
-            inst = env.Install(dir=env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']), source=self.product)
+            inst = env.Install(dir=env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/player'), source=self.product)
             if env['build_config'] == 'Release' and env.has_key('STRIP'):
                     env.AddPostAction(inst, env['STRIP']+' $TARGETS');
-        
-        if installHeaders is True:
-            targetDir = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/include')
-            if not os.path.exists(targetDir):  
-                os.makedirs(targetDir)
-            for subdir in Split(self.build_include_dirs):
-                absoluteDir = env.GetBuildPath('#/'+subdir)
-                print 'enter the dir: '+absoluteDir
-                os.chdir(absoluteDir)
-                headerFiles = []
-                headerFiles = glob('*.h')
-                for sourceFile in Split(headerFiles):
-                    print 'copy file: '+sourceFile
-                    shutil.copy(sourceFile,  targetDir)
-
-            env.Clean(inst, targetDir)
-                
-
-def Application(name, dir, deps, 
-                extra_link_flags = [], 
+            Default(inst)
+            
+def Application(name, dir, 
+                deps = [], 
+                extra_include_path = [],
+                extra_libs = [], 
+                extra_lib_path = [], 
                 install = False):
     DeclareBuildDir(dir)
-    libs = GetLibraries(deps)
-    cpp_path = GetIncludeDirs(deps)
+    if deps != []:
+      libs = GetLibraries(deps)+extra_libs
+      cpp_path = GetIncludeDirs(deps)
+    else:
+      libs = []+extra_libs
+      cpp_path = GetIncludeDirs(Split(extra_include_path))
     
-    env.AppendUnique(LINKFLAGS = extra_link_flags)
+    #env.AppendUnique(LINKFLAGS = extra_link_flags)
 
     prog = env.Program(name, 
                        GlobSources(dir, ['*.c', '*.cpp']),
-                       LIBS=libs, CPPPATH=cpp_path)
-    
+                       LIBS=libs, LIBPATH=extra_lib_path, CPPPATH=cpp_path)
+    Default(prog)
+
     # copy to Targets folder
     if install is True:
-        inst = env.Install(dir=env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']), source=prog)
+        inst = env.Install(dir=env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/bin'), source=prog)
         if env['build_config'] == 'Release' and env.has_key('STRIP'):
             env.AddPostAction(inst, env['STRIP']+' $TARGETS');
+        Default(inst)
+
 
 #######################################################
 # Main Build
@@ -202,17 +198,25 @@ else:
 # module's implementation only.
 #######################################################
 #  
+FRAMEWORK_LIB_PATH = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib')
+FFMPEG_LIB_PATH = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/ffmpeg')
+MAGPLAYER_LIB_PATH = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/player')
+
+FRAMEWORK_INC_PATH = '../Targets/'+env['target']+'/'+env['build_config']+'/include'
+OMXIL_COMMON_INC_PATH = '../Targets/'+env['target']+'/'+env['build_config']+'/include/omxil_common'
+
 COMMON_SOURCE_CODE_PATH = """src/BufferManagement 
                              src/ContentPipe 
                              src/DataSource 
                              src/Demuxer/base 
                              src/Demuxer/ffmpeg 
                              src/MagPlayer 
-                             src/MagPlayerDriver 
-                             src/Pipeline 
-                             src/Pipeline/factory 
-                             src/Pipeline/vendor/marvell_amp 
-                             src/Pipeline/vendor/marvell_amp/esFormat"""
+                             src/MagPlayerDriver"""
+
+PIPELINE_SOURCE_CODE_PATH = """src/Pipeline 
+                               src/Pipeline/factory 
+                               src/Pipeline/vendor/omxil 
+                               src/Pipeline/mgr"""
 
 COMMON_HEADERS_PATH = """inc 
                          inc/common 
@@ -220,99 +224,79 @@ COMMON_HEADERS_PATH = """inc
                          inc/lmp 
                          src/StreamBuffer/inc 
                          src/Pipeline/inc 
-                         src/Pipeline/inc/vendor/marvell_amp 
-                         src/Pipeline/inc/vendor/marvell_amp/esFormat"""
+                         src/Pipeline/inc/vendor/omxil"""
 
-FFMPEG_HEADERS_PATH = "external/ffmpeg-2.2.3"
-EXTRA_LINKAGE_FLAGS = """-Lexternal/ffmpeg-2.2.3/libavformat -lavformat 
-                         -Lexternal/ffmpeg-2.2.3/libavutil -lavutil 
-                         -Lexternal/ffmpeg-2.2.3/libavcodec -lavcodec 
-                         -Lexternal/ffmpeg-2.2.3/libswscale -lswscale"""
+FFMPEG_HEADERS_PATH = "../external/ffmpeg"
 
-MRVL_AMP_INC_PATH        = """../csa_sdk/vendor/marvell-sdk/ampsdk/osal/include 
-                              ../csa_sdk/vendor/marvell-sdk/ampsdk/amp/inc 
-                              ../csa_sdk/vendor/marvell-sdk/ampsdk/amp/inc/isl"""
-                              
-MRVL_AMP_LINKAGE_FLAGS   = """-L../csa_sdk/vendor/marvell-sdk/ampsdk/out/linuxsdk_bg3cd/PEServer/lib 
-                              -lampclient -lOSAL"""
-
-ANDROID_SDK_LINKAGE_FLAGS = """-L../../csa_amp_1084_sdk/out/target/product/jb_dmp/system/lib 
-                               -lcutils -lutils -lz -lcorkscrew -lgccdemangle"""
-
-IP_CLIENT_SOURCE_CODE_PATH = ''
-IP_CLIENT_EXTRA_SOURCE     = ''
-IP_SERVER_SOURCE_CODE_PATH = ''
-IP_SERVER_EXTRA_SOURCE     = ''
-EXTRA_HEADERS_PATH         = ''
-EXTRA_CC_DEFINES           = ['ARM', '__ARMCC_VERSION__', '__LINUX__']
-
-if env['inter_process'] is True:
-  EXTRA_CC_DEFINES += ['INTER_PROCESSES']
-  if env['OS_TYPE'] == 'ANDROID':
-    IP_CLIENT_SOURCE_CODE_PATH = """src/StreamBuffer/src/client/android 
-                                    src/MagPlayerDriver/inter-process/client/android/src 
-                                    src/MagPlayerDriver/inter-process/server/android/libMagPlayerService/src/interface"""
-    IP_CLIENT_EXTRA_SOURCE     = 'src/StreamBuffer/src/server/android/MagStreamBufferUser.cpp'
-
-    IP_SERVER_SOURCE_CODE_PATH = """src/MagPlayerDriver/inter-process/server/android/libMagPlayerService/src/interface 
-                                    src/MagPlayerDriver/inter-process/server/android/libMagPlayerService/src
-                                    src/StreamBuffer/src/server/android """
-    IP_SERVER_EXTRA_SOURCE     = """src/StreamBuffer/src/client/android/MagStreamBuffer.cpp 
-                                    src/MagPlayerDriver/inter-process/client/android/src/IMagPlayerClient.cpp"""
-    EXTRA_HEADERS_PATH         = """src/MagPlayerDriver/inter-process/client/android/inc 
-                                    MagPlayerDriver/inter-process/server/android/libMagPlayerService/inc 
-                                    src/StreamBuffer/inc/android"""
-
-LIBRARY_PATH = 'libs'
 if env['OS_TYPE'] == 'ANDROID':
-  LIBRARY_PATH = LIBRARY_PATH+'/android'
-  EXTRA_HEADERS_PATH += 'inc/platform/android'
+  EXTRA_HEADERS_PATH = 'inc/platform/android'
 else:
-  LIBRARY_PATH = LIBRARY_PATH+'/linux'
-  EXTRA_HEADERS_PATH += 'inc/platform/linux'
+  EXTRA_HEADERS_PATH = 'inc/platform/linux'
+
+LibraryModule(name                  = 'MagPipeline',
+              build_source_dirs     = Split(PIPELINE_SOURCE_CODE_PATH),
+              build_include_dirs    = Split(COMMON_HEADERS_PATH)+
+                                      Split(FRAMEWORK_INC_PATH)+
+                                      Split(OMXIL_COMMON_INC_PATH)+
+                                      Split(FFMPEG_HEADERS_PATH)+
+                                      Split(EXTRA_HEADERS_PATH),
+              extra_libs            = ['libMagAgilelog.so', 
+                                       'libMagFramework.so',
+                                       'libMagOmxIL_Core.so'],
+              extra_lib_path        = Split(FRAMEWORK_LIB_PATH),
+              shared                = True,
+              install               = True)
+
 
 LibraryModule(name                  = 'MagPlayer',
-              build_source_dirs     = Split(COMMON_SOURCE_CODE_PATH)+Split(IP_CLIENT_SOURCE_CODE_PATH),
+              build_source_dirs     = Split(COMMON_SOURCE_CODE_PATH),
               build_include_dirs    = Split(COMMON_HEADERS_PATH)+
-                                      Split(EXTRA_HEADERS_PATH)+
+                                      Split(OMXIL_COMMON_INC_PATH)+
                                       Split(FFMPEG_HEADERS_PATH)+
-                                      Split(MRVL_AMP_INC_PATH),
-              extra_cpp_defines     = EXTRA_CC_DEFINES,
-              extra_link_flags      = ['-L'+LIBRARY_PATH, '-lMagAgilelog', '-lMagFramework']+
-                                      Split(EXTRA_LINKAGE_FLAGS)+
-                                      Split(MRVL_AMP_LINKAGE_FLAGS),
-              shared                =  True,
-              install               =  True)
+                                      Split(FRAMEWORK_INC_PATH)+
+                                      Split(EXTRA_HEADERS_PATH),
+              extra_libs            = ['libMagAgilelog.so', 
+                                       'libMagFramework.so',
+                                       'libMagOmxIL_Core.so',
+                                       'libMagPipeline.so',
+                                       'libavformat.so',
+                                       'libavutil.so',
+                                       'libavcodec.so'],
+              extra_lib_path        = Split(FRAMEWORK_LIB_PATH) + 
+                                      Split(FFMPEG_LIB_PATH) + 
+                                      Split(MAGPLAYER_LIB_PATH),
+              shared                = True,
+              install               = True)
 
-
-MAGPLAYER_LIB_PATH = 'Targets/'+env['target']+'/'+env['build_config']
 
 LibraryModule(name                  = 'lmp',
               build_source_dirs     = ['players/lmp/src/impl'],
-              build_include_dirs    = ['inc', 'inc/common', 'inc/framework', 'inc/lmp', 'players/lmp/inc'],
-              extra_cpp_defines     = EXTRA_CC_DEFINES,
-              extra_link_flags      = ['-L'+LIBRARY_PATH, '-lMagAgilelog', '-lMagFramework', '-L'+MAGPLAYER_LIB_PATH, '-lMagPlayer'],
-              shared                =  True,
-              install               =  True)
+              build_include_dirs    = ['inc', 'inc/common', 'inc/lmp', 'players/lmp/inc']+Split(FRAMEWORK_INC_PATH),
+              extra_libs            = ['libMagAgilelog.so', 
+                                       'libMagFramework.so',
+                                       'libMagPlayer.so'],
+              extra_lib_path        = Split(FRAMEWORK_LIB_PATH) + 
+                                      Split(FFMPEG_LIB_PATH) + 
+                                      Split(MAGPLAYER_LIB_PATH),
+              shared                = True,
+              install               = True)
 
-LibraryModule(name                  = 'MagPlayerStatic',
-              build_source_dirs     = Split(COMMON_SOURCE_CODE_PATH)+Split(IP_CLIENT_SOURCE_CODE_PATH),
-              build_include_dirs    = Split(COMMON_HEADERS_PATH)+
-                                      Split(EXTRA_HEADERS_PATH)+
-                                      Split(FFMPEG_HEADERS_PATH)+
-                                      Split(MRVL_AMP_INC_PATH),
-              extra_cpp_defines     = EXTRA_CC_DEFINES)
-
-LibraryModule(name                  = 'lmpStatic',
-              build_source_dirs     = ['players/lmp/src/impl'],
-              build_include_dirs    = ['inc', 'inc/common', 'inc/framework', 'inc/lmp', 'players/lmp/inc'],
-              linked_modules        = ['MagPlayerStatic'],
-              extra_cpp_defines     = EXTRA_CC_DEFINES)
 
 Application(name                    = 'lmpTest',
             dir                     = 'players/lmp/src/test',
-            deps                    = ['lmpStatic'],
-            extra_link_flags        = ['-L'+LIBRARY_PATH, '-lMagAgilelog', '-lMagFramework']+
-                                      Split(EXTRA_LINKAGE_FLAGS)+
-                                      Split(MRVL_AMP_LINKAGE_FLAGS),
-            install                 =  True)
+            extra_include_path      = ['players/lmp/inc', 'inc/common'],
+            extra_libs              = ['libMagAgilelog.so', 
+                                       'libMagFramework.so',
+                                       'libMagOmxIL_Core.so',
+                                       'libMagOmxIL_Base.so',
+                                       'libavformat.so',
+                                       'libavutil.so',
+                                       'libavcodec.so',
+                                       'liblmp.so',
+                                       'libMagPlayer.so',
+                                       'libpthread.so',
+                                       'libMagPipeline.so'],
+            extra_lib_path          = Split(MAGPLAYER_LIB_PATH)+
+                                      Split(FRAMEWORK_LIB_PATH)+
+                                      Split(FFMPEG_LIB_PATH),
+            install                 = True)

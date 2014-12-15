@@ -4,14 +4,11 @@
 #include <stdarg.h>
 
 #include "framework/MagFramework.h"
-#include "OMX_Core.h"
-#include "OMX_Types.h"
-#include "OMX_Component.h"
 #include "MagOMX_IL.h"
 
 /*specifies the minimum number of buffers that the port requires*/
-#define kPortBuffersMinNum       2
-#define kPortBufferSize         (64 * 1024)
+#define kPortBuffersMinNum      (0)
+#define kPortBufferSize         (0)
 #define kInvalidPortIndex       (0x7FFFFFFF)
 
 typedef enum{
@@ -116,7 +113,7 @@ Virtuals(MagOmxPort, Base)
     OMX_BUFFERHEADERTYPE* (*GetOutputBuffer)(OMX_HANDLETYPE hPort);
 
     /*Attach the input buffer header to the output message and post it*/
-    OMX_ERRORTYPE (*PostOutputBufferMsg)(OMX_HANDLETYPE hPort, OMX_BUFFERHEADERTYPE* pBufHeader);
+    OMX_ERRORTYPE (*SendOutputBuffer)(OMX_HANDLETYPE hPort, OMX_BUFFERHEADERTYPE* pBufHeader);
 
     /*Get the port domain tpye*/
     OMX_PORTDOMAINTYPE (*GetDomainType)(OMX_HANDLETYPE hPort);
@@ -168,6 +165,8 @@ ClassMembers(MagOmxPort, Base, \
 
     void           (*setAttachedComponent)(MagOmxPort root, OMX_HANDLETYPE comp); \
     OMX_HANDLETYPE (*getAttachedComponent)(MagOmxPort root); \
+
+    void           (*copyPortDef)(MagOmxPort root, OMX_PARAM_PORTDEFINITIONTYPE *pDest, OMX_PARAM_PORTDEFINITIONTYPE *pSrc); \
 )
     OMX_PARAM_PORTDEFINITIONTYPE *mpPortDefinition;
     MagMiniDBHandle              mParametersDB;

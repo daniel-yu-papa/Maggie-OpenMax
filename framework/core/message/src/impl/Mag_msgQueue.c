@@ -4,7 +4,7 @@
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "magFramework-Message"
+#define MODULE_TAG "Magfw_Message"
 
 
 static Mag_MsgQueueNode_t *getFreeMsg(Mag_MsgQueueHandle h){

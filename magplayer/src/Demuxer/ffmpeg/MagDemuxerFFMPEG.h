@@ -16,8 +16,8 @@ extern "C" {
 #include "MagContentPipe.h"
 #include "MagStreamTrackManager.h"
 
-#include "MrvlAMPESFormat_AAC.h"
-#include "MrvlAMPESFormat_AVC.h"
+/*#include "MrvlAMPESFormat_AAC.h"
+#include "MrvlAMPESFormat_AVC.h"*/
 
 #include <stdio.h>
 
@@ -42,12 +42,6 @@ private:
     MagContentPipe *mDataSource;
     _status_t  stop_common();
 
-    _status_t  ts_noprobe_prepare();
-    _status_t  ts_noprobe_stop();
-    _status_t  ts_noprobe_add_streams();
-    bool       ts_noprobe_decide_adding(enum AVCodecID codec, ui32 pid);
-    //void       copy_noprobe_params(MagMiniDBHandle playerParams);
-    
     static void PrintLog_Callback(void* ptr, int level, const char* fmt, va_list vl);
     
     _status_t  create_track(TrackInfo_t *track, AVCodecContext* codec);
@@ -67,10 +61,6 @@ private:
                                     AVFormatContext *s, AVStream *st, AVCodec *codec);
     AVDictionary **setup_find_stream_info_opts(AVFormatContext *s,
                                                AVDictionary *codec_opts);
-
-    void decode_frame(Stream_Track *track, AVPacket *pPacket);
-
-    void calculate_RGB(TrackInfo_t* info, AVFrame *frame);
 
     void setOptionsByUrl(const char *url);
 
@@ -105,9 +95,6 @@ private:
 
     /*dump stream buffer reading data*/
     FILE *mStreamBufFile;
-
-    FILE *mRGBFrameFile;
-    ui32 mCalRGBCount;
 };
 
 #endif

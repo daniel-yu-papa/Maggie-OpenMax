@@ -1,0 +1,51 @@
+import sys
+import os
+
+EnsureSConsVersion(0,98,1)
+
+#######################################################
+# reusable functions and data structures
+#######################################################
+
+# Platform to Target Map (specifies which default target to build on a platform)
+PLATFORM_TO_TARGET_MAP = { 
+    'linux-i386' : 'x86-unknown-linux',
+    'linux2'     : 'x86-unknown-linux',
+    'cygwin'     : 'x86-unknown-cygwin',
+}
+  
+CROSS_PLATFORMS   = ['arm-unknown-linux', 'arm-android-linux', 'arm-a0m3-linux']
+  
+def DefaultTarget():
+    if PLATFORM_TO_TARGET_MAP.has_key(sys.platform):
+        return PLATFORM_TO_TARGET_MAP[sys.platform]
+    else:
+        return None
+
+#######################################################
+# Main Build
+#######################################################
+
+options = Variables()
+options.AddVariables(
+    EnumVariable('target', 'build target', DefaultTarget(), allowed_values=PLATFORM_TO_TARGET_MAP.values()+CROSS_PLATFORMS),
+    BoolVariable('stop_on_warning', 'Stop the build on warnings', False),
+    ListVariable('build_config', 'build configurations', 'Debug', names=['Debug', 'Release'])
+)
+
+env = Environment(variables=options)
+Help(options.GenerateHelpText(env))
+
+if 'CXX' in os.environ:
+	env['CXX'] = os.environ['CXX']
+if 'CC' in os.environ:
+	env['CC'] = os.environ['CC']
+	
+if not hasattr(env, 'Clone'): env.Clone = env.Copy ## old scons compatibility
+base_env = env
+
+for build_config in env['build_config']:
+    env = base_env.Clone()
+    env['build_config'] = build_config
+    print '********** Configuring Build Target =', env['target'], '/', build_config, '********'  
+    SConscript('Build.scons', exports='env')

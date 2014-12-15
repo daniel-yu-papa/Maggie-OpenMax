@@ -1,4 +1,11 @@
 #include "MagOMX_Port_clock.h"
+#include "MagOMX_Component_base.h"
+#include "MagOMX_Component_baseImpl.h"
+
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "MagOMX_CompClk"
 
 AllocateClass(MagOmxPortClock, MagOmxPortImpl);
 
@@ -10,12 +17,14 @@ static MagOmxPortClock getClockPort(OMX_HANDLETYPE hPort){
 }
 
 static OMX_PORTDOMAINTYPE virtual_MagOmxPortClock_GetDomainType(OMX_HANDLETYPE hPort){
-	return OMX_PortDomainOther;
+	return OMX_PortDomainOther_Clock;
 }
 
 static OMX_ERRORTYPE virtual_MagOmxPortClock_SetParameter(OMX_HANDLETYPE hPort, OMX_INDEXTYPE nIndex, OMX_PTR pPortParam){
 	MagOmxPort root;
 	MagOmxComponentImpl hComp;
+	MagOmxPortImpl portImpl;
+	MagOmxComponent compRoot;
 	OMX_ERRORTYPE ret = OMX_ErrorNone;
 
 	root = ooc_cast(hPort, MagOmxPort);
@@ -28,27 +37,47 @@ static OMX_ERRORTYPE virtual_MagOmxPortClock_SetParameter(OMX_HANDLETYPE hPort, 
 			break;
 
 		case OMX_IndexConfigTimeMediaTimeRequest:
-		{
-			ret = hComp->notify(hComp, MagOMX_Component_Notify_MediaTimeRequest, pPortParam);
+		{	
+			OMX_TIME_CONFIG_MEDIATIMEREQUESTTYPE *data;
+
+			if (root->isInputPort(root)){ /*input port*/
+				portImpl = ooc_cast(hPort, MagOmxPortImpl);
+				data = (OMX_TIME_CONFIG_MEDIATIMEREQUESTTYPE *)pPortParam;
+				data->nPortIndex = portImpl->mTunneledPortIndex;
+				compRoot = ooc_cast(portImpl->mTunneledComponent, MagOmxComponent);
+				ret = MagOmxComponentVirtual(compRoot)->SetConfig(portImpl->mTunneledComponent, 
+					                                              OMX_IndexConfigTimeMediaTimeRequest, 
+					                                              data);
+			}else{ /*output port*/
+				ret = hComp->notify(hComp, MagOMX_Component_Notify_MediaTimeRequest, pPortParam);
+			}
 		}
 			break;
 
 		case OMX_IndexConfigTimeUpdate:
 		{
-			MagOmxPortImpl portImpl;
-			MagOmxComponent compRoot;
 			OMX_TIME_MEDIATIMETYPE *data;
 
-			portImpl = ooc_cast(hPort, MagOmxPortImpl);
-			data = (OMX_TIME_MEDIATIMETYPE *)pPortParam;
-			data->nPortIndex = portImpl->mTunneledPortIndex;
-			compRoot = ooc_cast(portImpl->mTunneledComponent, MagOmxComponent);
-			ret = MagOmxComponentVirtual(compRoot)->SetConfig(portImpl->mTunneledComponent, OMX_IndexConfigTimeUpdate, data);
+			if (!root->isInputPort(root)){ /*output port*/
+				portImpl = ooc_cast(hPort, MagOmxPortImpl);
+				data = (OMX_TIME_MEDIATIMETYPE *)pPortParam;
+				compRoot = ooc_cast(portImpl->mTunneledComponent, MagOmxComponent);
+				ret = MagOmxComponentVirtual(compRoot)->SetConfig(portImpl->mTunneledComponent, 
+					                                              OMX_IndexConfigTimeUpdate, 
+					                                              data);
+			}else{ /*input port*/
+				PORT_LOGE(root, "Invalid parameter OMX_IndexConfigTimeUpdate setting to the input clock port!");
+			}
 		}
 			break;
 
 		case OMX_IndexConfigTimeCurrentReference:
-			ret = hComp->notify(hComp, MagOMX_Component_Notify_ReferenceTimeUpdate, pPortParam);
+			if (!root->isInputPort(root)){ /*output port*/
+				ret = hComp->notify(hComp, MagOMX_Component_Notify_ReferenceTimeUpdate, pPortParam);
+			}else{
+				PORT_LOGE(root, "To setConfig(OMX_IndexConfigTimeCurrentReference) on input port is Illegal!");
+				ret = OMX_ErrorUnsupportedSetting;
+			}
 			break;
 
 		default:
@@ -59,11 +88,15 @@ static OMX_ERRORTYPE virtual_MagOmxPortClock_SetParameter(OMX_HANDLETYPE hPort, 
 }
 
 static OMX_ERRORTYPE virtual_MagOmxPortClock_GetParameter(OMX_HANDLETYPE hPort, OMX_INDEXTYPE nIndex, OMX_PTR pPortParam){
+	MagOmxPort root;
 	MagOmxPortImpl portImpl;
 	MagOmxComponent compRoot;
+	MagOmxComponentImpl hComp;
 	OMX_ERRORTYPE ret = OMX_ErrorNone;
 
+	root = ooc_cast(hPort, MagOmxPort);
 	portImpl = ooc_cast(hPort, MagOmxPortImpl);
+	hComp = (MagOmxComponentImpl)(root->getAttachedComponent(root));
 	switch (nIndex){
 		case OMX_IndexConfigTimeRenderingDelay:
 		{	
@@ -80,10 +113,46 @@ static OMX_ERRORTYPE virtual_MagOmxPortClock_GetParameter(OMX_HANDLETYPE hPort, 
 	return ret;
 }
 
+static OMX_ERRORTYPE virtual_MagOmxPortClock_SetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFormat){
+	MagOmxPortClock clkPort;
+	OMX_OTHER_PORTDEFINITIONTYPE *pClkDef = (OMX_OTHER_PORTDEFINITIONTYPE *)pFormat;
+    
+	if ((hPort == NULL) || (pFormat == NULL)){
+		return OMX_ErrorBadParameter;
+	}
+
+	clkPort = ooc_cast(hPort, MagOmxPortClock);
+
+	Mag_AcquireMutex(clkPort->mhMutex);
+	memcpy(&clkPort->mPortDefinition, pClkDef, sizeof(OMX_OTHER_PORTDEFINITIONTYPE));
+	Mag_ReleaseMutex(clkPort->mhMutex);
+
+	return OMX_ErrorNone;
+}
+
+static OMX_ERRORTYPE virtual_MagOmxPortClock_GetPortSpecificDef(OMX_HANDLETYPE hPort, void *pFormat){
+	MagOmxPortClock clkPort;
+	OMX_OTHER_PORTDEFINITIONTYPE *pClkDef = (OMX_OTHER_PORTDEFINITIONTYPE *)pFormat;
+
+	if ((hPort == NULL) || (pFormat == NULL)){
+		return OMX_ErrorBadParameter;
+	}
+
+	clkPort = ooc_cast(hPort, MagOmxPortClock);
+
+	Mag_AcquireMutex(clkPort->mhMutex);
+	memcpy(pClkDef, &clkPort->mPortDefinition, sizeof(OMX_OTHER_PORTDEFINITIONTYPE));
+	Mag_ReleaseMutex(clkPort->mhMutex);
+
+	return OMX_ErrorNone;
+}
+
 
 /*Class Constructor/Destructor*/
 static void MagOmxPortClock_initialize(Class this){
 	MagOmxPortClockVtableInstance.MagOmxPortImpl.MagOmxPort.GetDomainType       = virtual_MagOmxPortClock_GetDomainType;
+	MagOmxPortClockVtableInstance.MagOmxPortImpl.MagOmxPort.SetPortSpecificDef  = virtual_MagOmxPortClock_SetPortSpecificDef;
+	MagOmxPortClockVtableInstance.MagOmxPortImpl.MagOmxPort.GetPortSpecificDef  = virtual_MagOmxPortClock_GetPortSpecificDef;
 	MagOmxPortClockVtableInstance.MagOmxPortImpl.MagOmxPort.SetParameter        = virtual_MagOmxPortClock_SetParameter;
 	MagOmxPortClockVtableInstance.MagOmxPortImpl.MagOmxPort.GetParameter        = virtual_MagOmxPortClock_GetParameter;
 }
@@ -95,19 +164,20 @@ static void MagOmxPortClock_initialize(Class this){
  * param[3] = OMX_U32  formatStruct
  */
 static void MagOmxPortClock_constructor(MagOmxPortClock thiz, const void *params){
-	MagOMX_Audio_PortFormat_t *pFormat;
-	MagOMX_Audio_PortFormat_t *pInputFormat;
+	MagOmxPort root;
 
     MAG_ASSERT(ooc_isInitialized(MagOmxPortClock));
     chain_constructor(MagOmxPortClock, thiz, params);
 
+    root = ooc_cast(thiz, MagOmxPort);
+
     Mag_CreateMutex(&thiz->mhMutex);
-    thiz->mParametersDB = createMagMiniDB(64);
+    thiz->mPortDefinition.eFormat = OMX_OTHER_FormatTime;
+    root->setDef_Populated(root, OMX_TRUE);
 }
 
 static void MagOmxPortClock_destructor(MagOmxPortClock thiz, MagOmxPortClockVtable vtab){
     AGILE_LOGV("Enter!");
 
-    destroyMagMiniDB(&thiz->mParametersDB);
     Mag_DestroyMutex(&thiz->mhMutex);
 }

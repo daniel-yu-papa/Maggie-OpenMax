@@ -11,10 +11,10 @@ Virtuals(MagOmxPortClock, MagOmxPortImpl)
 EndOfVirtuals;
 
 ClassMembers(MagOmxPortClock, MagOmxPortImpl, \
-	void (*addFormat)(MagOmxPortAudio hPort, MagOMX_Audio_PortFormat_t *pEncoding); \
+	void (*self)(void); \
 )
-    MagMutexHandle         mhMutex;
-    MagMiniDBHandle        mParametersDB;
+    MagMutexHandle                mhMutex;
+    OMX_OTHER_PORTDEFINITIONTYPE  mPortDefinition;
 
 EndOfClassMembers;
 

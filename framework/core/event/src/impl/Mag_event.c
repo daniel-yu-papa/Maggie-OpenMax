@@ -5,13 +5,16 @@
 *    wait on the signal and return while the signal is triggered.
 */
 #include <errno.h>
+#include <unistd.h>
 #include <sys/syscall.h>
+#include <sys/time.h>
+#include <pthread.h>
 #include "Mag_event.h"
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "magFramework-Event"
+#define MODULE_TAG "Magfw_Event"
 
 #define MAG_DEBUG
 
@@ -25,7 +28,7 @@ static i32 evtNumTotal = 0;
 */
 
 MagErr_t Mag_CreateEvent(MagEventHandle *evtHandle, MAG_EVENT_PRIO_t prio){
-    i32 rc;
+    /*i32 rc;*/
     
     *evtHandle = (MagEventHandle)mag_mallocz(sizeof(**evtHandle));
     if(NULL == *evtHandle)
@@ -73,7 +76,7 @@ err_nomem:
 /*err_cb_mutex:
     pthread_mutex_destroy(&(*evtHandle)->pEvtCommon->lock);*/
     
-err_evt_mutex:    
+/*err_evt_mutex:*/    
     if((*evtHandle)->pEvtCommon)
         mag_freep((void **)&(*evtHandle)->pEvtCommon);
 
@@ -87,7 +90,6 @@ err_evt_mutex:
 }
 
 MagErr_t Mag_DestroyEvent(MagEventHandle *pEvtHandle){
-    i32 rc;
     MagEventHandle evtHandle = *pEvtHandle;
     MagErr_t ret = MAG_ErrNone;
 
@@ -136,8 +138,6 @@ MagErr_t  Mag_SetEvent(MagEventHandle evtHandle){
     MagErr_t ret = MAG_ErrNone;
     struct timespec now;
     Mag_EvtCbTimeStamp_t *evtTSHandle;
-    Mag_EvtCbTimeStamp_t *htmpTS;
-    List_t *tmpNode;
 
     if (NULL == evtHandle)
         return MAG_BadParameter;
@@ -438,7 +438,6 @@ static MagErr_t Mag_EventStatusCheck(MagEventGroupHandle evtGrphandle, MAG_EVENT
     List_t *tmpNode = evtGrphandle->EventGroupHead.next;
     Mag_EventCommon_t *pEventCommon;
     MagErr_t ret = MAG_EventStatusErr;
-    i32 rc;
     i32 signalEvtNum = 0;
 
     while (tmpNode != &evtGrphandle->EventGroupHead){
@@ -480,8 +479,6 @@ static MagErr_t Mag_EventStatusCheck(MagEventGroupHandle evtGrphandle, MAG_EVENT
 static MagErr_t Mag_ClearAllEvents(MagEventGroupHandle evtGrphandle){
     List_t *tmpNode = evtGrphandle->EventGroupHead.next;
     Mag_EventCommon_t  *pEventCommon;
-    MagErr_t ret = MAG_ErrNone;
-    i32 rc;
     
     while (tmpNode != &evtGrphandle->EventGroupHead){
         pEventCommon = (Mag_EventCommon_t *)list_entry(tmpNode, Mag_EventCommon_t, entry);
@@ -548,7 +545,6 @@ done:
 static MagErr_t getCallbackExeList(MagEventSchedulerHandle schedHandle, List_t *listHead, int *timeout /*ms*/){
     List_t *tmpNode;
     Mag_EventCallback_t *evtCBHanlde;
-    i32 rc;
     ui32 highPrioTotal = 0;
     ui32 defPrioTotal = 0;
     Mag_EvtCbTimeStamp_t *timeStampNode;

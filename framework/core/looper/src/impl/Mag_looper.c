@@ -4,7 +4,7 @@
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "magFramework-Looper"
+#define MODULE_TAG "Magfw_Looper"
 
 
 static ui32 gLooperId = 0;
@@ -98,7 +98,6 @@ static MagHandlerHandle getHandler(MagLooperHandle hLooper, ui32 id){
 
 static boolean deliverMessage(MagLooperHandle hLooper, MagLooperEvent_t *evt){
     MagHandlerHandle h;
-    ui32 i;
     MagMessageHandle msg;
     boolean ret = MAG_FALSE;
 

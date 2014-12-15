@@ -11,26 +11,24 @@
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "magPlayerDemuxer"
+#define MODULE_TAG "Magply_Demuxer"
 
 
 #define DUMMY_FILE "dummy_file"
-
-// #define SW_DECODER
 
 static const ui32 kAVIOBufferSize = (32 * 1024);
 
 // #define FFMPEG_DEMUXER_DEBUG
 
 #ifdef FFMPEG_DEMUXER_DEBUG
-#define VIDEO_FRAMES_DUMP_FILE "/data/lmp/ffmpeg_video.es"
-#define AUDIO_FRAMES_DUMP_FILE "/data/lmp/ffmpeg_audio.es"
+#define VIDEO_FRAMES_DUMP_FILE "./ffmpeg_video.es"
+#define AUDIO_FRAMES_DUMP_FILE "./ffmpeg_audio.es"
 #endif
 
 //#define FFMPEG_STREAMBUF_DEBUG
 
 #ifdef FFMPEG_STREAMBUF_DEBUG
-#define STREAMBUF_DUMP_FILE "/data/streambuf.data"
+#define STREAMBUF_DUMP_FILE "./streambuf.data"
 #endif
 
 MagDemuxerFFMPEG::MagDemuxerFFMPEG():
@@ -53,11 +51,6 @@ MagDemuxerFFMPEG::MagDemuxerFFMPEG():
 #ifdef FFMPEG_STREAMBUF_DEBUG
     mStreamBufFile = NULL;
 #endif
-
-#ifdef SW_DECODER
-    mRGBFrameFile = NULL;
-#endif
-    mCalRGBCount = 0;
 }
 
 MagDemuxerFFMPEG::~MagDemuxerFFMPEG(){
@@ -393,7 +386,6 @@ ui32 MagDemuxerFFMPEG::convertCodec_FFMPEGToOMX(enum AVCodecID ffmpegCodec, Trac
 }
 
 bool MagDemuxerFFMPEG::checkSupportedStreams(AVStream *st){
-    ui32 i;
     bool supported = true;
 
     if (st->codec->codec_type == AVMEDIA_TYPE_VIDEO){
@@ -406,7 +398,6 @@ bool MagDemuxerFFMPEG::checkSupportedStreams(AVStream *st){
                 break;
         }
     }else if (st->codec->codec_type == AVMEDIA_TYPE_AUDIO){
-        boolean ret;
         i32 audioDisable = 0;
 
         mParamDB->findInt32(mParamDB, kMediaPlayerConfig_AudioDisable, &audioDisable);
@@ -443,232 +434,14 @@ _status_t  MagDemuxerFFMPEG::create_track(TrackInfo_t *track, AVCodecContext* co
     strack = new Stream_Track(track);
     if (NULL != strack){
         if (codec){
-            // AGILE_LOGV("enter. codec id = %d, omx_avc=%d, omx_aac=%d", 
-            //              track->codec, OMX_VIDEO_CodingAVC, OMX_AUDIO_CodingAAC);
-            if (track->codec == OMX_VIDEO_CodingAVC){
-                MagESFormat *fomat = new MrvlAMPESFormat_AVC(codec);
-                strack->setFormatter(fomat);
-                AGILE_LOGV("set video AVC formatter: 0x%p", fomat);
-            }else if (track->codec == OMX_AUDIO_CodingAAC){
-                MagESFormat *fomat = new MrvlAMPESFormat_AAC(codec);
-                strack->setFormatter(fomat);
-                AGILE_LOGV("set audio AAC formatter: 0x%p", fomat);
-            }
+            /*no decoded video/audio frame formatter needed*/
+            strack->setFormatter(NULL);
         }
         mpStreamTrackManager->addStreamTrack(strack);
     }else{
         return MAG_NO_MEMORY;
     }
     return MAG_NO_ERROR;
-}
-
-bool MagDemuxerFFMPEG::ts_noprobe_decide_adding(enum AVCodecID codec, ui32 pid){
-    ui32 i;
-    
-    for (i = 0; i < mpAVFormat->nb_streams; i++){
-        if (NULL != mpAVFormat->streams[i]){
-            AGILE_LOGD("Stream #%d - pid=%d, codec_id=%d", 
-                        i,
-                        mpAVFormat->streams[i]->id, 
-                        mpAVFormat->streams[i]->codec->codec_id);
-            
-            if (!(mpAVFormat->streams[i]->id & TS_NOPROBE_REMOVE_PID_MASK) && (mpAVFormat->streams[i]->id == (i32)pid)){
-                if (mpAVFormat->streams[i]->codec->codec_id == codec){
-                    return false;
-                }else{
-                    mpAVFormat->streams[i]->id |= TS_NOPROBE_REMOVE_PID_MASK;
-                    AGILE_LOGD("[FFMPEG_Demux::addAVStreams]: To remove old stream and to add new pid=%d, codec_id=%d", 
-                               pid, codec);
-                    return true;
-                }
-            } 
-        }
-    }
-    return true;
-}
-
-_status_t  MagDemuxerFFMPEG::ts_noprobe_add_streams(){
-    void *value;
-    char keyName[64];
-    i32 number;
-    i32 i;
-    boolean ret;
-    TrackInfo_t *track;
-    enum AVCodecID codec;
-
-    AVCodec *avcodec;
-    AVStream *avstream;
-    AVCodecContext *avcontext;
-
-    bool isStreamAdded     = false;
-    bool areStreamsExisted = false;
-    
-    if (NULL == mParamDB){
-        AGILE_LOGE("the Demuxer is not initialized. Quit!");
-        return MAG_NO_INIT;
-    }
-
-    ret = mParamDB->findInt32(mParamDB, kDemuxer_Video_Track_Number, &number);
-    if (ret == MAG_TRUE){
-        mTotalTrackNum = mTotalTrackNum + number;
-        AGILE_LOGV("mTotalTrackNum: %d, video track number: %d", mTotalTrackNum, number);
-    }
-
-    ret = mParamDB->findInt32(mParamDB, kDemuxer_Audio_Track_Number, &number);
-    if (ret == MAG_TRUE){
-        mTotalTrackNum = mTotalTrackNum + number;
-        AGILE_LOGV("mTotalTrackNum: %d, audio track number: %d", mTotalTrackNum, number);
-    }
-
-    ret = mParamDB->findInt32(mParamDB, kDemuxer_Subtitle_Track_Number, &number);
-    if (ret == MAG_TRUE){
-        mTotalTrackNum = mTotalTrackNum + number;
-        AGILE_LOGV("mTotalTrackNum: %d, subtitle track number: %d", mTotalTrackNum, number);
-    }
-    
-    AGILE_LOGI("total track number is %d", mTotalTrackNum);
-
-    if (mpAVFormat->nb_streams > 0){
-        areStreamsExisted = true; 
-    }
-    
-    for (i = 0; i < mTotalTrackNum; i++){
-        sprintf(keyName, kDemuxer_Track_Info, i);
-        ret = mParamDB->findPointer(mParamDB, keyName, &value);
-        if (ret == MAG_TRUE){
-            track = static_cast<TrackInfo_t *>(value);
-            codec = convertCodec_OMXToFFMPEG(track->codec, track->type);
-            if (ts_noprobe_decide_adding(codec, track->pid)){
-                isStreamAdded = true;
-                avcodec = avcodec_find_decoder(codec);
-                if (!avcodec) {        
-                    AGILE_LOGE("Failed to create video codec[type %d]", codec);        
-                    continue;  
-                }
-
-                avstream = avformat_new_stream(mpAVFormat, avcodec);
-                if (!avstream) {
-                    AGILE_LOGE("Failed to create video stream[type %d]", codec);        
-                    continue;  
-                }
-
-                if (track->pid > 0){
-                    avstream->id    = track->pid;
-                    track->streamID = avstream->index;
-                    if (areStreamsExisted)
-                        avstream->id |= TS_NOPROBE_NEW_PID_MASK;
-                    AGILE_LOGD("add stream pid = 0x%x", avstream->id);
-                    create_track(track, NULL);
-                }else{
-                    avstream->id = 0;
-                }
-                avcontext = avstream->codec;
-                avcontext->codec_id = codec;
-
-                if (track->type == TRACK_VIDEO){
-                    avcontext->codec_type = AVMEDIA_TYPE_VIDEO;
-                    /*TODO: need to be configured with the parameters setting*/
-                    avcontext->time_base.den = 50;
-                    avcontext->time_base.num = 1;
-                }else if (track->type == TRACK_AUDIO){
-                    avcontext->codec_type = AVMEDIA_TYPE_AUDIO;
-                }else if (track->type == TRACK_SUBTITLE){
-                    avcontext->codec_type = AVMEDIA_TYPE_SUBTITLE;
-                }
-            }
-        }
-    }
-
-    if ((isStreamAdded) && (areStreamsExisted))
-        avformat_mpegts_add_pid(mpAVFormat);
-    
-    return MAG_NO_ERROR;
-}
-
-_status_t  MagDemuxerFFMPEG::ts_noprobe_prepare(){ 
-    i32 rc;
-    _status_t ret = MAG_NO_ERROR;
-    
-    AVDictionary *avdict_tmp = NULL;
-    AVIOContext *context;
-    AVInputFormat *fmt;
-
-    context = ffmpeg_utiles_CreateAVIO();
-    if (NULL == context){
-        return MAG_NO_MEMORY;
-    }
-
-    mpAVFormat = avformat_alloc_context();
-    if (NULL == mpAVFormat){
-        AGILE_LOGE("Failed to create the AVFormatContext!");
-        return MAG_NO_MEMORY;
-    }
-    
-    mpAVFormat->pb = context;
-    // mpAVFormat->seekable = false;
-    
-    mPlayState.abort_request = 0;
-    mpAVFormat->interrupt_callback.callback = demux_interrupt_cb;
-    mpAVFormat->interrupt_callback.opaque = &mPlayState;
-
-    ffmpeg_utiles_SetOption("probesize", "1024"); //128000
-    av_dict_copy(&avdict_tmp, mpFormatOpts, 0);
-
-    if ((rc = av_opt_set_dict(mpAVFormat, &avdict_tmp)) < 0)
-    {
-        AGILE_LOGE("Failed to do av_opt_set_dict()");
-        ret = MAG_UNKNOWN_ERROR;
-        goto opt_fail;
-    }
-    
-    fmt = av_find_input_format("mpegts");
-    if (!fmt)
-    {
-        AGILE_LOGE("Failed to do av_find_input_format(mpegts)");
-        ret = MAG_NAME_NOT_FOUND;
-        goto failure;
-    }
-    fmt->flags |= AVFMT_NOFILE;
-    mpAVFormat->iformat = fmt;
-
-    /* allocate private data */
-    if (mpAVFormat->iformat->priv_data_size > 0) {
-        if (!(mpAVFormat->priv_data = av_mallocz(mpAVFormat->iformat->priv_data_size))) {
-            AGILE_LOGE("no memory for mpAVFormat->priv_data allocation(size = %d)", 
-                       mpAVFormat->iformat->priv_data_size);
-            ret = MAG_NO_MEMORY;
-            goto failure;
-        }
-        
-        if (mpAVFormat->iformat->priv_class) {
-            *(const AVClass**)mpAVFormat->priv_data = mpAVFormat->iformat->priv_class;
-            av_opt_set_defaults(mpAVFormat->priv_data);
-            if (av_opt_set_dict(mpAVFormat->priv_data, &avdict_tmp) < 0){
-                ret = MAG_UNKNOWN_ERROR;
-                goto failure;
-            }
-        }
-    }
-    
-    ts_noprobe_add_streams();
-
-    av_demuxer_open(mpAVFormat);
-  
-    av_dump_format(mpAVFormat, 0, DUMMY_FILE, 0);
-    
-opt_fail:
-    if (&mpFormatOpts) {
-        av_dict_free(&mpFormatOpts);
-        mpFormatOpts = avdict_tmp;
-    }
-    
-    return ret;
-    
-failure:
-    if (mpAVFormat)
-        avformat_close_input(&mpAVFormat);
-    mpAVFormat = NULL;
-    return ret;
 }
 
 _status_t  MagDemuxerFFMPEG::stop_common(){
@@ -701,9 +474,6 @@ _status_t  MagDemuxerFFMPEG::stop_common(){
     return MAG_NO_ERROR;
 }
 
-_status_t  MagDemuxerFFMPEG::ts_noprobe_stop(){
-    return stop_common();
-}
 
 #if 0
 void  MagDemuxerFFMPEG::copy_noprobe_params(MagMiniDBHandle playerParams){
@@ -779,8 +549,9 @@ _status_t  MagDemuxerFFMPEG::probe_add_streams(){
             track->time_base_den = st->time_base.den;
             track->duration      = (mpAVFormat->duration / 1000);
             track->start_time    = (mpAVFormat->start_time / 1000);
-            track->last_pts      = 0;
-            track->generatePTS   = MAG_FALSE;
+
+            track->avformat = mpAVFormat;
+            track->avstream = st;
 
             track->message = createMessage(MagDemuxerBase::MagDemuxerMsg_PlayerNotify);
             track->message->setInt32(track->message, "what", MagDemuxerBase::kWhatReadFrame);
@@ -809,32 +580,6 @@ _status_t  MagDemuxerFFMPEG::probe_add_streams(){
             }
             create_track(track, st->codec);
             mParamDB->setPointer(mParamDB, keyName, static_cast<void *>(track));
-
-#ifdef SW_DECODER
-            { 
-                AVCodec *avCodec = NULL;  
-                AVFrame *frame = av_frame_alloc();
-                
-                avCodec = avcodec_find_decoder(st->codec->codec_id);
-
-                if(avcodec_open2(st->codec, avCodec, NULL) >= 0){
-                    frame = av_frame_alloc();
-                    track->avCodecContext = static_cast<void *>(st->codec);
-                    track->avFrame = static_cast<void *>(frame);
-                    AGILE_LOGV("Open the %s CODEC [AVCodecContext:%p, AVCodec:%p] -- OK!",
-                               st->codec->codec_type == AVMEDIA_TYPE_VIDEO ? "video" : "audio",
-                               st->codec,
-                               avCodec);
-                }else{
-                    track->avCodecContext = NULL;
-                    track->avFrame        = NULL;
-                    AGILE_LOGE("Open the %s CODEC [AVCodecContext:%p, AVCodec:%p] -- Failure!",
-                                st->codec->codec_type == AVMEDIA_TYPE_VIDEO ? "video" : "audio",
-                                st->codec,
-                                avCodec);
-                }
-            }
-#endif
 
             AGILE_LOGV("track %s: duration[%lld], start time[%lld]", 
                         track->name, track->duration, track->start_time);
@@ -878,16 +623,27 @@ AVDictionary *MagDemuxerFFMPEG::filter_codec_opts(AVDictionary *opts, enum AVCod
 
     switch (st->codec->codec_type) {
         case AVMEDIA_TYPE_VIDEO:
+        {
             prefix  = 'v';
             flags  |= AV_OPT_FLAG_VIDEO_PARAM;
+        }
             break;
+
         case AVMEDIA_TYPE_AUDIO:
+        {
             prefix  = 'a';
             flags  |= AV_OPT_FLAG_AUDIO_PARAM;
+        }
             break;
+
         case AVMEDIA_TYPE_SUBTITLE:
+        {
             prefix  = 's';
             flags  |= AV_OPT_FLAG_SUBTITLE_PARAM;
+        }
+            break;
+
+        default:
             break;
     }
 
@@ -928,8 +684,7 @@ AVDictionary **MagDemuxerFFMPEG::setup_find_stream_info_opts(AVFormatContext *s,
         return NULL;
     opts = (AVDictionary **)av_mallocz(s->nb_streams * sizeof(*opts));
     if (!opts) {
-        av_log(NULL, AV_LOG_ERROR,
-               "Could not alloc memory for stream options.\n");
+        AGILE_LOGE("Could not alloc memory for stream options.");
         return NULL;
     }
     for (i = 0; i < s->nb_streams; i++)
@@ -1075,11 +830,8 @@ _status_t  MagDemuxerFFMPEG::prepare(MagContentPipe *contentPipe, MagBufferObser
 
             if (ret == MAG_TRUE){
                 if (!strcmp(value, "no")){
-                    //copy_noprobe_params(paramDB);
-                    rc = ts_noprobe_prepare();
-                    if (rc == MAG_NO_ERROR)
-                        mIsPrepared = MAG_TRUE;
-                    return rc;
+                    mIsPrepared = MAG_FALSE;
+                    return MAG_NO_INIT;
                 }
             }
         }
@@ -1138,7 +890,7 @@ _status_t  MagDemuxerFFMPEG::stopImpl(){
 
             if (ret == MAG_TRUE){
                 if (!strcmp(value, "no")){
-                    return ts_noprobe_stop();
+                    return MAG_NO_INIT;
                 }
             }
         }
@@ -1215,91 +967,6 @@ void MagDemuxerFFMPEG::fillMediaBuffer(Stream_Track *track, AVPacket *pPacket){
         av_free_packet(pPacket);
 }
 
-
-void MagDemuxerFFMPEG::calculate_RGB(TrackInfo_t* info, AVFrame *frame){
-    int sws_flags = SWS_BICUBIC;
-    struct SwsContext *pic_convert_ctx = NULL;
-    AVFrame *pFrameRGB; 
-    ui8 *rgb_data;
-
-    int r_top = 0;
-    int g_top = 0;
-    int b_top = 0;
-    int rgb_top_num = 0;
-    int r_bottom = 0;
-    int g_bottom = 0;
-    int b_bottom = 0;
-    int rgb_bottom_num = 0;
-    int i;
-
-    pFrameRGB = avcodec_alloc_frame();
-  
-    rgb_data = (ui8 *)av_mallocz(avpicture_get_size(PIX_FMT_RGB24, frame->width, frame->height));  
-    avpicture_fill((AVPicture *)pFrameRGB, rgb_data, PIX_FMT_RGB24, frame->width, frame->height);  
-
-    pic_convert_ctx = sws_getContext(frame->width, frame->height, (enum AVPixelFormat)frame->format, frame->width, frame->height,
-                                     AV_PIX_FMT_RGB24, sws_flags, NULL, NULL, NULL);
-    if (pic_convert_ctx == NULL) {
-        AGILE_LOGE("Cannot initialize the conversion context\n");
-        return;
-    }
-
-    AGILE_LOGV("convert the w:%d - h:%d frame to RGB24", frame->width, frame->height);
-
-    sws_scale(pic_convert_ctx, frame->data, frame->linesize,
-              0, frame->height, pFrameRGB->data, pFrameRGB->linesize);
-
-    if (mRGBFrameFile == NULL){
-        mRGBFrameFile = fopen("/tmp/picture_rgb.data","wb+");
-        fwrite(pFrameRGB->data[0], 1, pFrameRGB->linesize[0] * frame->height, mRGBFrameFile); /*RGB*/
-        fclose(mRGBFrameFile);
-    }
-
-    for (i = 0; i < pFrameRGB->linesize[0] * frame->height; i = i + 3){
-        if (i < pFrameRGB->linesize[0] * frame->height / 2){
-            r_top += pFrameRGB->data[0][i];
-            g_top += pFrameRGB->data[0][i + 1];
-            b_top += pFrameRGB->data[0][i + 2];
-            rgb_top_num++;
-        }else{
-            r_bottom += pFrameRGB->data[0][i];
-            g_bottom += pFrameRGB->data[0][i + 1];
-            b_bottom += pFrameRGB->data[0][i + 2];
-            rgb_bottom_num++;
-        }
-    }
-
-    info->top_rgb = (r_top / rgb_top_num) << 16 | (g_top / rgb_top_num) << 8 | (b_top / rgb_top_num);
-    info->bottom_rgb = (r_bottom / rgb_bottom_num) << 16 | (g_bottom / rgb_bottom_num) << 8 | (b_bottom / rgb_bottom_num);
-
-    AGILE_LOGV("top r(%d) g(%d) b(%d), value(0x%x) - bottom r(%d) g(%d) b(%d), value(0x%x)",
-               r_top / rgb_top_num, g_top / rgb_top_num, b_top / rgb_top_num, info->top_rgb,
-               r_bottom / rgb_bottom_num, g_bottom / rgb_bottom_num, b_bottom / rgb_bottom_num, info->bottom_rgb);
-}
-
-void MagDemuxerFFMPEG::decode_frame(Stream_Track *track, AVPacket *pPacket){
-    TrackInfo_t* info;
-    int got_picture;
-    AVCodecContext *codec;
-    AVFrame *frame;
-    int ret;
-
-    info = track->getInfo();
-    codec = static_cast<AVCodecContext *>(info->avCodecContext);
-    frame = static_cast<AVFrame *>(info->avFrame);
-
-    AGILE_LOGV("codec(%p) try to decode the frame", codec);
-
-    ret = avcodec_decode_video2(codec, frame, &got_picture, pPacket);
-
-    AGILE_LOGV("decode out the frame, got_picture=%d, ret = %d", got_picture, ret);
-
-    if (got_picture){
-        AGILE_LOGV("decode out the frame");
-        calculate_RGB(info, frame);
-    }
-}
-
 _status_t MagDemuxerFFMPEG::readMore(Stream_Track *track, ui32 StreamID){
     AVPacket packet;
     AVPacket *pPacket = &packet;
@@ -1307,7 +974,6 @@ _status_t MagDemuxerFFMPEG::readMore(Stream_Track *track, ui32 StreamID){
     Stream_Track *other_track = NULL;
     i32 res;
     _status_t ret;
-    MagErr_t mutex_ret;
 
     while (true) {
         if (mpStreamTrackManager->interruptReading()){
@@ -1336,19 +1002,6 @@ _status_t MagDemuxerFFMPEG::readMore(Stream_Track *track, ui32 StreamID){
                 }
             }
 #endif
-
-        {
-#ifdef SW_DECODER
-            Stream_Track *decode_track;
-
-            // if ((mpAVFormat->streams[pPacket->stream_index]->codec->codec_type == AVMEDIA_TYPE_VIDEO) 
-            //     && (AV_PKT_FLAG_KEY == pPacket->flags)){
-            if (mpAVFormat->streams[pPacket->stream_index]->codec->codec_type == AVMEDIA_TYPE_VIDEO){
-                decode_track = mpStreamTrackManager->getStreamTrack(pPacket->stream_index);
-                decode_frame(decode_track, pPacket);
-            }
-#endif
-        }
 
             if (StreamID == (ui32)pPacket->stream_index){
                 fillMediaBuffer(track, pPacket);
@@ -1420,7 +1073,6 @@ _status_t   MagDemuxerFFMPEG::seekToImpl(i32 msec, TrackInfo_t *track){
     AVRational timeBase;
     i32 res = 0;
     _status_t ret = MAG_NO_ERROR;
-    fp32 ratio;
 
     AGILE_LOGV("Enter!");
 

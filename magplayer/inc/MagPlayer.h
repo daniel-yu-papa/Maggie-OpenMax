@@ -10,6 +10,7 @@
 #include "MagVideoPipeline.h"
 #include "MagClock.h"
 #include "MagInvokeDef.h"
+#include "MagPipelineManager.h"
 
 #define MOCK_OMX_IL
 
@@ -69,7 +70,6 @@ public:
     
     void             setDisplayWindow(ui32 x, ui32 y, ui32 w, ui32 h);
     void             getBufferStatus(BufferStatistic_t  *pBufSt);
-    void             getPictureRGB(PictureRGB_t *pPicRGB);
 
     void             setInfoListener(fnNotifyInfo fn, void *priv);
     void             setSeekCompleteListener(fnNotifySeekComplete fn, void *priv);
@@ -200,6 +200,7 @@ private:
     MagBufferObserver *mpContentPipeObserver;
     MagBufferObserver *mpDemuxerStreamObserver;
 
+    MagPipelineManager *mAVPipelineMgr;
     MagVideoPipeline *mVideoPipeline;
     MagAudioPipeline *mAudioPipeline;
     MagClock         *mClock;

@@ -82,10 +82,10 @@ void DonglePlayer::destroy(){
 }
 
 DonglePlayer::DonglePlayer():
-          mbInitialized(false),
-          mbError(false),
           mAppEventCallback(NULL),
-          mAppHandler(NULL){
+          mAppHandler(NULL),
+          mbInitialized(false),
+          mbError(false){
     initialize();
     mpMediaPlayer->getVersion();
 }
@@ -265,6 +265,8 @@ int DonglePlayer::invoke(const unsigned int methodID, const void *request, void 
 int DonglePlayer::registerEventCallback(lmp_event_callback_t cb, void *handler){
     mAppEventCallback = cb;
     mAppHandler       = handler;
+
+    return 0;
 }
 
 

@@ -42,6 +42,7 @@ extern "C" {
  */
 
 #include <OMX_Index.h>
+#include <OMX_IndexExt.h>
 
 typedef enum OMX_COMMANDTYPE
 {

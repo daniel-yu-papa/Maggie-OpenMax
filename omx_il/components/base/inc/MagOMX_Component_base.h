@@ -2,9 +2,6 @@
 #define __MAG_OMX_COMPONENT_BASE_H__
 
 #include "framework/MagFramework.h"
-#include "OMX_Core.h"
-#include "OMX_Types.h"
-#include "OMX_Component.h"
 #include "MagOMX_IL.h"
 
 DeclareClass(MagOmxComponent, Base);

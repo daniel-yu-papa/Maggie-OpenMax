@@ -10,7 +10,12 @@ public:
     MagClock(Clock_Type_t type);
     virtual ~MagClock();
 
-    virtual _status_t setup(void *AudioComp, ui32 AudioPort, void *VideoComp, ui32 VideoPort);
+    virtual _status_t connectVideoPipeline(void *pVideoPipeline);
+    virtual _status_t connectAudioPipeline(void *pAudioPipeline);
+    virtual _status_t disconnectVideoPipeline(void *pVideoPipeline);
+    virtual _status_t disconnectAudioPipeline(void *pAudioPipeline);
+    virtual _status_t init();
+    virtual _status_t setup();
     virtual _status_t start();
     virtual _status_t stop();
     virtual _status_t pause();

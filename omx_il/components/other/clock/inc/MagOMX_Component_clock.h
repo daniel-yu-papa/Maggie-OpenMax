@@ -24,16 +24,28 @@ DeclareClass(MagOmxComponentClock, MagOmxComponentImpl);
 
 Virtuals(MagOmxComponentClock, MagOmxComponentImpl) 
     /*Pure virtual functions. Must be overrided by sub-components*/
-    OMX_ERRORTYPE (*MagOMX_DecideStartTime)(
+    OMX_ERRORTYPE (*MagOMX_Clock_DecideStartTime)(
                     OMX_IN  OMX_HANDLETYPE hComponent,
                     OMX_IN  OMX_TICKS* pStartTimeList,
+                    OMX_IN  OMX_U32    startTimeMap,  /*((1 << n) & startTimeMap) == (1 << n): the array index nth has the start time*/
                     OMX_OUT OMX_TICKS* pFinalStartTime);
 
-    /*get the time offset value between clock component fulfills request and 
-      Clock Client start to do Requested fulfillment*/
-    OMX_ERRORTYPE (*MagOMX_GetOffset)(
+    /*get the time offset value[us] between clock component fulfills request and 
+      Clock Client start to do Requested fulfillment
+      */
+    OMX_ERRORTYPE (*MagOMX_Clock_GetOffset)(
     				OMX_IN  OMX_HANDLETYPE hComponent,
     				OMX_OUT OMX_TICKS *offset);
+
+    /*add the clock port and get the added port index*/
+    OMX_ERRORTYPE (*MagOMX_Clock_AddPort)(
+                    OMX_IN  OMX_HANDLETYPE hComponent,
+                    OMX_OUT OMX_U32 *pPortIdx);
+
+    /*remove the clock port*/
+    OMX_ERRORTYPE (*MagOMX_Clock_RemovePort)(
+                    OMX_IN  OMX_HANDLETYPE hComponent,
+                    OMX_IN  OMX_U32 portIdx);
 EndOfVirtuals;
 
 ClassMembers(MagOmxComponentClock, MagOmxComponentImpl, \
@@ -45,7 +57,7 @@ ClassMembers(MagOmxComponentClock, MagOmxComponentImpl, \
     OMX_ERRORTYPE    (*updateClockState)(MagOmxPort port, OMX_TIME_CLOCKSTATE state); \
     OMX_ERRORTYPE    (*updateClockScale)(MagOmxPort port, OMX_S32 scale); \
     OMX_ERRORTYPE    (*updateClockReqFulfillment)(MagOmxPort port); \
-    OMX_ERRORTYPE    (*addClockPort)(MagOmxComponentClock compClock); \
+    OMX_ERRORTYPE    (*addClockPort)(MagOmxComponentClock compClock, OMX_U32 *pPortIndex); \
     OMX_TICKS        (*getMediaTimeNow)(MagOmxComponentClock compClock); \
     OMX_TICKS        (*getMediaTimeRequest)(MagOmxComponentClock compClock, OMX_TICKS mtr, OMX_TICKS offset); \
     OMX_ERRORTYPE    (*sendAVSyncAction)(MagOmxComponentClock compClock, OMX_U32 port_id, OMX_TICKS mediaTimestamp, MagOMX_AVSync_Action_t action); \
@@ -75,6 +87,9 @@ ClassMembers(MagOmxComponentClock, MagOmxComponentImpl, \
     OMX_TICKS               mReferenceTimeBase;   /*in us*/
     OMX_TICKS               mWallTimeBase;        /*in us*/
     OMX_TICKS               mClockOffset;         /*in us*/
+
+    MagEventHandle          mStateChangeEvt;
+    MagEventGroupHandle     mStateChangeEvtGrp;
 
 EndOfClassMembers;
 

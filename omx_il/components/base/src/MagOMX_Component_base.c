@@ -1,6 +1,11 @@
 #include "MagOMX_Component_base.h"
 #include "MagOMX_IL.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "MagOMX_CompBase"
+
 AllocateClass(MagOmxComponent, Base);
 
 static MagOmxComponent getBase(OMX_HANDLETYPE hComponent) {
@@ -18,7 +23,7 @@ static OMX_ERRORTYPE GetComponentVersionWrapper(
                 OMX_OUT OMX_UUIDTYPE* pComponentUUID){
 
     if ( !MagOmxComponentVirtual(getBase(hComponent))->GetComponentVersion ){
-        COMP_LOGE(getBase(hComponent), "The component(0x%p - %s): GetComponentVersion() is not implemented", hComponent, pComponentName);
+        COMP_LOGE(getBase(hComponent), "The component(%p - %s): GetComponentVersion() is not implemented", hComponent, pComponentName);
         return OMX_ErrorNotImplemented;
     }else{
         return MagOmxComponentVirtual(getBase(hComponent))->GetComponentVersion(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, 
@@ -35,7 +40,7 @@ static OMX_ERRORTYPE SendCommandWrapper(
                 OMX_IN  OMX_U32 nParam1,
                 OMX_IN  OMX_PTR pCmdData){
     if ( !MagOmxComponentVirtual(getBase(hComponent))->SendCommand ){
-        COMP_LOGE(getBase(hComponent), "The component(0x%p): SendCommand() is not implemented", hComponent);
+        COMP_LOGE(getBase(hComponent), "The component(%p): SendCommand() is not implemented", hComponent);
         return OMX_ErrorNotImplemented;
     }else{
         return MagOmxComponentVirtual(getBase(hComponent))->SendCommand(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, 
@@ -50,7 +55,7 @@ static OMX_ERRORTYPE GetParameterWrapper(
                 OMX_IN  OMX_INDEXTYPE nParamIndex,  
                 OMX_INOUT OMX_PTR pComponentParameterStructure){
     if ( !MagOmxComponentVirtual(getBase(hComponent))->GetParameter ){
-        COMP_LOGE(getBase(hComponent), "The component(0x%p): GetParameter() is not implemented", hComponent);
+        COMP_LOGE(getBase(hComponent), "The component(%p): GetParameter() is not implemented", hComponent);
         return OMX_ErrorNotImplemented;
     }else{
         return MagOmxComponentVirtual(getBase(hComponent))->GetParameter(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, 
@@ -65,7 +70,7 @@ static OMX_ERRORTYPE SetParameterWrapper(
                 OMX_IN  OMX_PTR pComponentParameterStructure){
 
     if ( !MagOmxComponentVirtual(getBase(hComponent))->SetParameter ){
-        COMP_LOGE(getBase(hComponent), "The component(0x%p): SetParameter() is not implemented", hComponent);
+        COMP_LOGE(getBase(hComponent), "The component(%p): SetParameter() is not implemented", hComponent);
         return OMX_ErrorNotImplemented;
     }else{
         return MagOmxComponentVirtual(getBase(hComponent))->SetParameter(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, 
@@ -80,7 +85,7 @@ static OMX_ERRORTYPE GetConfigWrapper(
                 OMX_INOUT OMX_PTR pComponentConfigStructure){
 
     if ( !MagOmxComponentVirtual(getBase(hComponent))->GetConfig ){
-        COMP_LOGE(getBase(hComponent), "The component(0x%p): GetConfig() is not implemented", hComponent);
+        COMP_LOGE(getBase(hComponent), "The component(%p): GetConfig() is not implemented", hComponent);
         return OMX_ErrorNotImplemented;
     }else{
         return MagOmxComponentVirtual(getBase(hComponent))->GetConfig(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, 
@@ -95,7 +100,7 @@ static OMX_ERRORTYPE SetConfigWrapper(
                 OMX_IN  OMX_PTR pComponentConfigStructure){
 
     if ( !MagOmxComponentVirtual(getBase(hComponent))->SetConfig ){
-        COMP_LOGE(getBase(hComponent), "The component(0x%p): SetConfig() is not implemented", hComponent);
+        COMP_LOGE(getBase(hComponent), "The component(%p): SetConfig() is not implemented", hComponent);
         return OMX_ErrorNotImplemented;
     }else{
         return MagOmxComponentVirtual(getBase(hComponent))->SetConfig(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, 
@@ -110,7 +115,7 @@ static OMX_ERRORTYPE GetExtensionIndexWrapper(
                 OMX_OUT OMX_INDEXTYPE* pIndexType){
 
     if ( !MagOmxComponentVirtual(getBase(hComponent))->GetExtensionIndex ){
-        COMP_LOGE(getBase(hComponent), "The component(0x%p): GetExtensionIndex() is not implemented", hComponent);
+        COMP_LOGE(getBase(hComponent), "The component(%p): GetExtensionIndex() is not implemented", hComponent);
         return OMX_ErrorNotImplemented;
     }else{
         return MagOmxComponentVirtual(getBase(hComponent))->GetExtensionIndex(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, 
@@ -125,7 +130,7 @@ static OMX_ERRORTYPE GetStateWrapper(
                 OMX_OUT OMX_STATETYPE* pState){
 
     if ( !MagOmxComponentVirtual(getBase(hComponent))->GetState ){
-        COMP_LOGE(getBase(hComponent), "The component(0x%p): GetState() is not implemented", hComponent);
+        COMP_LOGE(getBase(hComponent), "The component(%p): GetState() is not implemented", hComponent);
         return OMX_ErrorNotImplemented;
     }else{
         return MagOmxComponentVirtual(getBase(hComponent))->GetState(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, 
@@ -141,7 +146,7 @@ static OMX_ERRORTYPE ComponentTunnelRequestWrapper(
                 OMX_INOUT  OMX_TUNNELSETUPTYPE* pTunnelSetup){
 
     if ( !MagOmxComponentVirtual(getBase(hComponent))->ComponentTunnelRequest ){
-        COMP_LOGE(getBase(hComponent), "The component(0x%p): ComponentTunnelRequest() is not implemented", hComponent);
+        COMP_LOGE(getBase(hComponent), "The component(%p): ComponentTunnelRequest() is not implemented", hComponent);
         return OMX_ErrorNotImplemented;
     }else{
         return MagOmxComponentVirtual(getBase(hComponent))->ComponentTunnelRequest(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, 
@@ -161,7 +166,7 @@ static OMX_ERRORTYPE UseBufferWrapper(
                 OMX_IN OMX_U8* pBuffer){
 
     if ( !MagOmxComponentVirtual(getBase(hComponent))->UseBuffer ){
-        COMP_LOGE(getBase(hComponent), "The component(0x%p): UseBuffer() is not implemented", hComponent);
+        COMP_LOGE(getBase(hComponent), "The component(%p): UseBuffer() is not implemented", hComponent);
         return OMX_ErrorNotImplemented;
     }else{
         return MagOmxComponentVirtual(getBase(hComponent))->UseBuffer(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, 
@@ -181,7 +186,7 @@ static OMX_ERRORTYPE AllocateBufferWrapper(
                 OMX_IN OMX_U32 nSizeBytes){
 
     if ( !MagOmxComponentVirtual(getBase(hComponent))->AllocateBuffer ){
-        COMP_LOGE(getBase(hComponent), "The component(0x%p): AllocateBuffer() is not implemented", hComponent);
+        COMP_LOGE(getBase(hComponent), "The component(%p): AllocateBuffer() is not implemented", hComponent);
         return OMX_ErrorNotImplemented;
     }else{
         return MagOmxComponentVirtual(getBase(hComponent))->AllocateBuffer(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, 
@@ -198,7 +203,7 @@ static OMX_ERRORTYPE FreeBufferWrapper(
                 OMX_IN  OMX_BUFFERHEADERTYPE* pBuffer){
 
     if ( !MagOmxComponentVirtual(getBase(hComponent))->FreeBuffer ){
-        COMP_LOGE(getBase(hComponent), "The component(0x%p): FreeBuffer() is not implemented", hComponent);
+        COMP_LOGE(getBase(hComponent), "The component(%p): FreeBuffer() is not implemented", hComponent);
         return OMX_ErrorNotImplemented;
     }else{
         return MagOmxComponentVirtual(getBase(hComponent))->FreeBuffer(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, 
@@ -212,7 +217,7 @@ static OMX_ERRORTYPE EmptyThisBufferWrapper(
                 OMX_IN  OMX_BUFFERHEADERTYPE* pBuffer){
 
     if ( !MagOmxComponentVirtual(getBase(hComponent))->EmptyThisBuffer ){
-        COMP_LOGE(getBase(hComponent), "The component(0x%p): EmptyThisBuffer() is not implemented", hComponent);
+        COMP_LOGE(getBase(hComponent), "The component(%p): EmptyThisBuffer() is not implemented", hComponent);
         return OMX_ErrorNotImplemented;
     }else{
         return MagOmxComponentVirtual(getBase(hComponent))->EmptyThisBuffer(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, 
@@ -225,7 +230,7 @@ static OMX_ERRORTYPE FillThisBufferWrapper(
                 OMX_IN  OMX_BUFFERHEADERTYPE* pBuffer){
 
     if ( !MagOmxComponentVirtual(getBase(hComponent))->FillThisBuffer ){
-        COMP_LOGE(getBase(hComponent), "The component(0x%p): FillThisBuffer() is not implemented", hComponent);
+        COMP_LOGE(getBase(hComponent), "The component(%p): FillThisBuffer() is not implemented", hComponent);
         return OMX_ErrorNotImplemented;
     }else{
         return MagOmxComponentVirtual(getBase(hComponent))->FillThisBuffer(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, 
@@ -239,7 +244,7 @@ static OMX_ERRORTYPE SetCallbacksWrapper(
                 OMX_IN  OMX_PTR pAppData){
 
     if ( !MagOmxComponentVirtual(getBase(hComponent))->SetCallbacks ){
-        COMP_LOGE(getBase(hComponent), "The component(0x%p): SetCallbacks() is not implemented", hComponent);
+        COMP_LOGE(getBase(hComponent), "The component(%p): SetCallbacks() is not implemented", hComponent);
         return OMX_ErrorNotImplemented;
     }else{
         return MagOmxComponentVirtual(getBase(hComponent))->SetCallbacks(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate, 
@@ -252,7 +257,7 @@ static OMX_ERRORTYPE ComponentDeInitWrapper(
                 OMX_IN  OMX_HANDLETYPE hComponent){
 
     if ( !MagOmxComponentVirtual(getBase(hComponent))->ComponentDeInit ){
-        COMP_LOGE(getBase(hComponent), "The component(0x%p): ComponentDeInit() is not implemented", hComponent);
+        COMP_LOGE(getBase(hComponent), "The component(%p): ComponentDeInit() is not implemented", hComponent);
         return OMX_ErrorNotImplemented;
     }else{
         return MagOmxComponentVirtual(getBase(hComponent))->ComponentDeInit(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate);
@@ -267,7 +272,7 @@ static OMX_ERRORTYPE UseEGLImageWrapper(
                 OMX_IN void* eglImage){
 
     if ( !MagOmxComponentVirtual(getBase(hComponent))->UseEGLImage ){
-        COMP_LOGE(getBase(hComponent), "The component(0x%p): UseEGLImage() is not implemented", hComponent);
+        COMP_LOGE(getBase(hComponent), "The component(%p): UseEGLImage() is not implemented", hComponent);
         return OMX_ErrorNotImplemented;
     }else{
         return MagOmxComponentVirtual(getBase(hComponent))->UseEGLImage(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate,
@@ -284,7 +289,7 @@ static OMX_ERRORTYPE ComponentRoleEnumWrapper(
                 OMX_IN OMX_U32 nIndex){
 
     if ( !MagOmxComponentVirtual(getBase(hComponent))->ComponentRoleEnum ){
-        COMP_LOGE(getBase(hComponent), "The component(0x%p): ComponentRoleEnum() is not implemented", hComponent);
+        COMP_LOGE(getBase(hComponent), "The component(%p): ComponentRoleEnum() is not implemented", hComponent);
         return OMX_ErrorNotImplemented;
     }else{
         return MagOmxComponentVirtual(getBase(hComponent))->ComponentRoleEnum(((OMX_COMPONENTTYPE *)hComponent)->pComponentPrivate,

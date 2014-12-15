@@ -13,8 +13,6 @@
 #define MSG_4_DELAY 1300
 #define MSG_5_DELAY 1400
 
-static ui32 handler_index = 0;
-
 class Comp_A{
 public:
     Comp_A();
@@ -249,6 +247,8 @@ _status_t Comp_A::start(){
 
     if (mLooper != NULL)
         mLooper->start(mLooper);
+
+    return MAG_NO_ERROR;
 }
 
 void Comp_A::waitOnAllDone(){
@@ -364,6 +364,8 @@ _status_t Comp_B::start(){
 
     if (mLooper != NULL)
         mLooper->start(mLooper);
+
+    return MAG_NO_ERROR;
 }
 
 void Comp_B::onMsg_reply(MagMessageHandle msg){

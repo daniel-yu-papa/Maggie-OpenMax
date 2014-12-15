@@ -6,7 +6,7 @@
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "magFramework-RBTree"
+#define MODULE_TAG "Magfw_RBTree"
 
 
 static int gRepeatKeyNum = 0;

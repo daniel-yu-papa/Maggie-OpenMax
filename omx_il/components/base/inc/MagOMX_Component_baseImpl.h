@@ -24,12 +24,22 @@ enum{
     /*MagOmxComponentImpl_PortDataFlowMsg + port index: the data flow message for each port*/
 };
 
-/*the notification from the attached port*/
+/*To be notified by the attached port*/
 typedef enum{
     MagOMX_Component_Notify_StartTime = 0,
     MagOMX_Component_Notify_MediaTimeRequest,
     MagOMX_Component_Notify_ReferenceTimeUpdate
 }MagOMX_Component_Notify_Type_t;
+
+/*To be queried by the attached port*/
+typedef enum{
+    MagOMX_Component_Query_None = 0
+}MagOMX_Component_Query_Type_t;
+
+typedef struct{
+    List_t node;
+    OMX_BUFFERHEADERTYPE *buffer;    
+}MagOMX_Component_Buffer_List_t;
 
 typedef OMX_ERRORTYPE (*doStateTransition)(OMX_IN OMX_HANDLETYPE hComponent);
 
@@ -122,16 +132,36 @@ Virtuals(MagOmxComponentImpl, MagOmxComponent)
                     OMX_IN  OMX_HANDLETYPE hPort);
     
     /*handle the notification from attached port*/
-    OMX_ERRORTYPE  (*MagOMX_Notify)(
+    OMX_ERRORTYPE  (*MagOMX_Port_Notify)(
                     OMX_IN OMX_HANDLETYPE hComponent,
                     OMX_IN MagOMX_Component_Notify_Type_t notifyIndex,
                     OMX_IN OMX_PTR pNotifyData);
 
+    /*handle the query from attached port*/
+    OMX_ERRORTYPE  (*MagOMX_Port_Query)(
+                    OMX_IN OMX_HANDLETYPE hComponent,
+                    OMX_IN MagOMX_Component_Query_Type_t queryIndex,
+                    OMX_IN OMX_PTR pQueryData);
+
     /*get the rendering delay value in microseconds*/
     OMX_ERRORTYPE  (*MagOMX_GetRenderDelay)(
                     OMX_IN OMX_HANDLETYPE hComponent,
-                    OMX_OUT OMX_U32 *pRenderDelay);
+                    OMX_OUT OMX_TICKS *pRenderDelay);
 
+    /*The time shift to do the avsync action against the target timestamp*/
+    OMX_ERRORTYPE  (*MagOMX_GetClockActionOffset)(
+                    OMX_IN OMX_HANDLETYPE hComponent,
+                    OMX_OUT OMX_TICKS *pClockOffset);
+
+    /*Dynamically add the port*/
+    OMX_ERRORTYPE  (*MagOMX_AddPortOnRequest)(
+                    OMX_IN OMX_HANDLETYPE hComponent,
+                    OMX_OUT OMX_U32 *pPortIdx);
+
+    /*The component executes while tearing down the tunnel*/
+    OMX_ERRORTYPE  (*MagOMX_TearDownTunnel)(
+                    OMX_IN OMX_HANDLETYPE hComponent,
+                    OMX_IN OMX_U32 portIdx);
 EndOfVirtuals;
 
 ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
@@ -165,11 +195,28 @@ ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
                         OMX_IN OMX_HANDLETYPE hInPort,
                         OMX_IN OMX_HANDLETYPE hOutPort); \
 
-    /*the port notify the attached component*/
+    /*the port notifies the attached component*/
     OMX_ERRORTYPE    (*notify)(
                         OMX_IN MagOmxComponentImpl hComponent,
                         OMX_IN MagOMX_Component_Notify_Type_t notifyIndex,
                         OMX_IN OMX_PTR pNotifyData); \
+
+    /*the port queries the attached component*/
+    OMX_ERRORTYPE    (*query)(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN MagOMX_Component_Query_Type_t queryIndex,
+                        OMX_IN OMX_PTR pQueryData); \
+
+    /*send buffer header to clock component for av sync*/
+    OMX_ERRORTYPE    (*syncDisplay)(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN OMX_BUFFERHEADERTYPE *bufHeader); \
+
+    /*release the buffer data for displaying*/
+    OMX_ERRORTYPE    (*releaseDisplay)(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN OMX_TICKS mediaTimestamp,
+                        OMX_IN OMX_BUFFERHEADERTYPE **ppBufHeader); \
 )
     MagLooperHandle  mLooper;
     MagHandlerHandle mMsgHandler;
@@ -194,12 +241,19 @@ ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
     
     /*synchronize the state setting and OMX API calling*/
     MagMutexHandle   mhMutex;
+    MagMutexHandle   mhAVSyncMutex;
 
     OMX_CALLBACKTYPE *mpCallbacks;
     OMX_PTR          mpAppData;
 
     MagMessageHandle *mPortDataMsgList;
     OMX_U32          mFlushingPorts;
+
+    List_t           mAVSyncBusyBufLH;
+    List_t           mAVSyncFreeBufLH;
+
+    OMX_HANDLETYPE   mhClockPort;
+
 EndOfClassMembers;
 
 

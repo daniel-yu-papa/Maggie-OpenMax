@@ -10,7 +10,6 @@ static bool monitorFlag = false;
 
 void *monitorThreadProc(void *arg){
     BufferStatistic_t bufStat;
-    PictureRGB_t picRGB;
 
     LinuxMediaPlayer *player = (LinuxMediaPlayer *)arg;
 
@@ -19,8 +18,6 @@ void *monitorThreadProc(void *arg){
         printf("audio buffer: %d ms, video buffer: %d ms, loadingSpeed %d Bytes/Sec/\n", 
                 bufStat.audio_buffer_time, bufStat.video_buffer_time, bufStat.loadingSpeed);
 
-        player->invoke(INVOKE_ID_GET_PICTURE_RGB, NULL, &picRGB);
-        printf("top rgb: 0x%x, bottom rgb: 0x%x\n\n", picRGB.top_rgb, picRGB.bottom_rgb);
         sleep(4);
     }
 

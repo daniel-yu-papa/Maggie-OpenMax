@@ -1,6 +1,11 @@
 #include "MagClock.h"
 #include "MagPipelineFactory.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "Magply_Pipeline"
+
 MagClock::MagClock(Clock_Type_t type):
 		                mType(type),
 						mClock(NULL){
@@ -12,9 +17,34 @@ MagClock::~MagClock(){
 	delete clk;
 }
 
-_status_t MagClock::setup(void *AudioComp, ui32 AudioPort, void *VideoComp, ui32 VideoPort){
+_status_t MagClock::connectVideoPipeline(void *pVpl){
 	MagClockImplBase *clk = getClockImpl();
-	return clk->setup(AudioComp, AudioPort, VideoComp, VideoPort);
+	return clk->connectVideoPipeline(pVpl);
+}
+
+_status_t MagClock::connectAudioPipeline(void *pApl){
+	MagClockImplBase *clk = getClockImpl();
+	return clk->connectAudioPipeline(pApl);
+}
+
+_status_t MagClock::disconnectVideoPipeline(void *pVpl){
+	MagClockImplBase *clk = getClockImpl();
+	return clk->disconnectVideoPipeline(pVpl);
+}
+
+_status_t MagClock::disconnectAudioPipeline(void *pApl){
+	MagClockImplBase *clk = getClockImpl();
+	return clk->disconnectAudioPipeline(pApl);
+}
+
+_status_t MagClock::init(){
+	MagClockImplBase *clk = getClockImpl();
+	return clk->init();
+}
+
+_status_t MagClock::setup(){
+	MagClockImplBase *clk = getClockImpl();
+	return clk->setup();
 }
 
 _status_t MagClock::start(){

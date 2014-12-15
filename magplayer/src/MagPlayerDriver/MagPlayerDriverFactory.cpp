@@ -4,7 +4,7 @@
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
-#define MODULE_TAG "magPlayerDriver"
+#define MODULE_TAG "Magply_Driver"
 
 MAG_SINGLETON_STATIC_INSTANCE(MagPlayerDriverFactory)
 
