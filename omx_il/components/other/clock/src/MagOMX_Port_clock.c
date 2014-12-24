@@ -32,7 +32,20 @@ static OMX_ERRORTYPE virtual_MagOmxPortClock_SetParameter(OMX_HANDLETYPE hPort, 
 	switch (nIndex){
 		case OMX_IndexConfigTimeClientStartTime:
 		{
-			ret = hComp->notify(hComp, MagOMX_Component_Notify_StartTime, pPortParam);
+			OMX_TIME_CONFIG_TIMESTAMPTYPE        *pStartTime;
+
+			if (root->isInputPort(root)){ /*input port*/
+				portImpl = ooc_cast(hPort, MagOmxPortImpl);
+				pStartTime = (OMX_TIME_CONFIG_TIMESTAMPTYPE *)pPortParam;
+				pStartTime->nPortIndex = portImpl->mTunneledPortIndex;
+				compRoot = ooc_cast(portImpl->mTunneledComponent, MagOmxComponent);
+				ret = MagOmxComponentVirtual(compRoot)->SetConfig(portImpl->mTunneledComponent, 
+					                                              OMX_IndexConfigTimeClientStartTime, 
+					                                              pStartTime);
+			}else{ /*output port*/
+				PORT_LOGV(root, "parameter OMX_IndexConfigTimeClientStartTime. clock port notify the clock component");
+				ret = hComp->notify(hComp, MagOMX_Component_Notify_StartTime, pPortParam);
+			}
 		}
 			break;
 
@@ -101,9 +114,18 @@ static OMX_ERRORTYPE virtual_MagOmxPortClock_GetParameter(OMX_HANDLETYPE hPort, 
 		case OMX_IndexConfigTimeRenderingDelay:
 		{	
 			OMX_TIME_CONFIG_RENDERINGDELAYTYPE *data = (OMX_TIME_CONFIG_RENDERINGDELAYTYPE *)pPortParam;
-			data->nPortIndex = portImpl->mTunneledPortIndex;
-			compRoot = ooc_cast(portImpl->mTunneledComponent, MagOmxComponent);
-			ret = MagOmxComponentVirtual(compRoot)->GetConfig(portImpl->mTunneledComponent, OMX_IndexConfigTimeRenderingDelay, data);
+			if (!root->isInputPort(root)){ /*output port*/
+				data->nPortIndex = portImpl->mTunneledPortIndex;
+				compRoot = ooc_cast(portImpl->mTunneledComponent, MagOmxComponent);
+				ret = MagOmxComponentVirtual(compRoot)->GetConfig(portImpl->mTunneledComponent, OMX_IndexConfigTimeRenderingDelay, data);
+			}else{ /*input port*/
+				if (MagOmxComponentImplVirtual(hComp)->MagOMX_GetRenderDelay){
+	                ret = MagOmxComponentImplVirtual(hComp)->MagOMX_GetRenderDelay(hComp, &data->nRenderingDelay);
+	            }else{
+	                PORT_LOGE(root, "The pure virtual function MagOMX_GetRenderDelay() is not overrided!");
+	                ret = OMX_ErrorNotImplemented;
+	            }
+			}
 		}
 			break;
 

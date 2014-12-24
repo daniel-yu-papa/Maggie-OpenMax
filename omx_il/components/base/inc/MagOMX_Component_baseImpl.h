@@ -41,6 +41,7 @@ typedef struct{
     OMX_BUFFERHEADERTYPE *buffer;    
 }MagOMX_Component_Buffer_List_t;
 
+
 typedef OMX_ERRORTYPE (*doStateTransition)(OMX_IN OMX_HANDLETYPE hComponent);
 
 static inline OMX_U32 toIndex(OMX_STATETYPE state){
@@ -148,7 +149,7 @@ Virtuals(MagOmxComponentImpl, MagOmxComponent)
                     OMX_IN OMX_HANDLETYPE hComponent,
                     OMX_OUT OMX_TICKS *pRenderDelay);
 
-    /*The time shift to do the avsync action against the target timestamp*/
+    /*The time shift to do the avsync action against the target timestamp, in microseconds*/
     OMX_ERRORTYPE  (*MagOMX_GetClockActionOffset)(
                     OMX_IN OMX_HANDLETYPE hComponent,
                     OMX_OUT OMX_TICKS *pClockOffset);
@@ -217,6 +218,26 @@ ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
                         OMX_IN MagOmxComponentImpl hComponent,
                         OMX_IN OMX_TICKS mediaTimestamp,
                         OMX_IN OMX_BUFFERHEADERTYPE **ppBufHeader); \
+
+    OMX_ERRORTYPE    (*putReturnBuffer)(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN MagOmxPort hSrcPort,
+                        OMX_IN OMX_BUFFERHEADERTYPE *srcBufHeader,
+                        OMX_IN MagMessageHandle returnMsg,
+                        OMX_IN OMX_PTR priv); \
+
+    OMX_ERRORTYPE    (*sendReturnBuffer)(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN OMX_BUFFERHEADERTYPE *pBuf); \
+
+    OMX_ERRORTYPE    (*putOutputBuffer)(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN MagOmxPort hDestPort,
+                        OMX_IN OMX_BUFFERHEADERTYPE *pBufHeader); \
+
+    OMX_ERRORTYPE    (*sendOutputBuffer)(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN OMX_BUFFERHEADERTYPE *pBuf); \
 )
     MagLooperHandle  mLooper;
     MagHandlerHandle mMsgHandler;
@@ -253,6 +274,10 @@ ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
     List_t           mAVSyncFreeBufLH;
 
     OMX_HANDLETYPE   mhClockPort;
+
+    OMX_BOOL         mbGetStartTime;
+    MagEventHandle      mClkStartRunningEvt;
+    MagEventGroupHandle mClkStChangeEvtGrp;
 
 EndOfClassMembers;
 

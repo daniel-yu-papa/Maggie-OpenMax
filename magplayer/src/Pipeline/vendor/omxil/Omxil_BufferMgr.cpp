@@ -31,7 +31,7 @@ OmxilBufferMgr::~OmxilBufferMgr(){
 }
 
 OMX_ERRORTYPE OmxilBufferMgr::create(OMX_HANDLETYPE hComp, ui32 portIdx, OMX_HANDLETYPE privData){
-    i32 i = 0;
+    ui32 i = 0;
     OMX_ERRORTYPE err;
     Omxil_BufferNode_t *bufNode;
     OMX_BUFFERHEADERTYPE *bufHeader;
@@ -40,7 +40,7 @@ OMX_ERRORTYPE OmxilBufferMgr::create(OMX_HANDLETYPE hComp, ui32 portIdx, OMX_HAN
 
     mhComponent = hComp;
     for (i = 0; i < mBufNum; i++){
-        /*the field pAppPrivate is NULL for now, which is used for hold MediaBuffer_t *buf*/
+        /*the field pAppPrivate is NULL for now, which is used for hold MagOmxMediaBuffer_t *buf*/
         err = OMX_AllocateBuffer(hComp, &bufHeader, portIdx, privData, mBufSize);
         if (err != OMX_ErrorNone) {
             AGILE_LOGE("Failed to Allocate %dth Buffer for Component %p", i, hComp);
@@ -110,10 +110,10 @@ void OmxilBufferMgr::put(OMX_BUFFERHEADERTYPE *bufHeader){
 
 bool OmxilBufferMgr::needPushBuffers(void){
     if (mFreeNodeNum > 0){
-        AGILE_LOGV("[Component[%p] needPushBuffers], free buffers = %d", 
-                    mhComponent, mFreeNodeNum);
         return true; 
     }else{
+        AGILE_LOGV("[Component[%p] needPushBuffers], free buffers = %d", 
+                    mhComponent, mFreeNodeNum);
         return false;
     }
 }

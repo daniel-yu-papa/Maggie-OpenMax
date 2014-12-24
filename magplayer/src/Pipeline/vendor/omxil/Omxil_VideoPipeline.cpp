@@ -43,6 +43,28 @@ OmxilVideoPipeline::OmxilVideoPipeline():
         Mag_AddEventGroup(mStLoadedEventGroup, mVRenStLoadedEvent);
     }
 
+    Mag_CreateEventGroup(&mStExecutingEventGroup);
+    if (MAG_ErrNone == Mag_CreateEvent(&mVDecStExecutingEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mStExecutingEventGroup, mVDecStExecutingEvent);
+    }
+    if (MAG_ErrNone == Mag_CreateEvent(&mVSchStExecutingEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mStExecutingEventGroup, mVSchStExecutingEvent);
+    }
+    if (MAG_ErrNone == Mag_CreateEvent(&mVRenStExecutingEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mStExecutingEventGroup, mVRenStExecutingEvent);
+    }
+
+    Mag_CreateEventGroup(&mStPauseEventGroup);
+    if (MAG_ErrNone == Mag_CreateEvent(&mVDecStPauseEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mStPauseEventGroup, mVDecStPauseEvent);
+    }
+    if (MAG_ErrNone == Mag_CreateEvent(&mVSchStPauseEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mStPauseEventGroup, mVSchStPauseEvent);
+    }
+    if (MAG_ErrNone == Mag_CreateEvent(&mVRenStPauseEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mStPauseEventGroup, mVRenStPauseEvent);
+    }
+
     mVideoDecCallbacks.EventHandler    = OmxilVideoPipeline::VideoDecoderEventHandler;
     mVideoDecCallbacks.EmptyBufferDone = OmxilVideoPipeline::VideoDecoderEmptyBufferDone;
     mVideoDecCallbacks.FillBufferDone  = OmxilVideoPipeline::VideoDecoderFillBufferDone;
@@ -67,6 +89,16 @@ OmxilVideoPipeline::~OmxilVideoPipeline(){
     Mag_DestroyEvent(&mVRenStLoadedEvent);
     Mag_DestroyEventGroup(&mStLoadedEventGroup);
     
+    Mag_DestroyEvent(&mVDecStExecutingEvent);
+    Mag_DestroyEvent(&mVSchStExecutingEvent);
+    Mag_DestroyEvent(&mVRenStExecutingEvent);
+    Mag_DestroyEventGroup(&mStExecutingEventGroup);
+
+    Mag_DestroyEvent(&mVDecStPauseEvent);
+    Mag_DestroyEvent(&mVSchStPauseEvent);
+    Mag_DestroyEvent(&mVRenStPauseEvent);
+    Mag_DestroyEventGroup(&mStPauseEventGroup);
+
     OMX_Deinit();
 }
 
@@ -100,10 +132,12 @@ OMX_ERRORTYPE OmxilVideoPipeline::VideoDecoderEventHandler(
 
                 case OMX_StateExecuting:
                     AGILE_LOGD("OMX_StateExecuting\n");
+                    Mag_SetEvent(pVpipeline->mVDecStExecutingEvent);
                     break;
 
                 case OMX_StatePause:
                     AGILE_LOGD("OMX_StatePause\n");
+                    Mag_SetEvent(pVpipeline->mVDecStPauseEvent);
                     break;
 
                 case OMX_StateWaitForResources:
@@ -129,9 +163,11 @@ OMX_ERRORTYPE OmxilVideoPipeline::VideoDecoderEmptyBufferDone(
                                             OMX_PTR pAppData,
                                             OMX_BUFFERHEADERTYPE* pBuffer){
     OmxilVideoPipeline *pVpipeline;
+    MagOmxMediaBuffer_t *mediaBuf;
 
     pVpipeline = static_cast<OmxilVideoPipeline *>(pAppData);
-
+    mediaBuf = static_cast<MagOmxMediaBuffer_t *>(pBuffer->pAppPrivate);
+    mediaBuf->release(mediaBuf);
     pVpipeline->mpBufferMgr->put(pBuffer);
 
     if (pVpipeline->getFillBufferFlag()){
@@ -139,7 +175,6 @@ OMX_ERRORTYPE OmxilVideoPipeline::VideoDecoderEmptyBufferDone(
             pVpipeline->postFillThisBuffer();
             AGILE_LOGD("retrigger the fillThisBuffer event!");
         }
-        pVpipeline->setFillBufferFlag(false);
     }
 
     return OMX_ErrorNone;
@@ -183,10 +218,12 @@ OMX_ERRORTYPE OmxilVideoPipeline::VideoScheduleEventHandler(
 
                 case OMX_StateExecuting:
                     AGILE_LOGD("OMX_StateExecuting\n");
+                    Mag_SetEvent(pVpipeline->mVSchStExecutingEvent);
                     break;
 
                 case OMX_StatePause:
                     AGILE_LOGD("OMX_StatePause\n");
+                    Mag_SetEvent(pVpipeline->mVSchStPauseEvent);
                     break;
 
                 case OMX_StateWaitForResources:
@@ -238,10 +275,12 @@ OMX_ERRORTYPE OmxilVideoPipeline::VideoRenderEventHandler(
 
                 case OMX_StateExecuting:
                     AGILE_LOGD("OMX_StateExecuting\n");
+                    Mag_SetEvent(pVpipeline->mVRenStExecutingEvent);
                     break;
 
                 case OMX_StatePause:
                     AGILE_LOGD("OMX_StatePause\n");
+                    Mag_SetEvent(pVpipeline->mVRenStPauseEvent);
                     break;
 
                 case OMX_StateWaitForResources:
@@ -528,6 +567,11 @@ _status_t OmxilVideoPipeline::start(){
     OMX_SendCommand(mhVideoScheduler, OMX_CommandStateSet, OMX_StateExecuting, NULL);
     OMX_SendCommand(mhVideoDecoder, OMX_CommandStateSet, OMX_StateExecuting, NULL);
 
+    Mag_ClearEvent(mVDecStExecutingEvent);
+    Mag_ClearEvent(mVSchStExecutingEvent);
+    Mag_ClearEvent(mVRenStExecutingEvent);
+    Mag_WaitForEventGroup(mStExecutingEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
+
     ret = MagVideoPipelineImpl::start();
     return ret;
 }
@@ -608,20 +652,22 @@ void OmxilVideoPipeline::setDisplayRect(i32 x, i32 y, i32 w, i32 h){
 
 }
 
-_status_t OmxilVideoPipeline::pushEsPackets(MediaBuffer_t *buf){
+_status_t OmxilVideoPipeline::pushEsPackets(MagOmxMediaBuffer_t *buf){
     OMX_BUFFERHEADERTYPE *pBufHeader;
     OMX_ERRORTYPE ret;
     _status_t err = MAG_NO_ERROR;
 
     pBufHeader = mpBufferMgr->get();
     if (pBufHeader){
-        pBufHeader->pAppPrivate = buf;
+        pBufHeader->pAppPrivate = static_cast<OMX_PTR>(buf);
         pBufHeader->pBuffer     = static_cast<OMX_U8 *>(buf->buffer);
         pBufHeader->nAllocLen   = buf->buffer_size;
         pBufHeader->nFilledLen  = buf->buffer_size;
         pBufHeader->nOffset     = 0;
         pBufHeader->nTimeStamp  = buf->pts;
 
+        AGILE_LOGD("push video buffer header: %p(buf:%p, size:%d, pts:0x%x)",
+                    pBufHeader, pBufHeader->pBuffer, pBufHeader->nFilledLen, pBufHeader->nTimeStamp);
         ret = OMX_EmptyThisBuffer(mhVideoDecoder, pBufHeader);
         if (ret != OMX_ErrorNone){
             AGILE_LOGE("Do OMX_EmptyThisBuffer(buf:%p, size:%d, pts:0x%x) - Failed!",

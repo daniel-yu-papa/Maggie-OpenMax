@@ -300,12 +300,15 @@ static void MagOmxPort_initialize(Class this){
     MagOmxPortVtableInstance.SendEvent             = NULL;
     MagOmxPortVtableInstance.GetSharedBufferMsg    = NULL;
     MagOmxPortVtableInstance.GetOutputBuffer       = NULL;
-    MagOmxPortVtableInstance.SendOutputBuffer      = NULL;
     MagOmxPortVtableInstance.GetDomainType         = NULL;
     MagOmxPortVtableInstance.SetPortSpecificDef    = NULL;
     MagOmxPortVtableInstance.GetPortSpecificDef    = NULL;
     MagOmxPortVtableInstance.SetParameter          = NULL;
     MagOmxPortVtableInstance.GetParameter          = NULL;
+    MagOmxPortVtableInstance.putReturnBuffer       = NULL;
+    MagOmxPortVtableInstance.sendReturnBuffer      = NULL;
+    MagOmxPortVtableInstance.sendOutputBuffer      = NULL;
+
 }
 
 /*

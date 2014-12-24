@@ -23,8 +23,11 @@ static OMX_ERRORTYPE localSetupComponent(
     MagOmxPort_Constructor_Param_t param;
     MagOmxComponentImpl            vrenCompImpl;
     MagOmxComponent                vrenComp;
+    MagOmxComponent_FFmpeg_Vren    thiz;
 
     AGILE_LOGV("enter!");
+
+    thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vren);
 
     param.portIndex    = START_PORT_INDEX + 0;
     param.isInput      = OMX_TRUE;
@@ -42,6 +45,14 @@ static OMX_ERRORTYPE localSetupComponent(
     vrenComp->setName(vrenComp, (OMX_U8 *)COMPONENT_NAME);
     vrenCompImpl->addPort(vrenCompImpl, START_PORT_INDEX + 0, vrenInPort);
 
+    vrenCompImpl->setupPortDataFlow(vrenCompImpl, vrenInPort, NULL);
+
+#ifdef CAPTURE_YUV_DATA_TO_FILE
+    thiz->mfYUVFile = fopen("./video.yuv","wb+");
+    if (thiz->mfYUVFile == NULL){
+        AGILE_LOGE("Failed to open the file: ./video.yuv");
+    }
+#endif
 	return OMX_ErrorNone;
 }
 
@@ -111,7 +122,49 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vren_ProceedBuffer(
                     OMX_IN  OMX_HANDLETYPE hComponent, 
                     OMX_IN  OMX_BUFFERHEADERTYPE *srcbufHeader,
                     OMX_IN  OMX_HANDLETYPE hDestPort){
-	
+    MagOmxComponentImpl         vrenCompImpl;
+    AVFrame                     *decodedFrame;
+    OMX_TICKS                   timeStamp;
+    MagOmxComponent_FFmpeg_Vren thiz;
+    int i;
+
+    vrenCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
+    thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vren);
+
+    decodedFrame = (AVFrame *)srcbufHeader->pBuffer;
+    timeStamp    = srcbufHeader->nTimeStamp;
+
+    AGILE_LOGV("Display decoded Video Frame: %p[w: %d, h: %d, pixelFormat: %d][linesize: %d, %d, %d], time stamp: 0x%llx to playback", 
+                decodedFrame, decodedFrame->width, decodedFrame->height, decodedFrame->format, 
+                decodedFrame->linesize[0], decodedFrame->linesize[1], decodedFrame->linesize[2],
+                timeStamp);
+
+#ifdef CAPTURE_YUV_DATA_TO_FILE
+    if (thiz->mfYUVFile){
+        for (i = 0; i < decodedFrame->height; i++){
+            fwrite(decodedFrame->data[0] + i * decodedFrame->linesize[0], 
+                   1, decodedFrame->width, 
+                   thiz->mfYUVFile);
+        }
+
+        for (i = 0; i < decodedFrame->height / 2; i++){
+            fwrite(decodedFrame->data[1] + i * decodedFrame->linesize[1], 
+                   1, decodedFrame->width / 2, 
+                   thiz->mfYUVFile);
+        }
+
+        for (i = 0; i < decodedFrame->height / 2; i++){
+            fwrite(decodedFrame->data[2] + i * decodedFrame->linesize[2], 
+                   1, decodedFrame->width / 2, 
+                   thiz->mfYUVFile);
+        }
+
+        fflush(thiz->mfYUVFile);
+    }
+#endif
+
+    /*vrenCompImpl->sendReturnBuffer(vrenCompImpl, srcbufHeader);*/
+
 	return OMX_ErrorNone;
 }
 
@@ -204,7 +257,9 @@ static OMX_ERRORTYPE MagOmxComponent_FFmpeg_Vren_DeInit(OMX_IN OMX_HANDLETYPE hC
 	AGILE_LOGV("MagOmxComponent_FFmpeg_Vren_DeInit enter!");
 	hVrenComp = (MagOmxComponent_FFmpeg_Vren)compType->pComponentPrivate;
 	ooc_delete((Object)hVrenComp);
-
+#ifdef CAPTURE_YUV_DATA_TO_FILE
+    fclose(hVrenComp->mfYUVFile);
+#endif
 	return OMX_ErrorNone;
 }
 

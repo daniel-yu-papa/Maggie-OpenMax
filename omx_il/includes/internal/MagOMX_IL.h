@@ -28,8 +28,10 @@ extern "C" {
 #define kComponentVersion       0x00000001
 
 /*Mag OMX IL port number range definitions*/
-#define kInvalidCompPortNumber  0
-#define kCompPortStartNumber    1
+#define kInvalidCompPortNumber  0xFFFFFFFF
+#define kCompPortStartNumber    0
+
+#define kInvalidTimeStamp       ((int64_t)UINT64_C(0x8000000000000000))
 
 #define STRINGIFY(x) case x: return #x
 

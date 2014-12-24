@@ -2,7 +2,7 @@
 #define __MAG_PLAYER_STREAM_TRACK_MANAGER_H__
 
 #include "framework/MagFramework.h"
-#include "MagMediaBuffer.h"
+#include "MagOmx_Buffer.h"
 #include "MagBufferObserver.h"
 #include "MagESFormat.h"
 
@@ -82,11 +82,11 @@ public:
     _status_t      start();
     _status_t      stop();
 
-    MediaBuffer_t  *dequeueFrame(bool lock = true);
-    _status_t      enqueueFrame(MediaBuffer_t *buffer);
-    _status_t      releaseFrame(MediaBuffer_t *mb);
+    MagOmxMediaBuffer_t  *dequeueFrame(bool lock = true);
+    _status_t      enqueueFrame(MagOmxMediaBuffer_t *buffer);
+    _status_t      releaseFrame(MagOmxMediaBuffer_t *mb);
 
-    MediaBuffer_t  *getMediaBuffer();
+    MagOmxMediaBuffer_t  *getMediaBuffer();
     void           setBufferPoolSize(ui32 size);
 
     ui32           getBufferingDataTime();
@@ -105,7 +105,7 @@ public:
     
     MagMutexHandle mMutex;
 private:
-    _status_t putMediaBuffer(List_t *list_head, MediaBuffer_t *mb);
+    _status_t putMediaBuffer(List_t *list_head, MagOmxMediaBuffer_t *mb);
     
     MagMutexHandle mBufferStatMutex;
 
@@ -146,7 +146,7 @@ public:
     _status_t   deleteStreamTrack(i32 streamID);
     Stream_Track *getStreamTrack(ui32 StreamID);
     
-    _status_t   readFrame(ui32 trackIndex, MediaBuffer_t **buffer);
+    _status_t   readFrame(ui32 trackIndex, MagOmxMediaBuffer_t **buffer);
 
     _status_t   attachBufferObserver(MagBufferObserver *pObserver);
 	_status_t   dettachBufferObserver(MagBufferObserver *pObserver);
@@ -166,7 +166,7 @@ public:
     void        getAVBufferStatus(ui32 *videoBuf, ui32 *audioBuf, ui32 *loadingSpeed);
 
 private:
-	_status_t   readFrameFromQueue(ui32 trackIndex, MediaBuffer_t **buffer);
+	_status_t   readFrameFromQueue(ui32 trackIndex, MagOmxMediaBuffer_t **buffer);
 	_status_t   readFramesMore(Stream_Track *track, ui32 StreamID);
     ui32        getBufferPoolSize(enum TrackType_t type);
     bool        handleAllPlayingTracksBuffer();

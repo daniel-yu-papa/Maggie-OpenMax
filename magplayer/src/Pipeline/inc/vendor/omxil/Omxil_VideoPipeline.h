@@ -23,7 +23,7 @@ public:
     virtual _status_t flush(); 
     virtual _status_t reset();
 
-    virtual _status_t pushEsPackets(MediaBuffer_t *buf);
+    virtual _status_t pushEsPackets(MagOmxMediaBuffer_t *buf);
     virtual bool      needData();
     void              setDisplayRect(i32 x, i32 y, i32 w, i32 h);
     bool              isPlaying();
@@ -54,6 +54,16 @@ private:
     MagEventHandle         mVRenStLoadedEvent;
     MagEventGroupHandle    mStLoadedEventGroup;
 
+    MagEventHandle         mVDecStExecutingEvent;
+    MagEventHandle         mVSchStExecutingEvent;
+    MagEventHandle         mVRenStExecutingEvent;
+    MagEventGroupHandle    mStExecutingEventGroup;
+
+    MagEventHandle         mVDecStPauseEvent;
+    MagEventHandle         mVSchStPauseEvent;
+    MagEventHandle         mVRenStPauseEvent;
+    MagEventGroupHandle    mStPauseEventGroup;
+    
     i32 mVSchClockPortIdx;
 
 #ifdef OMXIL_VIDEO_STREAM_DUMP

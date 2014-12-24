@@ -61,7 +61,7 @@ ui32       MagDemuxerBaseImpl::getPlayingTracksID(ui32 *index){
     return mpStreamTrackManager->getPlayingTracksID(index);
 }
 
-_status_t   MagDemuxerBaseImpl::readFrame(ui32 trackIndex, MediaBuffer_t **buffer){
+_status_t   MagDemuxerBaseImpl::readFrame(ui32 trackIndex, MagOmxMediaBuffer_t **buffer){
     if (!mIsPrepared){
         AGILE_LOGE("The demuxer has NOT been started! Quit!");
         return MAG_NO_INIT;
@@ -316,7 +316,7 @@ void MagDemuxerBaseImpl::onPlayerNotify(MagMessageHandle msg){
     i32 idx;
     _status_t res;
     
-    MediaBuffer_t *buf = NULL;
+    MagOmxMediaBuffer_t *buf = NULL;
     MagMessageHandle reply = NULL;
     i32 what;
 

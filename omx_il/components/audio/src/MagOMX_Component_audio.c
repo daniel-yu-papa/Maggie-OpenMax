@@ -24,31 +24,14 @@ static OMX_ERRORTYPE virtual_MagOmxComponentAudio_GetParameter(
     root = ooc_cast(hComponent, MagOmxComponent);
     base = ooc_cast(hComponent, MagOmxComponentImpl);
     thiz = ooc_cast(hComponent, MagOmxComponentAudio);
-
-    switch (nParamIndex){
-        case OMX_IndexConfigTimeRenderingDelay:
-        {   
-            OMX_TIME_CONFIG_RENDERINGDELAYTYPE *output = (OMX_TIME_CONFIG_RENDERINGDELAYTYPE *)pComponentParameterStructure;
-            if (MagOmxComponentImplVirtual(base)->MagOMX_GetRenderDelay){
-                ret = MagOmxComponentImplVirtual(base)->MagOMX_GetRenderDelay(hComponent, &output->nRenderingDelay);
-            }else{
-                COMP_LOGE(root, "The pure virtual function MagOMX_GetRenderDelay() is not overrided!");
-                ret = OMX_ErrorNotImplemented;
-            }
-        }
-            break;
-
-        default:
-        {
-            if (MagOmxComponentAudioVirtual(thiz)->MagOmx_Audio_GetParameter){
-                ret = MagOmxComponentAudioVirtual(thiz)->MagOmx_Audio_GetParameter(hComponent, nParamIndex, pComponentParameterStructure);
-            }else{
-                COMP_LOGE(root, "The pure virtual function MagOmx_Audio_GetParameter() is not overrided!");
-                ret = OMX_ErrorUnsupportedIndex;
-            }
-        }
-            break;
+        
+    if (MagOmxComponentAudioVirtual(thiz)->MagOmx_Audio_GetParameter){
+        ret = MagOmxComponentAudioVirtual(thiz)->MagOmx_Audio_GetParameter(hComponent, nParamIndex, pComponentParameterStructure);
+    }else{
+        COMP_LOGE(root, "The pure virtual function MagOmx_Audio_GetParameter() is not overrided!");
+        ret = OMX_ErrorUnsupportedIndex;
     }
+        
     return ret;
 }
                 

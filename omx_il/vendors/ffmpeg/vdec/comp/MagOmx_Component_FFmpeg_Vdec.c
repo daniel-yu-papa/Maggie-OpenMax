@@ -2,6 +2,7 @@
 #include "MagOmx_Port_FFmpeg_Vdec.h"
 #include "MagOmx_Port_FFmpeg_Vsch.h"
 #include "MagOMX_IL.h"
+#include "MagOmx_Buffer.h"
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
@@ -11,6 +12,9 @@
 #define COMPONENT_NAME "OMX.Mag.vdec.ffmpeg"
 #define START_PORT_INDEX kCompPortStartNumber
 #define PORT_NUMBER      2
+
+#define CAPTURE_ES_FILE_NAME "./video.es"
+#define CAPTURE_DECODED_YUV_FILE_NAME "./vdec.yuv"
 
 AllocateClass(MagOmxComponent_FFmpeg_Vdec, MagOmxComponentVideo);
 
@@ -51,8 +55,10 @@ static OMX_ERRORTYPE localSetupComponent(
 	MagOmxPort_Constructor_Param_t param;
 	MagOmxComponentImpl            vdecCompImpl;
 	MagOmxComponent                vdecComp;
+    MagOmxComponent_FFmpeg_Vdec    thiz;
 
 	AGILE_LOGV("enter!");
+    thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vdec);
 
 	param.portIndex    = START_PORT_INDEX + 0;
 	param.isInput      = OMX_TRUE;
@@ -83,6 +89,19 @@ static OMX_ERRORTYPE localSetupComponent(
 
 	vdecCompImpl->setupPortDataFlow(vdecCompImpl, vdecInPort, vschOutPort);
 
+#ifdef CAPTURE_ES_DATA
+    thiz->mfEsData = fopen(CAPTURE_ES_FILE_NAME,"wb+");
+    if (!thiz->mfEsData){
+        COMP_LOGE(vdecComp, "Failed to open the file: %s", CAPTURE_ES_FILE_NAME);
+    }
+#endif
+
+#ifdef CAPTURE_DECODED_YUV_DATA
+    thiz->mfDecodedYUV = fopen(CAPTURE_DECODED_YUV_FILE_NAME,"wb+");
+    if (!thiz->mfDecodedYUV){
+        COMP_LOGE(vdecComp, "Failed to open the file: %s", CAPTURE_DECODED_YUV_FILE_NAME);
+    }
+#endif
 	return OMX_ErrorNone;
 }
 
@@ -118,7 +137,9 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_Prepare(
 					if (thiz->mpVideoCodec == NULL){
 						AGILE_LOGE("Failed to find the decoder with id: %d", codec_id);
 						return OMX_ErrorUndefined;
-					}
+					}else{
+                        AGILE_LOGD("Found the video decoder with id: %d", codec_id);
+                    }
 				}else{
 					AGILE_LOGE("The VideoCodec has been created! ignore the preparation");
 				}
@@ -217,22 +238,28 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_ProceedBuffer(
                     OMX_IN  OMX_HANDLETYPE hComponent, 
                     OMX_IN  OMX_BUFFERHEADERTYPE *srcbufHeader,
                     OMX_IN  OMX_HANDLETYPE hDestPort){
-	MagOmxPort port;
+	MagOmxComponent root;
+	MagOmxPort destPort;
 	OMX_BUFFERHEADERTYPE *destbufHeader;
 	AVPacket codedPkt;
 	int got_frame;
 	int decodedLen;
 	AVFrame *decodedFrame = NULL;
 	MagOmxComponent_FFmpeg_Vdec vdecComp;
+	MagOmxMediaBuffer_t *pMbuf;
+	int i;
+	void *side_data;
 
 	if (hDestPort == NULL){
 		return OMX_ErrorBadParameter;
 	}
 
+	root = ooc_cast(hComponent, MagOmxComponent);
 	if ((srcbufHeader->pBuffer != NULL) && (srcbufHeader->nFilledLen > 0)){
-		port = ooc_cast(hDestPort, MagOmxPort);
+		destPort = ooc_cast(hDestPort, MagOmxPort);
 	    
 		vdecComp     = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vdec);
+		pMbuf = (MagOmxMediaBuffer_t *)srcbufHeader->pAppPrivate;
 
 		av_init_packet(&codedPkt);
 		codedPkt.data = srcbufHeader->pBuffer;
@@ -240,23 +267,80 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_ProceedBuffer(
 		codedPkt.pts  = srcbufHeader->nTimeStamp;
 		codedPkt.dts  = srcbufHeader->nTimeStamp;
 
+		codedPkt.stream_index = pMbuf->stream_index;
+		codedPkt.flags = ((pMbuf->flag == STREAM_FRAME_FLAG_KEY_FRAME) ? AV_PKT_FLAG_KEY : 0);
+		codedPkt.duration = pMbuf->duration;
+		codedPkt.pos = pMbuf->pos;
+
+		if (pMbuf->side_data_elems){
+			side_data = mag_mallocz(sizeof(*pMbuf->side_data)*pMbuf->side_data_elems);
+			memcpy(side_data, pMbuf->side_data, sizeof(*pMbuf->side_data)*pMbuf->side_data_elems);
+	        codedPkt.side_data = side_data;
+			for (i = 0; i < pMbuf->side_data_elems; i++) {
+				side_data = mag_mallocz(pMbuf->side_data[i].size);
+				memcpy(side_data, pMbuf->side_data[i].data, pMbuf->side_data[i].size);
+		        codedPkt.side_data[i].data = side_data;
+	            codedPkt.side_data[i].size = pMbuf->side_data[i].size;
+	            codedPkt.side_data[i].type = pMbuf->side_data[i].type;
+	        }
+		}
+
+#ifdef CAPTURE_ES_DATA
+        if (vdecComp->mfEsData)
+            fwrite(codedPkt.data, 1, codedPkt.size, vdecComp->mfEsData);
+            fflush(vdecComp->mfEsData);
+#endif
+
+		COMP_LOGV(root, "decode video buffer header %p(%p, %d)(pts:0x%llx, si:%d, flags:%s, dur:%d)!",
+			             srcbufHeader, srcbufHeader->pBuffer, srcbufHeader->nFilledLen,
+			             codedPkt.pts,
+			             codedPkt.stream_index, codedPkt.flags == AV_PKT_FLAG_KEY ? "I" : "P",
+			             codedPkt.duration);
+
 		decodedFrame = av_frame_alloc();
 		decodedLen = avcodec_decode_video2(vdecComp->mpVideoStream->codec, 
 			                               decodedFrame, &got_frame, &codedPkt);
 		
-		if (got_frame && decodedLen > 0){
-			destbufHeader = MagOmxPortVirtual(port)->GetOutputBuffer(port);
+		if (got_frame){
+			destbufHeader = MagOmxPortVirtual(destPort)->GetOutputBuffer(destPort);
 
 			decodedFrame->pts = av_frame_get_best_effort_timestamp(decodedFrame);
 			decodedFrame->sample_aspect_ratio = av_guess_sample_aspect_ratio(vdecComp->mpAVFormat, 
 				                                                             vdecComp->mpVideoStream, 
 				                                                             decodedFrame);
 			destbufHeader->pBuffer = (OMX_U8 *)decodedFrame;
-			if (decodedFrame->pts != AV_NOPTS_VALUE)
-				decodedFrame->pts = av_q2d(vdecComp->mpVideoStream->time_base) * decodedFrame->pts;
+			destbufHeader->nFilledLen = decodedLen;
+			/*if (decodedFrame->pts != AV_NOPTS_VALUE)
+				decodedFrame->pts = av_q2d(vdecComp->mpVideoStream->time_base) * decodedFrame->pts;*/
 			destbufHeader->nTimeStamp = decodedFrame->pts;
-			MagOmxPortVirtual(port)->SendOutputBuffer(port, destbufHeader);
-			AGILE_LOGV("Send src buffer: 0x%x, output buffer: 0x%x", srcbufHeader, destbufHeader);
+
+#ifdef CAPTURE_DECODED_YUV_DATA
+            if (vdecComp->mfDecodedYUV){
+                for (i = 0; i < decodedFrame->height; i++){
+                    fwrite(decodedFrame->data[0] + i * decodedFrame->linesize[0], 
+                           1, decodedFrame->width, 
+                           vdecComp->mfDecodedYUV);
+                }
+
+                for (i = 0; i < decodedFrame->height / 2; i++){
+                    fwrite(decodedFrame->data[1] + i * decodedFrame->linesize[1], 
+                           1, decodedFrame->width / 2, 
+                           vdecComp->mfDecodedYUV);
+                }
+
+                for (i = 0; i < decodedFrame->height / 2; i++){
+                    fwrite(decodedFrame->data[2] + i * decodedFrame->linesize[2], 
+                           1, decodedFrame->width / 2, 
+                           vdecComp->mfDecodedYUV);
+                }
+
+                fflush(vdecComp->mfDecodedYUV);
+            }
+#endif
+			MagOmxPortVirtual(destPort)->sendOutputBuffer(destPort, destbufHeader);
+			COMP_LOGV(root, "Get the video frame (len: %d, pts: 0x%llx, format: %d, pict_type: %d)!", 
+				             decodedLen, decodedFrame->pts,
+                             decodedFrame->format, decodedFrame->pict_type);
 		}
 	}
 
@@ -378,6 +462,13 @@ static OMX_ERRORTYPE MagOmxComponent_FFmpeg_Vdec_DeInit(OMX_IN OMX_HANDLETYPE hC
 
 	AGILE_LOGV("MagOmxComponent_FFmpeg_Vdec_DeInit enter!");
 	hVdecComp = (MagOmxComponent_FFmpeg_Vdec)compType->pComponentPrivate;
+#ifdef CAPTURE_ES_DATA
+    fclose(hVdecComp->mfEsData);
+#endif
+
+#ifdef CAPTURE_DECODED_YUV_DATA
+    fclose(hVdecComp->mfDecodedYUV);
+#endif
 	ooc_delete((Object)hVdecComp);
 
 	return OMX_ErrorNone;

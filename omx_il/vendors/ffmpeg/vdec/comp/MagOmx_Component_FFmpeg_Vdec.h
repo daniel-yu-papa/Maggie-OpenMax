@@ -7,6 +7,9 @@
 #include "libavutil/avutil.h"
 #include "libavcodec/avcodec.h"
 
+// #define CAPTURE_ES_DATA
+// #define CAPTURE_DECODED_YUV_DATA
+
 DeclareClass(MagOmxComponent_FFmpeg_Vdec, MagOmxComponentVideo);
 
 Virtuals(MagOmxComponent_FFmpeg_Vdec, MagOmxComponentVideo) 
@@ -19,7 +22,14 @@ ClassMembers(MagOmxComponent_FFmpeg_Vdec, MagOmxComponentVideo, \
 	AVCodec *mpVideoCodec;
 	AVStream *mpVideoStream;
 	AVFormatContext *mpAVFormat;
-	
+
+#ifdef CAPTURE_ES_DATA
+    FILE *mfEsData;
+#endif
+
+#ifdef CAPTURE_DECODED_YUV_DATA
+    FILE *mfDecodedYUV;
+#endif
 EndOfClassMembers;
 
 #endif

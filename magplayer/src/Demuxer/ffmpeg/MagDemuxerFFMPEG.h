@@ -49,7 +49,7 @@ private:
     bool checkSupportedStreams(AVStream *st);
     ui32 convertCodec_FFMPEGToOMX(enum AVCodecID ffmpegCodec, TrackType_t type);
     enum AVCodecID convertCodec_OMXToFFMPEG(ui32 omxCodec, TrackType_t type);
-    void setMediaBufferFields(MediaBuffer_t *mb, AVPacket *packet, TrackInfo_t* info);
+    void setMediaBufferFields(MagOmxMediaBuffer_t *mb, AVPacket *packet, TrackInfo_t* info);
     _status_t readMore(Stream_Track *track, ui32 StreamID);
 
     _status_t  probe_add_streams();

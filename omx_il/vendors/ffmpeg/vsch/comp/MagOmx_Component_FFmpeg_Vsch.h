@@ -3,8 +3,6 @@
 
 #include "MagOMX_Component_video.h"
 
-#define CAPTURE_YUV_DATA_TO_FILE
-
 DeclareClass(MagOmxComponent_FFmpeg_Vsch, MagOmxComponentVideo);
 
 Virtuals(MagOmxComponent_FFmpeg_Vsch, MagOmxComponentVideo) 
@@ -15,9 +13,6 @@ ClassMembers(MagOmxComponent_FFmpeg_Vsch, MagOmxComponentVideo, \
 	void (*self)(void); \
 )
 
-#ifdef CAPTURE_YUV_DATA_TO_FILE
-	FILE *mfYUVFile;
-#endif
 EndOfClassMembers;
 
 #endif

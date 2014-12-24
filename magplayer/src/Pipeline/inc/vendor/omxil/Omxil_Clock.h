@@ -36,6 +36,12 @@ private:
     MagEventHandle         mClkStLoadedEvent;
     MagEventGroupHandle    mStLoadedEventGroup;
 
+    MagEventHandle         mClkStExecutingEvent;
+    MagEventGroupHandle    mStExecutingEventGroup;
+
+    MagEventHandle         mClkStPauseEvent;
+    MagEventGroupHandle    mStPauseEventGroup;
+    
     static OMX_ERRORTYPE ClockEventHandler(
                                 OMX_HANDLETYPE hComponent,
                                 OMX_PTR pAppData,

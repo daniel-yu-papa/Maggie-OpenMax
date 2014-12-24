@@ -25,30 +25,13 @@ static OMX_ERRORTYPE virtual_MagOmxComponentVideo_GetParameter(
     base = ooc_cast(hComponent, MagOmxComponentImpl);
     thiz = ooc_cast(hComponent, MagOmxComponentVideo);
 
-    switch (nParamIndex){
-        case OMX_IndexConfigTimeRenderingDelay:
-        {   
-            OMX_TIME_CONFIG_RENDERINGDELAYTYPE *output = (OMX_TIME_CONFIG_RENDERINGDELAYTYPE *)pComponentParameterStructure;
-            if (MagOmxComponentImplVirtual(base)->MagOMX_GetRenderDelay){
-                ret = MagOmxComponentImplVirtual(base)->MagOMX_GetRenderDelay(hComponent, &output->nRenderingDelay);
-            }else{
-                COMP_LOGE(root, "The pure virtual function MagOMX_GetRenderDelay() is not overrided!");
-                ret = OMX_ErrorNotImplemented;
-            }
-        }
-            break;
-
-        default:
-        {
-            if (MagOmxComponentVideoVirtual(thiz)->MagOmx_Video_GetParameter){
-                ret = MagOmxComponentVideoVirtual(thiz)->MagOmx_Video_GetParameter(hComponent, nParamIndex, pComponentParameterStructure);
-            }else{
-                COMP_LOGE(root, "The pure virtual function MagOmx_Video_GetParameter() is not overrided!");
-                ret = OMX_ErrorUnsupportedIndex;
-            }
-        }
-            break;
+    if (MagOmxComponentVideoVirtual(thiz)->MagOmx_Video_GetParameter){
+        ret = MagOmxComponentVideoVirtual(thiz)->MagOmx_Video_GetParameter(hComponent, nParamIndex, pComponentParameterStructure);
+    }else{
+        COMP_LOGE(root, "The pure virtual function MagOmx_Video_GetParameter() is not overrided!");
+        ret = OMX_ErrorUnsupportedIndex;
     }
+        
     return ret;
 }
                 

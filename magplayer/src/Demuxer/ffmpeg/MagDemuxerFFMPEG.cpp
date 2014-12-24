@@ -81,8 +81,8 @@ void MagDemuxerFFMPEG::PrintLog_Callback(void* ptr, int level, const char* fmt, 
     static int print_prefix = 1;
     char line[1024];
     
-    if (level > AV_LOG_INFO)
-        return;
+    /*if (level > AV_LOG_INFO)
+        return;*/
     
     av_log_format_line(ptr, level, fmt, vl, line, sizeof(line), &print_prefix);
 
@@ -647,7 +647,7 @@ AVDictionary *MagDemuxerFFMPEG::filter_codec_opts(AVDictionary *opts, enum AVCod
             break;
     }
 
-    while (t = av_dict_get(opts, "", t, AV_DICT_IGNORE_SUFFIX)) {
+    while ((t = av_dict_get(opts, "", t, AV_DICT_IGNORE_SUFFIX))) {
         char *p = strchr(t->key, ':');
 
         /* check stream specification in opt name */
@@ -903,9 +903,10 @@ _status_t  MagDemuxerFFMPEG::flushImpl(){
     return MAG_NO_ERROR;
 }
 
-void MagDemuxerFFMPEG::setMediaBufferFields(MediaBuffer_t *mb, AVPacket *packet, TrackInfo_t* info){
+void MagDemuxerFFMPEG::setMediaBufferFields(MagOmxMediaBuffer_t *mb, AVPacket *packet, TrackInfo_t* info){
     AVRational timeBase;
     AVRational newBase;
+    i32 i;
 
     if (NULL == mb)
         return;
@@ -932,10 +933,41 @@ void MagDemuxerFFMPEG::setMediaBufferFields(MediaBuffer_t *mb, AVPacket *packet,
             mb->flag = STREAM_FRAME_FLAG_KEY_FRAME;
         mb->eosFrame    = 0;
 
-        /*if (TRACK_AUDIO == info->type){
-            AGILE_LOGD("audio PTS = 0x%llx, ffmpeg pts = 0x%llx [%s]", mb->pts, packet->pts, 
-                        mb->flag == STREAM_FRAME_FLAG_KEY_FRAME ? "I" : "P");
-        }*/
+        mb->stream_index = packet->stream_index;
+        mb->duration = packet->duration;
+        mb->pos = packet->pos;
+        mb->side_data_elems = packet->side_data_elems;
+
+        if (packet->side_data_elems){
+            mb->side_data = (MediaSideData_t *)mag_mallocz(sizeof(MediaSideData_t)*packet->side_data_elems);
+            for (i = 0; i < packet->side_data_elems; i++){
+                if (packet->side_data[i].size > 0){
+                    mb->side_data[i].data = mag_mallocz(packet->side_data[i].size);
+                    memcpy(mb->side_data[i].data, packet->side_data[i].data, packet->side_data[i].size);
+                    mb->side_data[i].size = packet->side_data[i].size;
+                    mb->side_data[i].type = (ui32)packet->side_data[i].type;
+                }
+            }
+        }
+
+#if 0
+        if (TRACK_AUDIO == info->type){
+            AGILE_LOGD("[audio] size:%d, pts:0x%llx, duration:%d, pos:%lld, side_data_elems:%d", 
+                        mb->buffer_size,
+                        mb->pts,
+                        mb->duration, 
+                        mb->pos,
+                        mb->side_data_elems);
+        }else if (TRACK_VIDEO == info->type){
+            AGILE_LOGD("[video] size:%d, pts:0x%llx, duration:%d, pos:%lld, side_data_elems:%d [%s]", 
+                        mb->buffer_size,
+                        mb->pts,
+                        mb->duration, 
+                        mb->pos,
+                        mb->side_data_elems,
+                        mb->flag == STREAM_FRAME_FLAG_KEY_FRAME ? "I" : "P/B");
+        }
+#endif
     }else{
         /*this is the generated EOS frame*/
         mb->buffer      = NULL;
@@ -948,7 +980,7 @@ void MagDemuxerFFMPEG::setMediaBufferFields(MediaBuffer_t *mb, AVPacket *packet,
 
 void MagDemuxerFFMPEG::fillMediaBuffer(Stream_Track *track, AVPacket *pPacket){
     _status_t ret;
-    MediaBuffer_t *mb;
+    MagOmxMediaBuffer_t *mb;
     TrackInfo_t* info;
 
     info = track->getInfo();
@@ -970,7 +1002,7 @@ void MagDemuxerFFMPEG::fillMediaBuffer(Stream_Track *track, AVPacket *pPacket){
 _status_t MagDemuxerFFMPEG::readMore(Stream_Track *track, ui32 StreamID){
     AVPacket packet;
     AVPacket *pPacket = &packet;
-    MediaBuffer_t *mb;
+    MagOmxMediaBuffer_t *mb;
     Stream_Track *other_track = NULL;
     i32 res;
     _status_t ret;

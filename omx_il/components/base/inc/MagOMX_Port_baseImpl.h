@@ -15,21 +15,6 @@ enum{
 };
 
 typedef struct{
-    List_t node;        /*add into the List: mBufferList*/
-    List_t runNode;     /*add into the List: mRunningBufferList*/
-
-    /*bufferHeaderOwner: the port owns the buffer header allocation and free
-     *                   NULL: means owned by the OMX IL Client
-     */
-    MagOmxPort bufferHeaderOwner;
-    /*bufferOwner: the port owns the buffer allocation and free
-     *                   NULL: means owned by the OMX IL Client
-     */
-    MagOmxPort bufferOwner;
-    OMX_BUFFERHEADERTYPE  *pOmxBufferHeader;
-}MagOMX_Port_Buffer_t;
-
-typedef struct{
     List_t node;
     MagMessageHandle msg;
 }BufferDispatcherNode_t;
@@ -53,19 +38,20 @@ ClassMembers(MagOmxPortImpl, MagOmxPort, \
     OMX_ERRORTYPE         (*getRunningNode)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE **ppBuffer); \
     OMX_ERRORTYPE         (*putOutputNode)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE* pBuffer);  \
     OMX_ERRORTYPE         (*getOutputNode)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE **ppBuffer, OMX_BOOL block); \
-
+    OMX_ERRORTYPE         (*relayReturnBuffer)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE* pBuffer); \
+    void                  (*resetBuffer)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE* pBuffer); \
 )
     MagMutexHandle         mhMutex;
 
-    /*list all buffer headers*/
+    /*Link all buffer headers*/
     List_t                 mBufferList;
-    /*list the buffer headers that are ready to be sent out to tunneled port*/
+    /*Link the buffer headers that are ready to be sent out to tunneled port*/
     List_t                 mRunningBufferList;
-    /*list the buffer headers that are ready for the ports data transferring inside the component */
+    /*Link the buffer headers that are ready for the ports data transferring inside the component */
     List_t                 mOutputBufferList;
 
-    OMX_U32                mBuffersTotal;
-    OMX_U32                mFreeBuffersNum;
+    OMX_S32                mBuffersTotal;
+    OMX_S32                mFreeBuffersNum;
 
     MagEventHandle         mAllBufReturnedEvent;
     MagEventGroupHandle    mBufferEventGroup;
@@ -94,6 +80,10 @@ ClassMembers(MagOmxPortImpl, MagOmxPort, \
     OMX_HANDLETYPE         mTunneledComponent;
     OMX_U32                mTunneledPortIndex;
     List_t                 mBufDispatcherList;
+
+    List_t                 mPendingReturnBufListH;
+    List_t                 mFreePendingBufListH;
+    MagMutexHandle         mhRtnBufListMutex;
 
 EndOfClassMembers;
 

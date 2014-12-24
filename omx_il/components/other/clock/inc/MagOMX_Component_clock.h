@@ -6,6 +6,7 @@
 
 #define MAX_CLOCK_PORT_NUMBER 8
 
+#define CONVERT_TO_MICROSECONDS(x) ((x * 1000) / 90)  /*convert 90K pts to the timebase in us*/
 enum{
     MagOmxComponentClock_CmdStartTimeMsg = 0,
     MagOmxComponentClock_CmdMTimeRequestMsg
@@ -31,7 +32,7 @@ Virtuals(MagOmxComponentClock, MagOmxComponentImpl)
                     OMX_OUT OMX_TICKS* pFinalStartTime);
 
     /*get the time offset value[us] between clock component fulfills request and 
-      Clock Client start to do Requested fulfillment
+      Clock Client start to do Requested fulfillment. in microseconds
       */
     OMX_ERRORTYPE (*MagOMX_Clock_GetOffset)(
     				OMX_IN  OMX_HANDLETYPE hComponent,

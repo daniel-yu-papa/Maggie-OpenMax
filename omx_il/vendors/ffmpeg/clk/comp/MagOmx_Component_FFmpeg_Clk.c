@@ -117,14 +117,16 @@ static OMX_ERRORTYPE virtual_Clock_DecideStartTime(
 	OMX_TICKS startTime = -1;
 
 	do{
-		if ((startTimeMap & (1 << i)) == (1 << i)){
-			if ((startTime == -1) || (startTime < pStartTimeList[i])){
+		if ( (startTimeMap & (1 << i)) ){
+            /*get the smallest time value as the playback kick-off time*/
+			if ((startTime == -1) || (startTime > pStartTimeList[i])){
 				startTime = pStartTimeList[i];
 			}
+            startTimeMap &= ~(1 << i);
 		}
-		startTimeMap = startTimeMap & ~(1 << i);
 		i++;
 	}while(startTimeMap);
+
 	*pFinalStartTime = startTime;
 
 	if (startTime == -1){

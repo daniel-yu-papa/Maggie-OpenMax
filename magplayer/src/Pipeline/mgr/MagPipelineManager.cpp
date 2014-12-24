@@ -112,7 +112,7 @@ _status_t MagPipelineManager::setup(){
     MagVideoPipeline *pVideoPipeline;
 
     AGILE_LOGV("Enter!");
-    
+
     mpClockComp->setup();
 
     next = mVideoPipelineHead.next;
@@ -152,7 +152,7 @@ _status_t MagPipelineManager::start(){
         	AGILE_LOGE("failed to start the video pipeline[%p]", video);
         	return ret;
         }
-        next = mVideoPipelineHead.next;
+        next = next->next;
     }
 
     next = mAudioPipelineHead.next;
@@ -164,7 +164,7 @@ _status_t MagPipelineManager::start(){
         	AGILE_LOGE("failed to start the audio pipeline[%p]", audio);
         	return ret;
         }
-        next = mAudioPipelineHead.next;
+        next = next->next;
     }
 
     return MAG_NO_ERROR;
@@ -186,7 +186,7 @@ _status_t MagPipelineManager::stop(){
         	AGILE_LOGE("failed to stop the video pipeline[%p]", video);
         	return ret;
         }
-        next = mVideoPipelineHead.next;
+        next = next->next;
     }
 
     next = mAudioPipelineHead.next;
@@ -198,7 +198,7 @@ _status_t MagPipelineManager::stop(){
         	AGILE_LOGE("failed to stop the audio pipeline[%p]", audio);
         	return ret;
         }
-        next = mAudioPipelineHead.next;
+        next = next->next;
     }
 
     mpClockComp->stop();
@@ -226,7 +226,7 @@ _status_t MagPipelineManager::pause(ui8 flag){
 	        	AGILE_LOGE("failed to pause the video pipeline[%p]", video);
 	        	return ret;
 	        }
-	        next = mVideoPipelineHead.next;
+	        next = next->next;
 	    }
 
 	    next = mAudioPipelineHead.next;
@@ -238,7 +238,7 @@ _status_t MagPipelineManager::pause(ui8 flag){
 	        	AGILE_LOGE("failed to pause the audio pipeline[%p]", audio);
 	        	return ret;
 	        }
-	        next = mAudioPipelineHead.next;
+	        next = next->next;
 	    }
 	}
     return MAG_NO_ERROR;
@@ -262,7 +262,7 @@ _status_t MagPipelineManager::resume(){
         	AGILE_LOGE("failed to resume the video pipeline[%p]", video);
         	return ret;
         }
-        next = mVideoPipelineHead.next;
+        next = next->next;
     }
 
     next = mAudioPipelineHead.next;
@@ -274,7 +274,7 @@ _status_t MagPipelineManager::resume(){
         	AGILE_LOGE("failed to resume the audio pipeline[%p]", audio);
         	return ret;
         }
-        next = mAudioPipelineHead.next;
+        next = next->next;
     }
     return MAG_NO_ERROR;
 }
@@ -297,7 +297,7 @@ _status_t MagPipelineManager::flush(){
         	AGILE_LOGE("failed to flush the video pipeline[%p]", video);
         	return ret;
         }
-        next = mVideoPipelineHead.next;
+        next = next->next;
     }
 
     next = mAudioPipelineHead.next;
@@ -309,7 +309,7 @@ _status_t MagPipelineManager::flush(){
         	AGILE_LOGE("failed to flush the audio pipeline[%p]", audio);
         	return ret;
         }
-        next = mAudioPipelineHead.next;
+        next = next->next;
     }
     return MAG_NO_ERROR;
 }
@@ -331,7 +331,7 @@ _status_t MagPipelineManager::reset(){
         	AGILE_LOGE("failed to reset the video pipeline[%p]", video);
         	return ret;
         }
-        next = mVideoPipelineHead.next;
+        next = next->next;
     }
 
     next = mAudioPipelineHead.next;
@@ -344,7 +344,7 @@ _status_t MagPipelineManager::reset(){
         	AGILE_LOGE("failed to reset the audio pipeline[%p]", audio);
         	return ret;
         }
-        next = mAudioPipelineHead.next;
+        next = next->next;
     }
 
     mpClockComp->reset();

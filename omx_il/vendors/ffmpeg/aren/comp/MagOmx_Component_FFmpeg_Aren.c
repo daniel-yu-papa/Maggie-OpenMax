@@ -64,6 +64,8 @@ static OMX_ERRORTYPE localSetupComponent(
 	arenCompImpl->addPort(arenCompImpl, START_PORT_INDEX + 0, arenInPort);
 	arenCompImpl->addPort(arenCompImpl, START_PORT_INDEX + 1, clkInPort);
 
+	arenCompImpl->setupPortDataFlow(arenCompImpl, arenInPort, NULL);
+
 	return OMX_ErrorNone;
 }
 
@@ -145,21 +147,18 @@ static OMX_ERRORTYPE virtual_FFmpeg_Aren_ProceedBuffer(
 	OMX_TICKS timeStamp;
 	MagOmxComponentImpl         arenCompImpl;
 
-	if (hDestPort == NULL){
-		return OMX_ErrorBadParameter;
-	}
-
 	if ((srcbufHeader->pBuffer != NULL) && (srcbufHeader->nFilledLen > 0)){
 		arenCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
 
 		decodedFrame = (AVFrame *)srcbufHeader->pBuffer;
 		timeStamp    = srcbufHeader->nTimeStamp;
-		AGILE_LOGV("Put decoded Audio Frame: %p, time stamp: %lld to AVSync", decodedFrame, timeStamp);
+		AGILE_LOGV("Put decoded Audio Frame: %p, time stamp: 0x%llx, len: %d to AVSync", 
+			        decodedFrame, timeStamp, srcbufHeader->nFilledLen);
 
 		arenCompImpl->syncDisplay(arenCompImpl, srcbufHeader);
 	}
 
-	return OMX_ErrorNone;
+	return OMX_ErrorNotReady;
 }
 
 static OMX_ERRORTYPE  virtual_FFmpeg_Aren_DoAVSync(
@@ -173,6 +172,7 @@ static OMX_ERRORTYPE  virtual_FFmpeg_Aren_DoAVSync(
 	AVFrame                     *decodedFrame;
 	OMX_TICKS                   timeStamp;
 	int                         data_size;
+    MagOMX_AVSync_Action_t      action;
 
 	thiz         = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Aren);
 	arenCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
@@ -183,29 +183,41 @@ static OMX_ERRORTYPE  virtual_FFmpeg_Aren_DoAVSync(
 		return ret;
 	}
 	decodedFrame = (AVFrame *)getBuffer->pBuffer;
+    action       = (MagOMX_AVSync_Action_t)mediaTime->nClientPrivate;
 	timeStamp    = getBuffer->nTimeStamp;
 
 	data_size = av_samples_get_buffer_size(NULL, av_frame_get_channels(decodedFrame),
                                                    decodedFrame->nb_samples,
                                                    decodedFrame->format, 1);
-	AGILE_LOGV("Release decoded Audio Frame: %p[size: %d], time stamp: %lld to playback", 
-		        decodedFrame, data_size, timeStamp);
+	AGILE_LOGV("Release decoded Audio Frame: %p[size: %d], time stamp: 0x%llx to playback[%s]", 
+		        decodedFrame, data_size, timeStamp, action == AVSYNC_PLAY ? "play" : "drop");
 
 #ifdef CAPTURE_PCM_DATA_TO_FILE
 	fwrite(decodedFrame->data[0], 1, data_size, thiz->mfPCMFile);
+    fflush(thiz->mfPCMFile);
 #endif
 
-	/*if (getBuffer->pInputPortPrivate && getBuffer->nInputPortIndex != kInvalidPortIndex){
-		hPort = ooc_cast(getBuffer->pInputPortPrivate, MagOmxPort);
-	}else if(getBuffer->pOutputPortPrivate && getBuffer->nOutputPortIndex != kInvalidPortIndex){
-		hPort = ooc_cast(getBuffer->pOutputPortPrivate, MagOmxPort);
-	}else{
-		AGILE_LOGE("No port is found in buffer header: %p!", getBuffer);
-		return OMX_ErrorUndefined;
-	}
+	arenCompImpl->sendReturnBuffer(arenCompImpl, getBuffer);
 
-	MagOmxPortVirtual(hPort)->SendOutputBuffer(hPort, getBuffer);*/
 	return OMX_ErrorNone;
+}
+
+static OMX_ERRORTYPE  virtual_FFmpeg_Aren_GetClockActionOffset(
+                    OMX_IN OMX_HANDLETYPE hComponent,
+                    OMX_OUT OMX_TICKS *pClockOffset){
+    /*in us*/
+	*pClockOffset = 3000;
+
+	return OMX_ErrorNone;
+}
+
+static OMX_ERRORTYPE  virtual_FFmpeg_Aren_GetRenderDelay(
+                    OMX_IN OMX_HANDLETYPE hComponent,
+                    OMX_OUT OMX_TICKS *pRenderDelay){
+    /*in us*/
+    *pRenderDelay = 3000;
+
+    return OMX_ErrorNone;
 }
 
 /*Class Constructor/Destructor*/
@@ -225,6 +237,8 @@ static void MagOmxComponent_FFmpeg_Aren_initialize(Class this){
     MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_ComponentRoleEnum = virtual_FFmpeg_Aren_ComponentRoleEnum;
     MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_ProceedBuffer     = virtual_FFmpeg_Aren_ProceedBuffer;
     MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_DoAVSync          = virtual_FFmpeg_Aren_DoAVSync;
+    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_GetClockActionOffset = virtual_FFmpeg_Aren_GetClockActionOffset;
+    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_GetRenderDelay = virtual_FFmpeg_Aren_GetRenderDelay;
 }
 
 static void MagOmxComponent_FFmpeg_Aren_constructor(MagOmxComponent_FFmpeg_Aren thiz, const void *params){

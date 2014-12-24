@@ -1,5 +1,7 @@
 #include "MagOmx_Port_FFmpeg_Vsch.h"
 
+#include "libavutil/frame.h"
+
 #ifdef MODULE_TAG
 #undef MODULE_TAG
 #endif          
@@ -24,7 +26,18 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vsch_FreeBuffer(OMX_HANDLETYPE port, OMX_U8 
 }
 
 static OMX_ERRORTYPE virtual_FFmpeg_Vsch_ProceedReturnedBuffer(OMX_HANDLETYPE port, OMX_BUFFERHEADERTYPE* pBufHeader){
-	AGILE_LOGD("[invalid action]proceed buffer header: 0x%x", pBufHeader);
+	AVFrame *frame;
+
+	AGILE_LOGD("proceed buffer header: 0x%x", pBufHeader);
+	if (pBufHeader == NULL){
+		AGILE_LOGE("wrong pBufHeader is NULL!");
+		return OMX_ErrorBadParameter;
+	}
+
+	/*release the used video frame buffer*/
+	frame = (AVFrame *)pBufHeader->pBuffer;
+	av_frame_unref(frame);
+
 	return OMX_ErrorNone;
 }
 

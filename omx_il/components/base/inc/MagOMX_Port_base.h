@@ -36,6 +36,13 @@ typedef enum{
   kPort_State_Flushing
 }MagOmxPort_State_t;
 
+typedef struct{
+    List_t node;
+    OMX_BUFFERHEADERTYPE* pBuffer;
+    MagMessageHandle msg;
+    OMX_PTR priv;
+}MagOMX_Pending_Buffer_Node_t;
+
 DeclareClass(MagOmxPort, Base);
 
 Virtuals(MagOmxPort, Base) 
@@ -112,9 +119,6 @@ Virtuals(MagOmxPort, Base)
     /*Get the output buffer that holds the generated data from the Component*/
     OMX_BUFFERHEADERTYPE* (*GetOutputBuffer)(OMX_HANDLETYPE hPort);
 
-    /*Attach the input buffer header to the output message and post it*/
-    OMX_ERRORTYPE (*SendOutputBuffer)(OMX_HANDLETYPE hPort, OMX_BUFFERHEADERTYPE* pBufHeader);
-
     /*Get the port domain tpye*/
     OMX_PORTDOMAINTYPE (*GetDomainType)(OMX_HANDLETYPE hPort);
 
@@ -125,10 +129,28 @@ Virtuals(MagOmxPort, Base)
     OMX_ERRORTYPE (*GetPortSpecificDef)(OMX_HANDLETYPE hPort, void *pFormat);
 
     /*Set port parameters*/
-    OMX_ERRORTYPE (*SetParameter)(OMX_HANDLETYPE hPort, OMX_INDEXTYPE nIndex, OMX_PTR pPortParam);
+    OMX_ERRORTYPE (*SetParameter)(OMX_HANDLETYPE hPort, 
+                                  OMX_INDEXTYPE nIndex, 
+                                  OMX_PTR pPortParam);
 
     /*Get port parameters*/
-    OMX_ERRORTYPE (*GetParameter)(OMX_HANDLETYPE hPort, OMX_INDEXTYPE nIndex, OMX_PTR pPortParam);
+    OMX_ERRORTYPE (*GetParameter)(OMX_HANDLETYPE hPort, 
+                                  OMX_INDEXTYPE nIndex, 
+                                  OMX_PTR pPortParam);
+
+    /*put the buffer into the return list and wait for really returning at certain time*/
+    OMX_ERRORTYPE (*putReturnBuffer)(OMX_HANDLETYPE hPort, 
+                                     OMX_BUFFERHEADERTYPE* pBuffer, 
+                                     MagMessageHandle msg, 
+                                     OMX_PTR priv);
+
+    /*send back the buffer to the source port*/
+    OMX_ERRORTYPE (*sendReturnBuffer)(OMX_HANDLETYPE hPort, 
+                                      OMX_BUFFERHEADERTYPE* pBuffer);
+
+    /*send out the buffer to the destinate port*/
+    OMX_ERRORTYPE (*sendOutputBuffer)(OMX_HANDLETYPE hPort, 
+                                      OMX_BUFFERHEADERTYPE* pBuffer);
 EndOfVirtuals;
 
 
@@ -185,6 +207,42 @@ ClassMembers(MagOmxPort, Base, \
     OMX_U8                       mPortName[32];
 
 EndOfClassMembers;
+
+typedef struct{
+    List_t node;
+    MagOmxPort hPort; 
+}MagOmx_Port_Node_t;
+
+typedef struct{
+    List_t node;        /*add into the List: mBufferList*/
+    List_t runNode;     /*add into the List: mRunningBufferList*/
+
+    /*bufferHeaderOwner: the port owns the buffer header allocation and free
+     *                   NULL: means owned by the OMX IL Client
+     */
+    MagOmxPort bufferHeaderOwner;
+    /*bufferOwner: the port owns the buffer allocation and free
+     *                   NULL: means owned by the OMX IL Client
+     */
+    MagOmxPort bufferOwner;
+    /*
+     *returnBufPortListH: the head of the list linking all port nodes[MagOmx_Port_Node_t] 
+     *                    where the buffer header need to be returned back.
+     */
+    List_t returnBufPortListH; 
+    /*
+     *outputBufPortListH: the head of the list linking all port nodes[MagOmx_Port_Node_t] 
+     *                    where the buffer header need to be transmitted to.
+     */
+    List_t outputBufPortListH;
+    /*
+     *freeBufPortListH: the head of the list linking all free port nodes[MagOmx_Port_Node_t] 
+     *                  The purpose is to reduce the malloc and free overhead.
+     */
+    List_t freeBufPortListH;
+
+    OMX_BUFFERHEADERTYPE  *pOmxBufferHeader;
+}MagOMX_Port_Buffer_t;
 
 static inline void PortLogPriv(MagOmxPort hPort, 
                                int lvl, 

@@ -12,7 +12,7 @@
 
 #define MAX_TRACK_NUMBER 64
 
-_status_t releaseMediaBuffer(MediaBuffer_t *mb){
+_status_t releaseMediaBuffer(MagOmxMediaBuffer_t *mb){
     Stream_Track *strack = static_cast<Stream_Track *>(mb->track_obj);
     _status_t ret;
 
@@ -96,7 +96,7 @@ _status_t Stream_Track::stop(){
 
     Mag_AcquireMutex(mMutex);
     {
-        MediaBuffer_t* item;
+        MagOmxMediaBuffer_t* item;
         do{
             item = dequeueFrame(false);
             if (item != NULL){         
@@ -138,9 +138,9 @@ TrackInfo_t* Stream_Track::getInfo(){
 }
 
 
-MediaBuffer_t* Stream_Track::dequeueFrame(bool lock){
+MagOmxMediaBuffer_t* Stream_Track::dequeueFrame(bool lock){
     List_t *next;
-    MediaBuffer_t *item = NULL;
+    MagOmxMediaBuffer_t *item = NULL;
     
     if (lock)
         Mag_AcquireMutex(mMutex);
@@ -148,7 +148,7 @@ MediaBuffer_t* Stream_Track::dequeueFrame(bool lock){
     if (mIsRunning){
         next = mMBufBusyListHead.next;
         if (next != &mMBufBusyListHead){
-            item = (MediaBuffer_t *)list_entry(next, MediaBuffer_t, node);
+            item = (MagOmxMediaBuffer_t *)list_entry(next, MagOmxMediaBuffer_t, node);
             list_del(next);
             mStartPTS = item->pts;
             mFrameNum--;
@@ -239,7 +239,7 @@ ui32  Stream_Track::doFrameStat(ui32 frame_size){
     return total_size;
 }
 
-_status_t     Stream_Track::enqueueFrame(MediaBuffer_t *mb){
+_status_t     Stream_Track::enqueueFrame(MagOmxMediaBuffer_t *mb){
     void *buf;
     _status_t ret = MAG_NO_ERROR;
     MagErr_t err;
@@ -287,18 +287,18 @@ _status_t     Stream_Track::enqueueFrame(MediaBuffer_t *mb){
     return ret;
 }
 
-MediaBuffer_t *Stream_Track::getMediaBuffer(){
+MagOmxMediaBuffer_t *Stream_Track::getMediaBuffer(){
     List_t *next = NULL;
-    MediaBuffer_t *item = NULL;
+    MagOmxMediaBuffer_t *item = NULL;
 
     Mag_AcquireMutex(mMutex);
     if (mIsRunning){
         next = mMBufFreeListHead.next;
         if (next != &mMBufFreeListHead){
-            item = (MediaBuffer_t *)list_entry(next, MediaBuffer_t, node);
+            item = (MagOmxMediaBuffer_t *)list_entry(next, MagOmxMediaBuffer_t, node);
             list_del(next);
         }else{
-            item = (MediaBuffer_t *)mag_mallocz(sizeof(MediaBuffer_t));
+            item = (MagOmxMediaBuffer_t *)mag_mallocz(sizeof(MagOmxMediaBuffer_t));
             if (NULL != item){
                 INIT_LIST(&item->node);
                 item->track_obj = static_cast<void *>(this);
@@ -311,10 +311,19 @@ MediaBuffer_t *Stream_Track::getMediaBuffer(){
     return item;
 }
 
-_status_t Stream_Track::putMediaBuffer(List_t *list_head, MediaBuffer_t *mb){
+_status_t Stream_Track::putMediaBuffer(List_t *list_head, MagOmxMediaBuffer_t *mb){
     _status_t ret = MAG_NO_ERROR;
-    
+    i32 i;
+
     if ((mb != NULL) && (list_head != NULL)){
+        if (mb->side_data_elems > 0){
+            for (i = 0; i < mb->side_data_elems; i++){
+                mag_freep((void **)&mb->side_data[i].data);
+                mb->side_data[i].size = 0;
+            }
+            mag_freep((void **)&mb->side_data);
+            mb->side_data_elems = 0;
+        }
         list_add_tail(&mb->node, list_head);
     }else{
         ret = MAG_BAD_VALUE;
@@ -322,7 +331,7 @@ _status_t Stream_Track::putMediaBuffer(List_t *list_head, MediaBuffer_t *mb){
     return ret;
 }
 
-_status_t     Stream_Track::releaseFrame(MediaBuffer_t *mb){
+_status_t     Stream_Track::releaseFrame(MagOmxMediaBuffer_t *mb){
     if (NULL != mb){
         magMemPoolPutBuffer(mBufPoolHandle, mb->buffer);
         putMediaBuffer(&mMBufFreeListHead, mb);
@@ -694,13 +703,13 @@ bool Stream_Track_Manager::interruptReading(){
     return mAbortReading;
 }
 
-_status_t   Stream_Track_Manager::readFrame(ui32 trackIndex, MediaBuffer_t **buffer){
+_status_t   Stream_Track_Manager::readFrame(ui32 trackIndex, MagOmxMediaBuffer_t **buffer){
     return readFrameFromQueue(trackIndex, buffer);
 }
 
-_status_t   Stream_Track_Manager::readFrameFromQueue(ui32 trackIndex, MediaBuffer_t **buffer){
+_status_t   Stream_Track_Manager::readFrameFromQueue(ui32 trackIndex, MagOmxMediaBuffer_t **buffer){
     Stream_Track *track;
-    MediaBuffer_t* mb = NULL;
+    MagOmxMediaBuffer_t* mb = NULL;
     _status_t ret = MAG_NO_ERROR;
     TrackInfo_t *ti;
 

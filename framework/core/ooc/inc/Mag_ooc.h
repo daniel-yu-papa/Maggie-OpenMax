@@ -246,7 +246,7 @@ struct ClassTable
 	static void   pClass ## _constructor( pClass, const void * );     \
 	static void   pClass ## _destructor ( pClass, pClass ## Vtable ); \
 																      \
-	static struct pClass ## Vtable_stru pClass ## VtableInstance={0}; \
+	static struct pClass ## Vtable_stru pClass ## VtableInstance;     \
 															\
 	ROM_ALLOC												\
 	struct ClassTable pClass ## Class = {					\

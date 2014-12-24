@@ -136,7 +136,7 @@ static void onBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
     OMX_BOOL isFlushing = OMX_FALSE;
 
     OMX_HANDLETYPE hDestPort = NULL;
-    MagOmxPort destPort = NULL;
+    OMX_HANDLETYPE hSrcPort  = NULL;
     MagMessageHandle outputBufMsg = NULL;
     
     base = getBase(priv);
@@ -155,12 +155,18 @@ static void onBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
         if (!msg->findPointer(msg, "buffer_header", (void **)&srcBufHeader)){
             COMP_LOGE(root, "[msg]: failed to find the buffer_header!");
             return;
+        }else{
+            COMP_LOGE(root, "[msg]: get the buffer: %p!", srcBufHeader->pBuffer);
         }
 
         if (!msg->findPointer(msg, "destination_port", (void **)&hDestPort)){
             COMP_LOGE(root, "failed to find the destination_port! The component might not have the output port");
-        }else{
-            destPort =  ooc_cast(hDestPort, MagOmxPort);
+            return;
+        }
+
+        if (!msg->findPointer(msg, "source_port", (void **)&hSrcPort)){
+            COMP_LOGE(root, "failed to find the source_port! The component might not have the return port");
+            return;
         }
 
         if (base->mFlushingPorts != kInvalidPortIndex){
@@ -174,11 +180,22 @@ static void onBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
 
         if (MagOmxComponentImplVirtual(base)->MagOMX_ProceedBuffer){
             if (!isFlushing){
+                /*if (hDestPort){
+                    base->putOutputBuffer(base, hDestPort, srcBufHeader);
+                }*/
+
+                /*do not return back the buffer at current moment*/
+                if (msg->findMessage(msg, "return_buf_msg", &returnBufMsg)){
+                    base->putReturnBuffer(base, hSrcPort, srcBufHeader, returnBufMsg, priv);
+                }else{
+                    COMP_LOGE(root, "failed to find the return_buf_msg!");
+                }
+
                 ret = MagOmxComponentImplVirtual(base)->MagOMX_ProceedBuffer(base, 
                                                                              srcBufHeader,
                                                                              hDestPort);
-
-                /*if (destPort){
+                
+                /*if (hDestPort){
                     outputBufMsg = MagOmxPortVirtual(destPort)->GetOutputBufferMsg(hDestPort);
                     if (outputBufMsg){
                         if (!outputBufMsg->findPointer(outputBufMsg, "buffer_header", (void **)&destBufHeader)){
@@ -200,20 +217,22 @@ static void onBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
             }
 
             if (ret == OMX_ErrorNone){
+                /*return back the buffer immediately*/
+                base->sendReturnBuffer(base, srcBufHeader);
+            }
+            #if 0
+                /*return back the buffer immediately*/
                 if (msg->findMessage(msg, "return_buf_msg", &returnBufMsg)){
                     returnBufMsg->setPointer(returnBufMsg, "buffer_header", srcBufHeader, MAG_FALSE);
                     returnBufMsg->setPointer(returnBufMsg, "component_obj", priv, MAG_FALSE);
                     returnBufMsg->postMessage(returnBufMsg, 0);
                 }else{
-                    COMP_LOGE(root, "failed to find the return_buf_msg!");
+                    COMP_LOGE(root, "[2]failed to find the return_buf_msg!");
                 }
-            }else{
-                COMP_LOGE(root, "Failed to do MagOMX_ProceedBuffer(), ret = 0x%x", ret);
-            }
+            #endif
         }else{
             COMP_LOGE(root, "pure virtual func: MagOMX_ProceedBuffer() is not overrided!!");
         }
-
     }else{
         COMP_LOGE(root, "Wrong commands(%d)!", cmd);
     }
@@ -306,7 +325,9 @@ static OMX_ERRORTYPE doStateIdle_Loaded(OMX_IN OMX_HANDLETYPE hComponent){
     else{
         COMP_LOGE(root, "pure virtual func: MagOMX_Reset() is not overrided!!");
         return OMX_ErrorNotImplemented;
-    }   
+    } 
+
+    return OMX_ErrorNone;  
 }
 
 static OMX_ERRORTYPE doStateIdle_Executing(OMX_IN OMX_HANDLETYPE hComponent){
@@ -337,10 +358,13 @@ static OMX_ERRORTYPE doStateIdle_Executing(OMX_IN OMX_HANDLETYPE hComponent){
                 }
             }
         }
+        base->mbGetStartTime = OMX_FALSE;
     }else{
         COMP_LOGE(root, "pure virtual func: MagOMX_Start() is not overrided!!");
         return OMX_ErrorNotImplemented;
-    }   
+    }  
+
+    return OMX_ErrorNone;
 }
 
 static OMX_ERRORTYPE doStateIdle_Pause(OMX_IN OMX_HANDLETYPE hComponent){
@@ -372,6 +396,8 @@ static OMX_ERRORTYPE doStateIdle_Pause(OMX_IN OMX_HANDLETYPE hComponent){
         COMP_LOGE(root, "pure virtual func: MagOMX_Preroll() is not overrided!!");
         return OMX_ErrorNotImplemented;
     }   
+
+    return OMX_ErrorNone;
 }
 
 static OMX_ERRORTYPE doStateExecuting_Idle(OMX_IN OMX_HANDLETYPE hComponent){
@@ -401,7 +427,9 @@ static OMX_ERRORTYPE doStateExecuting_Idle(OMX_IN OMX_HANDLETYPE hComponent){
     }else{
         COMP_LOGE(root, "pure virtual func: MagOMX_Stop() is not overrided!!");
         return OMX_ErrorNotImplemented;
-    }   
+    }  
+
+    return OMX_ErrorNone; 
 }
 
 static OMX_ERRORTYPE doStateExecuting_Pause(OMX_IN OMX_HANDLETYPE hComponent){
@@ -430,7 +458,9 @@ static OMX_ERRORTYPE doStateExecuting_Pause(OMX_IN OMX_HANDLETYPE hComponent){
     }else{
         COMP_LOGE(root, "pure virtual func: MagOMX_Pause() is not overrided!!");
         return OMX_ErrorNotImplemented;
-    }   
+    }  
+
+    return OMX_ErrorNone; 
 }
 
 static OMX_ERRORTYPE doStatePause_Idle(OMX_IN OMX_HANDLETYPE hComponent){
@@ -472,6 +502,8 @@ static OMX_ERRORTYPE doStatePause_Idle(OMX_IN OMX_HANDLETYPE hComponent){
         COMP_LOGE(root, "pure virtual func: MagOMX_Stop() is not overrided!!");
         return OMX_ErrorNotImplemented;
     } 
+
+    return OMX_ErrorNone;
 }
 
 static OMX_ERRORTYPE doStatePause_Executing(OMX_IN OMX_HANDLETYPE hComponent){
@@ -501,6 +533,8 @@ static OMX_ERRORTYPE doStatePause_Executing(OMX_IN OMX_HANDLETYPE hComponent){
         COMP_LOGE(root, "pure virtual func: MagOMX_Resume() is not overrided!!");
         return OMX_ErrorNotImplemented;
     } 
+
+    return OMX_ErrorNone;
 }
 
 static OMX_ERRORTYPE doStateWaitforResources_Loaded(OMX_IN OMX_HANDLETYPE hComponent){
@@ -742,6 +776,11 @@ static OMX_ERRORTYPE MagOMX_SetParameter_internal(
             OMX_ERRORTYPE ret = OMX_ErrorNone;
 
             if (mt->eUpdateType == OMX_TIME_UpdateClockStateChanged){
+                if (mt->eState == OMX_TIME_ClockStateRunning){
+                    COMP_LOGD(root, "Get clock state to running notification!");
+                    Mag_SetEvent(base->mClkStartRunningEvt);
+                }
+
                 if (MagOmxComponentImplVirtual(base)->MagOMX_SetAVSyncStatus){
                     ret = MagOmxComponentImplVirtual(base)->MagOMX_SetAVSyncStatus(base, 
                                                                                    OMX_TIME_UpdateClockStateChanged, 
@@ -750,8 +789,8 @@ static OMX_ERRORTYPE MagOMX_SetParameter_internal(
                         COMP_LOGE(root, "Failed to do MagOMX_SetAVSyncStatus(OMX_TIME_UpdateClockStateChanged), ret = 0x%x", ret);
                     }
                 }else{
-                    ret = OMX_ErrorUndefined;
-                    COMP_LOGE(root, "pure virtual func: MagOMX_SetAVSyncStatus() is not overrided!!");
+                    /*ret = OMX_ErrorUndefined;*/
+                    COMP_LOGD(root, "No MagOMX_SetAVSyncStatus() need to be executed!");
                 }
             }else if (mt->eUpdateType == OMX_TIME_UpdateRequestFulfillment){
                 if (MagOmxComponentImplVirtual(base)->MagOMX_DoAVSync){
@@ -2135,6 +2174,7 @@ static OMX_ERRORTYPE MagOmxComponentImpl_setupPortDataFlow(
         }
         
         if (msg){
+            msg->setPointer(msg, "source_port", hSrcPort, MAG_FALSE);
             msg->setPointer(msg, "destination_port", hDestPort, MAG_FALSE);
             err = MagOmxPortVirtual(srcPort)->RegisterBufferHandler(hSrcPort, msg);
             if (err != OMX_ErrorNone){
@@ -2194,8 +2234,27 @@ static OMX_ERRORTYPE MagOmxComponentImpl_syncDisplay(
 
     if (hComponent->mhClockPort){
         OMX_TIME_CONFIG_MEDIATIMEREQUESTTYPE mtrt;
+        OMX_TIME_CONFIG_TIMESTAMPTYPE        startTime;
         OMX_TICKS offset = 0;
         MagOmxPort portRoot = NULL;
+
+        portRoot = ooc_cast(hComponent->mhClockPort, MagOmxPort);
+
+        if (!hComponent->mbGetStartTime){
+            initHeader(&startTime, sizeof(OMX_TIME_CONFIG_TIMESTAMPTYPE));
+            startTime.nPortIndex = portRoot->getPortIndex(portRoot);
+            startTime.nTimestamp = bufHeader->nTimeStamp;
+            MagOmxPortVirtual(portRoot)->SetParameter(portRoot, 
+                                                      OMX_IndexConfigTimeClientStartTime, 
+                                                      &startTime);
+            hComponent->mbGetStartTime = OMX_TRUE;
+
+            /*wait on the clock component state transition to Running*/
+            COMP_LOGD(getRoot(hComponent), "wait on the clock component state to Running");
+            Mag_ClearEvent(hComponent->mClkStartRunningEvt);
+            Mag_WaitForEventGroup(hComponent->mClkStChangeEvtGrp, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
+            COMP_LOGD(getRoot(hComponent), "clock component state is RuProcnning now!");
+        }
 
         freeList = &hComponent->mAVSyncFreeBufLH;
         busyList = &hComponent->mAVSyncBusyBufLH;
@@ -2211,19 +2270,32 @@ static OMX_ERRORTYPE MagOmxComponentImpl_syncDisplay(
         }
         node->buffer = bufHeader;
         list_add_tail(&node->node, busyList);
+#if 0
+        COMP_LOGD(getRoot(hComponent), "add pts 0x%llx into the busylist!", node->buffer->nTimeStamp);
+        {
+            List_t *tmp;
+            tmp = busyList->next;
+            while (tmp != busyList){
+                node = (MagOMX_Component_Buffer_List_t *)list_entry(tmp, MagOMX_Component_Buffer_List_t, node);
+                COMP_LOGD(getRoot(hComponent), "Traverse busylist node:[0x%llx]",
+                                                node->buffer->nTimeStamp);
+                tmp = tmp->next;
+            }
+        }
+#endif
         Mag_ReleaseMutex(hComponent->mhAVSyncMutex);
 
         initHeader(&mtrt, sizeof(OMX_TIME_CONFIG_MEDIATIMEREQUESTTYPE));
-
         mtrt.pClientPrivate  = hComponent;
         mtrt.nMediaTimestamp = bufHeader->nTimeStamp;
         if (MagOmxComponentImplVirtual(hComponent)->MagOMX_GetClockActionOffset){
             ret = MagOmxComponentImplVirtual(hComponent)->MagOMX_GetClockActionOffset(hComponent, &offset);
+            COMP_LOGD(getRoot(hComponent), "MagOMX_GetClockActionOffset(%d us)", offset);
         }else{
             COMP_LOGE(getRoot(hComponent), "the pure virtual function MagOMX_GetClockActionOffset is not overrided!");
         }
         mtrt.nOffset = offset;
-        portRoot = ooc_cast(hComponent->mhClockPort, MagOmxPort);
+        
         ret = MagOmxPortVirtual(portRoot)->SetParameter(portRoot, 
                                                         OMX_IndexConfigTimeMediaTimeRequest, 
                                                         &mtrt);
@@ -2245,7 +2317,7 @@ static OMX_ERRORTYPE MagOmxComponentImpl_releaseDisplay(
     List_t *expected;
     List_t *tmp;
     MagOMX_Component_Buffer_List_t *node;
-    OMX_U32 i = 0;
+    OMX_U32 i = 1;
     OMX_ERRORTYPE ret = OMX_ErrorNone;
 
     freeList = &hComponent->mAVSyncFreeBufLH;
@@ -2258,9 +2330,9 @@ static OMX_ERRORTYPE MagOmxComponentImpl_releaseDisplay(
     if (expected != busyList){
         node = (MagOMX_Component_Buffer_List_t *)list_entry(expected, MagOMX_Component_Buffer_List_t, node);
         if (node->buffer->nTimeStamp == mediaTimestamp){
-            list_del(expected);
+            list_del(&node->node);
             *ppBufHeader = node->buffer;
-            list_add_tail(expected, freeList);
+            list_add_tail(&node->node, freeList);
         }else{
             COMP_LOGE(getRoot(hComponent), "the expected buffer timestamp[0x%llx] is not the first one in the busy list",
                                             mediaTimestamp);
@@ -2268,14 +2340,17 @@ static OMX_ERRORTYPE MagOmxComponentImpl_releaseDisplay(
             while (tmp != busyList){
                 i++;
                 node = (MagOMX_Component_Buffer_List_t *)list_entry(tmp, MagOMX_Component_Buffer_List_t, node);
+                COMP_LOGD(getRoot(hComponent), "Traverse busylist node:%d[0x%llx], expected pts: 0x%llx",
+                                                i, node->buffer->nTimeStamp, mediaTimestamp);
                 if (node->buffer->nTimeStamp == mediaTimestamp){
-                    list_del(tmp);
+                    list_del(&node->node);
                     *ppBufHeader = node->buffer;
-                    list_add_tail(tmp, freeList);
+                    list_add_tail(&node->node, freeList);
                     COMP_LOGD(getRoot(hComponent), "find the buffer timestamp[0x%llx] at place %d", 
                                                    mediaTimestamp, i);
                     break;
                 }
+                tmp = tmp->next;
             }
 
             if (tmp == busyList){
@@ -2291,6 +2366,120 @@ static OMX_ERRORTYPE MagOmxComponentImpl_releaseDisplay(
 
     Mag_ReleaseMutex(hComponent->mhAVSyncMutex);
     return ret;
+}
+
+static OMX_ERRORTYPE MagOmxComponentImpl_putReturnBuffer(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN MagOmxPort hSrcPort,
+                        OMX_IN OMX_BUFFERHEADERTYPE *srcBufHeader,
+                        OMX_IN MagMessageHandle returnMsg,
+                        OMX_IN OMX_PTR priv){
+    List_t *freeList;
+    List_t *returnList;
+    MagOmx_Port_Node_t *node;
+    MagOMX_Port_Buffer_t *portBufMgr;
+
+    portBufMgr = (MagOMX_Port_Buffer_t *)srcBufHeader->pPlatformPrivate;
+
+    freeList   = &portBufMgr->freeBufPortListH;
+    returnList = &portBufMgr->returnBufPortListH;
+
+    if (freeList->next == freeList){
+        /*free list is empty*/
+        node = (MagOmx_Port_Node_t *)mag_mallocz(sizeof(MagOmx_Port_Node_t));
+        INIT_LIST(&node->node);
+    }else{
+        node = (MagOmx_Port_Node_t *)list_entry(freeList->next, MagOmx_Port_Node_t, node);
+        list_del(&node->node);
+    }
+
+    node->hPort = hSrcPort;
+    list_add_tail(&node->node, returnList);
+
+    return MagOmxPortVirtual(hSrcPort)->putReturnBuffer(hSrcPort, srcBufHeader, returnMsg, priv);
+}
+
+static OMX_ERRORTYPE MagOmxComponentImpl_sendReturnBuffer(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN OMX_BUFFERHEADERTYPE *pBuf){
+    List_t *freeList;
+    List_t *returnList;
+    MagOmx_Port_Node_t *node;
+    MagOMX_Port_Buffer_t *portBufMgr;
+    MagOmxPort hSrcPort = NULL;
+
+    portBufMgr = (MagOMX_Port_Buffer_t *)pBuf->pPlatformPrivate;
+
+    freeList   = &portBufMgr->freeBufPortListH;
+    returnList = &portBufMgr->returnBufPortListH;
+
+    if (returnList->prev != returnList){
+        node = (MagOmx_Port_Node_t *)list_entry(returnList->prev, MagOmx_Port_Node_t, node);
+        list_del(&node->node);
+        hSrcPort = ooc_cast(node->hPort, MagOmxPort);
+        list_add_tail(&node->node, freeList);
+        return MagOmxPortVirtual(hSrcPort)->sendReturnBuffer(hSrcPort, pBuf);
+    }else{
+        COMP_LOGE(getRoot(hComponent), "No place to return the buffer!");
+    }
+
+    return OMX_ErrorUndefined;
+}
+
+static OMX_ERRORTYPE MagOmxComponentImpl_putOutputBuffer(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN MagOmxPort hDestPort,
+                        OMX_IN OMX_BUFFERHEADERTYPE *pBufHeader){
+    List_t *freeList;
+    List_t *outputList;
+    MagOmx_Port_Node_t *node;
+    MagOMX_Port_Buffer_t *portBufMgr;
+
+    portBufMgr = (MagOMX_Port_Buffer_t *)pBufHeader->pPlatformPrivate;
+
+    freeList   = &portBufMgr->freeBufPortListH;
+    outputList = &portBufMgr->outputBufPortListH;
+
+    if (freeList->next == freeList){
+        /*free list is empty*/
+        node = (MagOmx_Port_Node_t *)mag_mallocz(sizeof(MagOmx_Port_Node_t));
+        INIT_LIST(&node->node);
+    }else{
+        node = (MagOmx_Port_Node_t *)list_entry(freeList->next, MagOmx_Port_Node_t, node);
+        list_del(&node->node);
+    }
+
+    node->hPort = hDestPort;
+    list_add_tail(&node->node, outputList);
+
+    return OMX_ErrorNone;
+}
+
+static OMX_ERRORTYPE MagOmxComponentImpl_sendOutputBuffer(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN OMX_BUFFERHEADERTYPE *pBuf){
+    List_t *freeList;
+    List_t *outputList;
+    MagOmx_Port_Node_t *node;
+    MagOMX_Port_Buffer_t *portBufMgr;
+    MagOmxPort hDestPort = NULL;
+
+    portBufMgr = (MagOMX_Port_Buffer_t *)pBuf->pPlatformPrivate;
+
+    freeList   = &portBufMgr->freeBufPortListH;
+    outputList = &portBufMgr->outputBufPortListH;
+
+    if (outputList->prev != outputList){
+        node = (MagOmx_Port_Node_t *)list_entry(outputList->prev, MagOmx_Port_Node_t, node);
+        list_del(&node->node);
+        hDestPort = ooc_cast(node->hPort, MagOmxPort);
+        list_add_tail(&node->node, freeList);
+        return MagOmxPortVirtual(hDestPort)->sendOutputBuffer(hDestPort, pBuf);
+    }else{
+        COMP_LOGE(getRoot(hComponent), "No place to output the buffer!");
+    }
+
+    return OMX_ErrorUndefined;
 }
 
 /*Class Constructor/Destructor*/
@@ -2334,6 +2523,16 @@ static void MagOmxComponentImpl_initialize(Class this){
     MagOmxComponentImplVtableInstance.MagOMX_SetParameter                    = NULL;
     MagOmxComponentImplVtableInstance.MagOMX_ComponentRoleEnum               = NULL;
     MagOmxComponentImplVtableInstance.MagOMX_ProceedBuffer                   = NULL;
+    MagOmxComponentImplVtableInstance.MagOMX_DoAVSync                        = NULL;
+    MagOmxComponentImplVtableInstance.MagOMX_SetAVSyncStatus                 = NULL;
+    MagOmxComponentImplVtableInstance.MagOMX_SetRefClock                     = NULL;
+    MagOmxComponentImplVtableInstance.MagOMX_DoAddPortAction                 = NULL;
+    MagOmxComponentImplVtableInstance.MagOMX_Port_Notify                     = NULL;
+    MagOmxComponentImplVtableInstance.MagOMX_Port_Query                      = NULL;
+    MagOmxComponentImplVtableInstance.MagOMX_GetRenderDelay                  = NULL;
+    MagOmxComponentImplVtableInstance.MagOMX_GetClockActionOffset            = NULL;
+    MagOmxComponentImplVtableInstance.MagOMX_AddPortOnRequest                = NULL;
+    MagOmxComponentImplVtableInstance.MagOMX_TearDownTunnel                  = NULL;
 }
 
 /*
@@ -2370,6 +2569,10 @@ static void MagOmxComponentImpl_constructor(MagOmxComponentImpl thiz, const void
     thiz->notify                   = MagOmxComponentImpl_notify;
     thiz->syncDisplay              = MagOmxComponentImpl_syncDisplay;
     thiz->releaseDisplay           = MagOmxComponentImpl_releaseDisplay;
+    thiz->putReturnBuffer          = MagOmxComponentImpl_putReturnBuffer;
+    thiz->sendReturnBuffer         = MagOmxComponentImpl_sendReturnBuffer;
+    thiz->putOutputBuffer          = MagOmxComponentImpl_putOutputBuffer;
+    thiz->sendOutputBuffer         = MagOmxComponentImpl_sendOutputBuffer;
 
     thiz->mLooper                  = NULL;
     thiz->mMsgHandler              = NULL;
@@ -2416,6 +2619,10 @@ static void MagOmxComponentImpl_constructor(MagOmxComponentImpl thiz, const void
 
     Mag_CreateMutex(&thiz->mhMutex);
     Mag_CreateMutex(&thiz->mhAVSyncMutex);
+
+    Mag_CreateEventGroup(&thiz->mClkStChangeEvtGrp);
+    if (MAG_ErrNone == Mag_CreateEvent(&thiz->mClkStartRunningEvt, MAG_EVT_PRIO_DEFAULT))
+        Mag_AddEventGroup(thiz->mClkStChangeEvtGrp, thiz->mClkStartRunningEvt);
 }
 
 static void MagOmxComponentImpl_destructor(MagOmxComponentImpl thiz, MagOmxComponentImplVtable vtab){
@@ -2431,6 +2638,9 @@ static void MagOmxComponentImpl_destructor(MagOmxComponentImpl thiz, MagOmxCompo
 
     destroyMagMiniDB(&thiz->mParametersDB);
     Mag_DestroyMutex(&thiz->mhMutex);
+
+    Mag_DestroyEvent(&thiz->mClkStartRunningEvt);
+    Mag_DestroyEventGroup(&thiz->mClkStChangeEvtGrp);
 
     destroyMagMessage(&thiz->mCmdSetStateMsg);
     destroyMagMessage(&thiz->mCmdPortDisableMsg);

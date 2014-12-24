@@ -23,7 +23,7 @@ public:
     virtual _status_t reset();
     virtual _status_t setVolume(fp32 leftVolume, fp32 rightVolume);
 
-    virtual _status_t pushEsPackets(MediaBuffer_t *buf);
+    virtual _status_t pushEsPackets(MagOmxMediaBuffer_t *buf);
     virtual bool      needData();
 
     bool              isPlaying();
@@ -51,6 +51,14 @@ private:
     MagEventHandle         mARenStLoadedEvent;
     MagEventGroupHandle    mStLoadedEventGroup;
 
+    MagEventHandle         mADecStExecutingEvent;
+    MagEventHandle         mARenStExecutingEvent;
+    MagEventGroupHandle    mStExecutingEventGroup;
+
+    MagEventHandle         mADecStPauseEvent;
+    MagEventHandle         mARenStPauseEvent;
+    MagEventGroupHandle    mStPauseEventGroup;
+    
     i32 mARenClockPortIdx;
     
 #ifdef AMP_AUDIO_STREAM_DUMP

@@ -20,6 +20,16 @@ OmxilClock::OmxilClock():
         Mag_AddEventGroup(mStLoadedEventGroup, mClkStLoadedEvent);
     }
 
+    Mag_CreateEventGroup(&mStExecutingEventGroup);
+    if (MAG_ErrNone == Mag_CreateEvent(&mClkStExecutingEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mStExecutingEventGroup, mClkStExecutingEvent);
+    }
+
+    Mag_CreateEventGroup(&mStPauseEventGroup);
+    if (MAG_ErrNone == Mag_CreateEvent(&mClkStPauseEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mStPauseEventGroup, mClkStPauseEvent);
+    }
+
 	mClockCallbacks.EventHandler    = OmxilClock::ClockEventHandler;
     mClockCallbacks.EmptyBufferDone = NULL;
     mClockCallbacks.FillBufferDone  = NULL;
@@ -61,10 +71,12 @@ OMX_ERRORTYPE OmxilClock::ClockEventHandler(
 
                 case OMX_StateExecuting:
                     AGILE_LOGD("OMX_StateExecuting\n");
+                    Mag_SetEvent(pClock->mClkStExecutingEvent); 
                     break;
 
                 case OMX_StatePause:
                     AGILE_LOGD("OMX_StatePause\n");
+                    Mag_SetEvent(pClock->mClkStPauseEvent); 
                     break;
 
                 case OMX_StateWaitForResources:
@@ -257,7 +269,15 @@ _status_t OmxilClock::setup(){
 }
 
 _status_t OmxilClock::start(){
+    OMX_TIME_CONFIG_CLOCKSTATETYPE clockSt;
+
 	OMX_SendCommand(mhClock, OMX_CommandStateSet, OMX_StateExecuting, NULL);
+
+    initHeader(&clockSt, sizeof(OMX_TIME_CONFIG_CLOCKSTATETYPE));
+    clockSt.eState = OMX_TIME_ClockStateWaitingForStartTime;
+    clockSt.nOffset = 0;
+    OMX_SetConfig(mhClock, OMX_IndexConfigTimeClockState, &clockSt);
+
 	return MAG_NO_ERROR;
 }
 

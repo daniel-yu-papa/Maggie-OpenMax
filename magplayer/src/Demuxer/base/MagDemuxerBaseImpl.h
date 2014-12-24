@@ -15,7 +15,7 @@ public:
 
     virtual _status_t   setPlayingTrackID(ui32 index);
     virtual ui32        getPlayingTracksID(ui32 *index);
-    virtual _status_t   readFrame(ui32 trackIndex, MediaBuffer_t **buffer);
+    virtual _status_t   readFrame(ui32 trackIndex, MagOmxMediaBuffer_t **buffer);
     virtual MagMessageHandle createNotifyMsg();
     virtual _status_t   prepare(MagContentPipe *contentPipe, MagBufferObserver *pObserver, MagMiniDBHandle paramDB);
     virtual _status_t   start();
@@ -69,7 +69,7 @@ private:
 #define EXTERNC
 #endif
 
-EXTERNC _status_t releaseMediaBuffer(MediaBuffer_t *mb);
+EXTERNC _status_t releaseMediaBuffer(MagOmxMediaBuffer_t *mb);
 
 #undef EXTERNC
 

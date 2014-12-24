@@ -36,6 +36,30 @@ OmxilAudioPipeline::OmxilAudioPipeline():
         Mag_AddEventGroup(mStLoadedEventGroup, mARenStLoadedEvent);
     }
 
+    Mag_CreateEventGroup(&mStLoadedEventGroup);
+    if (MAG_ErrNone == Mag_CreateEvent(&mADecStLoadedEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mStLoadedEventGroup, mADecStLoadedEvent);
+    }
+    if (MAG_ErrNone == Mag_CreateEvent(&mARenStLoadedEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mStLoadedEventGroup, mARenStLoadedEvent);
+    }
+
+    Mag_CreateEventGroup(&mStExecutingEventGroup);
+    if (MAG_ErrNone == Mag_CreateEvent(&mADecStExecutingEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mStExecutingEventGroup, mADecStExecutingEvent);
+    }
+    if (MAG_ErrNone == Mag_CreateEvent(&mARenStExecutingEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mStExecutingEventGroup, mARenStExecutingEvent);
+    }
+
+    Mag_CreateEventGroup(&mStPauseEventGroup);
+    if (MAG_ErrNone == Mag_CreateEvent(&mADecStPauseEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mStPauseEventGroup, mADecStPauseEvent);
+    }
+    if (MAG_ErrNone == Mag_CreateEvent(&mARenStPauseEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mStPauseEventGroup, mARenStPauseEvent);
+    }
+
     mAudioDecCallbacks.EventHandler    = OmxilAudioPipeline::AudioDecoderEventHandler;
     mAudioDecCallbacks.EmptyBufferDone = OmxilAudioPipeline::AudioDecoderEmptyBufferDone;
     mAudioDecCallbacks.FillBufferDone  = OmxilAudioPipeline::AudioDecoderFillBufferDone;
@@ -88,10 +112,12 @@ OMX_ERRORTYPE OmxilAudioPipeline::AudioDecoderEventHandler(
 
                 case OMX_StateExecuting:
                     AGILE_LOGD("OMX_StateExecuting\n");
+                    Mag_SetEvent(pApipeline->mADecStExecutingEvent); 
                     break;
 
                 case OMX_StatePause:
                     AGILE_LOGD("OMX_StatePause\n");
+                    Mag_SetEvent(pApipeline->mADecStPauseEvent); 
                     break;
 
                 case OMX_StateWaitForResources:
@@ -117,9 +143,12 @@ OMX_ERRORTYPE OmxilAudioPipeline::AudioDecoderEmptyBufferDone(
                                             OMX_PTR pAppData,
                                             OMX_BUFFERHEADERTYPE* pBuffer){
     OmxilAudioPipeline *pApipeline;
+    MagOmxMediaBuffer_t *mediaBuf;
 
     pApipeline = static_cast<OmxilAudioPipeline *>(pAppData);
 
+    mediaBuf = static_cast<MagOmxMediaBuffer_t *>(pBuffer->pAppPrivate);
+    mediaBuf->release(mediaBuf);
     pApipeline->mpBufferMgr->put(pBuffer);
 
     if (pApipeline->getFillBufferFlag()){
@@ -127,7 +156,6 @@ OMX_ERRORTYPE OmxilAudioPipeline::AudioDecoderEmptyBufferDone(
             pApipeline->postFillThisBuffer();
             AGILE_LOGD("retrigger the fillThisBuffer event!");
         }
-        pApipeline->setFillBufferFlag(false);
     }
 
     return OMX_ErrorNone;
@@ -171,10 +199,12 @@ OMX_ERRORTYPE OmxilAudioPipeline::AudioRenderEventHandler(
 
                 case OMX_StateExecuting:
                     AGILE_LOGD("OMX_StateExecuting\n");
+                    Mag_SetEvent(pApipeline->mARenStExecutingEvent);
                     break;
 
                 case OMX_StatePause:
                     AGILE_LOGD("OMX_StatePause\n");
+                    Mag_SetEvent(pApipeline->mARenStPauseEvent);
                     break;
 
                 case OMX_StateWaitForResources:
@@ -390,6 +420,10 @@ _status_t OmxilAudioPipeline::start(){
     OMX_SendCommand(mhAudioRender, OMX_CommandStateSet, OMX_StateExecuting, NULL);
     OMX_SendCommand(mhAudioDecoder, OMX_CommandStateSet, OMX_StateExecuting, NULL);
 
+    Mag_ClearEvent(mADecStExecutingEvent);
+    Mag_ClearEvent(mARenStExecutingEvent);
+    Mag_WaitForEventGroup(mStExecutingEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
+
     ret = MagAudioPipelineImpl::start();
     return ret;
 }
@@ -459,7 +493,7 @@ _status_t OmxilAudioPipeline::setVolume(fp32 leftVolume, fp32 rightVolume){
     return OMX_ErrorNone;
 }
 
-_status_t OmxilAudioPipeline::pushEsPackets(MediaBuffer_t *buf){
+_status_t OmxilAudioPipeline::pushEsPackets(MagOmxMediaBuffer_t *buf){
     OMX_BUFFERHEADERTYPE *pBufHeader;
     OMX_ERRORTYPE ret;
     _status_t err = MAG_NO_ERROR;
@@ -472,6 +506,9 @@ _status_t OmxilAudioPipeline::pushEsPackets(MediaBuffer_t *buf){
         pBufHeader->nFilledLen  = buf->buffer_size;
         pBufHeader->nOffset     = 0;
         pBufHeader->nTimeStamp  = buf->pts;
+
+        AGILE_LOGD("push audio buffer header: %p(buf:%p, size:%d, pts:0x%x)",
+                    pBufHeader, pBufHeader->pBuffer, pBufHeader->nFilledLen, pBufHeader->nTimeStamp);
 
         ret = OMX_EmptyThisBuffer(mhAudioDecoder, pBufHeader);
         if (ret != OMX_ErrorNone){

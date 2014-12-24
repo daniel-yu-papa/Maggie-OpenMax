@@ -14,12 +14,13 @@ MagAudioPipelineImpl::MagAudioPipelineImpl():
                                       mLooper(NULL),
                                       mMsgHandler(NULL),
                                       mMagPlayerNotifier(NULL),
-                                      mbPostFillBufEvt(false){ 
+                                      mPostFillBufCnt(0){ 
     AGILE_LOGV("Constructor!");
     mState = ST_INIT;
     mIsFlushed = false;
     mEmptyThisBufferMsg = createMessage(MagAudioPipeline_EmptyThisBuffer);
     mDestroyMsg = createMessage(MagAudioPipeline_Destroy);
+    Mag_CreateMutex(&mhPostFillBufMutex);
 }
 
 MagAudioPipelineImpl::~MagAudioPipelineImpl(){
@@ -29,6 +30,7 @@ MagAudioPipelineImpl::~MagAudioPipelineImpl(){
     mLooper->waitOnAllDone(mLooper);
     destroyHandler(&mMsgHandler);
     destroyLooper(&mLooper);
+    Mag_DestroyMutex(&mhPostFillBufMutex);
     AGILE_LOGV("exit!");
 }
 
@@ -154,14 +156,14 @@ _status_t MagAudioPipelineImpl::setVolume(fp32 leftVolume, fp32 rightVolume){
     return MAG_NO_ERROR;
 }
 
-void MagAudioPipelineImpl::proceedMediaBuffer(MediaBuffer_t *buf){
+void MagAudioPipelineImpl::proceedMediaBuffer(MagOmxMediaBuffer_t *buf){
 #ifdef DUMP_AUDIO_ES_FILE
     if (NULL != mDumpFile){
         fwrite(buf->buffer, 1, buf->buffer_size, mDumpFile);
     }
 #endif
     pushEsPackets(buf);
-    buf->release(buf);
+    /*buf->release(buf);*/
 }
 
 void MagAudioPipelineImpl::notifyPlaybackComplete(){
@@ -175,7 +177,7 @@ void MagAudioPipelineImpl::notifyPlaybackComplete(){
 void MagAudioPipelineImpl::onEmptyThisBuffer(MagMessageHandle msg){
     boolean ret;
     void *value;
-    MediaBuffer_t *buf = NULL;
+    MagOmxMediaBuffer_t *buf = NULL;
     char *eos = false;
     
     if ((mState == ST_STOP) ||
@@ -192,7 +194,7 @@ void MagAudioPipelineImpl::onEmptyThisBuffer(MagMessageHandle msg){
         return;
     }  
 
-    buf = static_cast<MediaBuffer_t *>(value);
+    buf = static_cast<MagOmxMediaBuffer_t *>(value);
 
     if (NULL != buf){
         proceedMediaBuffer(buf);
@@ -221,12 +223,23 @@ void MagAudioPipelineImpl::onDestroy(MagMessageHandle msg){
     mMagPlayerNotifier  = NULL;
 }
 
-void MagAudioPipelineImpl::setFillBufferFlag(bool flag){
-    mbPostFillBufEvt = flag;
+void MagAudioPipelineImpl::setFillBufferFlag(){
+    Mag_AcquireMutex(mhPostFillBufMutex);
+    mPostFillBufCnt++;
+    Mag_ReleaseMutex(mhPostFillBufMutex);
 }
 
-bool MagAudioPipelineImpl::getFillBufferFlag(){
-    return mbPostFillBufEvt;
+i32 MagAudioPipelineImpl::getFillBufferFlag(){
+    i32 ret;
+
+    Mag_AcquireMutex(mhPostFillBufMutex);
+    ret = mPostFillBufCnt;
+
+    if (mPostFillBufCnt)
+        mPostFillBufCnt--;
+    Mag_ReleaseMutex(mhPostFillBufMutex);
+
+    return ret;
 }
 
 void MagAudioPipelineImpl::postFillThisBuffer(){
@@ -238,7 +251,7 @@ void MagAudioPipelineImpl::postFillThisBuffer(){
                 mMagPlayerNotifier->postMessage(mMagPlayerNotifier, 0);
             }else{
                 AGILE_LOGD("driver buffer is full");
-                setFillBufferFlag(true);
+                setFillBufferFlag();
             }
         }else{
             AGILE_LOGV("don't send out the fillThisBuffer event in %s state: (%s)", 

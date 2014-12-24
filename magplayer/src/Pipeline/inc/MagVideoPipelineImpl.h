@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 #include "MagVideoPipelineImplBase.h"
-#include "MagMediaBuffer.h"
+#include "MagOmx_Buffer.h"
 #include "MagPlayerCommon.h"
 
 // #define DUMP_VIDEO_ES_FILE
@@ -27,7 +27,7 @@ public:
     virtual void setMagPlayerNotifier(MagMessageHandle notifyMsg);
     virtual MagMessageHandle getMagPlayerNotifier();
 
-    virtual _status_t     pushEsPackets(MediaBuffer_t *buf) = 0;
+    virtual _status_t     pushEsPackets(MagOmxMediaBuffer_t *buf) = 0;
     virtual bool          needData() = 0;
 
     const char *state2String(ui32 state) {
@@ -42,8 +42,8 @@ public:
 
 protected:
     void postFillThisBuffer();
-    void setFillBufferFlag(bool flag);
-    bool getFillBufferFlag();
+    void setFillBufferFlag();
+    i32  getFillBufferFlag();
     void notifyPlaybackComplete();
     i32 mState;
     bool mIsFlushed;
@@ -61,11 +61,12 @@ private:
     
     _status_t getLooper();
     MagMessageHandle createMessage(ui32 what);
-    void proceedMediaBuffer(MediaBuffer_t *buf);
+    void proceedMediaBuffer(MagOmxMediaBuffer_t *buf);
     static void onMessageReceived(const MagMessageHandle msg, void *priv);
 
     MagMessageHandle mDestroyMsg;
-    bool mbPostFillBufEvt;
+    i32            mPostFillBufCnt;
+    MagMutexHandle mhPostFillBufMutex;
 
 #ifdef DUMP_VIDEO_ES_FILE
     FILE *mDumpFile;

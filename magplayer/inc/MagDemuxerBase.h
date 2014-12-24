@@ -2,7 +2,7 @@
 #define __MAGPLAYER_DEMUXER_BASE_H__
 
 #include "framework/MagFramework.h"
-#include "MagMediaBuffer.h"
+#include "MagOmx_Buffer.h"
 #include "MagContentPipe.h"
 #include "MagBufferObserver.h"
 #include "MagStreamTrackManager.h"
@@ -42,7 +42,7 @@ public:
     
     virtual _status_t   setPlayingTrackID(ui32 index) = 0;
     virtual ui32        getPlayingTracksID(ui32 *index) = 0;
-    virtual _status_t   readFrame(ui32 trackIndex, MediaBuffer_t **buffer) = 0;
+    virtual _status_t   readFrame(ui32 trackIndex, MagOmxMediaBuffer_t **buffer) = 0;
     virtual MagMessageHandle createNotifyMsg() = 0;
     virtual _status_t   prepare(MagContentPipe *contentPipe, MagBufferObserver *pObserver, MagMiniDBHandle paramDB) = 0;
     virtual _status_t   start() = 0;

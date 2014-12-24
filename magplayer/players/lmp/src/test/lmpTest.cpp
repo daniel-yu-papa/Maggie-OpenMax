@@ -22,6 +22,7 @@ void *monitorThreadProc(void *arg){
     }
 
     printf("exit monitorThreadProc!\n");
+    return NULL;
 }
 
 void lmpTestCb(lmp_event_t evt, void *handler, unsigned int param1, unsigned int param2){
