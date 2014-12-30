@@ -11,10 +11,6 @@
 
 AllocateClass(MagOmxComponentClock, MagOmxComponentImpl);
 
-static ui64 getNowUS() {
-    return Mag_GetSystemTime(MAG_SYSTEM_TIME_MONOTONIC) / 1000LL;
-}
-
 static void onCmdMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
     MagOmxComponent      root;
     MagOmxComponentImpl  base;
@@ -102,7 +98,7 @@ static void onCmdMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
                                 thiz->mClockOffset   = thiz->mState.nOffset - thiz->mMaxRenderDelay;
 
                             thiz->mReferenceTimeBase = CONVERT_TO_MICROSECONDS(thiz->mState.nStartTime);
-                            thiz->mWallTimeBase      = getNowUS() - thiz->mClockOffset;
+                            thiz->mWallTimeBase      = thiz->getTimeNow(thiz) - thiz->mClockOffset;
                             thiz->mState.eState      = OMX_TIME_ClockStateRunning;
 
                             COMP_LOGD(root, "mReferenceTimeBase: 0x%llx, mWallTimeBase: 0x%llx, mClockOffset: %lld", 
@@ -175,7 +171,14 @@ static void onTimeRequestMessageReceived(const MagMessageHandle msg, OMX_PTR pri
                 return;
             }
             
-            thiz->sendAVSyncAction(thiz, portIndex, timeStamp, AVSYNC_PLAY);
+            if (!((base->mTransitionState == OMX_TransitionStateToIdle) ||
+                  (base->mState == OMX_StateIdle))){
+                thiz->sendAVSyncAction(thiz, portIndex, timeStamp, AVSYNC_PLAY);
+            }else{
+                COMP_LOGD(root, "The state is in %s, directly drop the packets", 
+                                     base->mTransitionState == OMX_TransitionStateToIdle ? "transitToIdle" : "Idle");
+                thiz->sendAVSyncAction(thiz, portIndex, timeStamp, AVSYNC_DROP);
+            }
         }
             break;
 
@@ -324,8 +327,10 @@ static OMX_ERRORTYPE  virtual_MagOmxComponentClock_Notify(
                                         OMX_IN OMX_PTR pNotifyData){
     MagOmxComponentClock hCompClock;
     MagOmxComponent      rootComp;
+    MagOmxComponentImpl  compImpl;
 
     rootComp   = ooc_cast(hComponent, MagOmxComponent);
+    compImpl   = ooc_cast(hComponent, MagOmxComponentImpl);
     hCompClock = ooc_cast(hComponent, MagOmxComponentClock);
     switch (notifyIndex){
         case MagOMX_Component_Notify_StartTime:
@@ -350,24 +355,36 @@ static OMX_ERRORTYPE  virtual_MagOmxComponentClock_Notify(
             i64 delay; /*in us*/
 
             mtrt = (OMX_TIME_CONFIG_MEDIATIMEREQUESTTYPE *)pNotifyData;
-            if (hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex] == NULL){
-                hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex] = hCompClock->createTimeRequestMessage(hComponent, 
-                                                                                                         MagOmxComponentClock_CmdMTimeRequestMsg,
-                                                                                                         mtrt->nPortIndex); 
-            }
-            hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex]->setInt64(hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex], "time_stamp", mtrt->nMediaTimestamp);
-            hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex]->setInt32(hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex], "port_index", mtrt->nPortIndex);
-            hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex]->setPointer(hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex], "client_private", mtrt->pClientPrivate, MAG_FALSE);
+            if (!((compImpl->mTransitionState == OMX_TransitionStateToIdle) ||
+                  (compImpl->mState == OMX_StateIdle))){
+                if (hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex] == NULL){
+                    hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex] = hCompClock->createTimeRequestMessage(hComponent, 
+                                                                                                             MagOmxComponentClock_CmdMTimeRequestMsg,
+                                                                                                             mtrt->nPortIndex); 
+                }
+                hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex]->setInt64(hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex], "time_stamp", mtrt->nMediaTimestamp);
+                hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex]->setInt32(hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex], "port_index", mtrt->nPortIndex);
+                hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex]->setPointer(hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex], "client_private", mtrt->pClientPrivate, MAG_FALSE);
 
-            t_now     = hCompClock->getMediaTimeNow(hCompClock);
-            t_request = hCompClock->getMediaTimeRequest(hCompClock, CONVERT_TO_MICROSECONDS(mtrt->nMediaTimestamp), mtrt->nOffset);
+                if (mtrt->nMediaTimestamp != kInvalidTimeStamp){
+                    t_now     = hCompClock->getMediaTimeNow(hCompClock);
+                    t_request = hCompClock->getMediaTimeRequest(hCompClock, CONVERT_TO_MICROSECONDS(mtrt->nMediaTimestamp), mtrt->nOffset);
 
-            delay = t_request - t_now;
-            if (delay >= 0){
-                COMP_LOGD(rootComp, "add timestamp (0x%llx - 0x%llx) with delay %lld to port[%d]", t_request, t_now, delay, mtrt->nPortIndex);
-                hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex]->postMessage(hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex], delay);
+                    delay = t_request - t_now;
+                }else{
+                    delay = MAG_MAX_INTEGER;
+                }
+                
+                if (delay >= 0){
+                    COMP_LOGD(rootComp, "add timestamp (0x%llx - 0x%llx) with delay %lld to port[%d]", t_request, t_now, delay, mtrt->nPortIndex);
+                    hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex]->postMessage(hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex], delay);
+                }else{
+                    /*only support the forward playback for now, so drop the stream packet*/
+                    hCompClock->sendAVSyncAction(hCompClock, mtrt->nPortIndex, mtrt->nMediaTimestamp, AVSYNC_DROP);
+                }
             }else{
-                /*only support the forward playback for now, so drop the stream packet*/
+                COMP_LOGD(rootComp, "The state is in %s, directly drop the packets", 
+                                     compImpl->mTransitionState == OMX_TransitionStateToIdle ? "transitToIdle" : "Idle");
                 hCompClock->sendAVSyncAction(hCompClock, mtrt->nPortIndex, mtrt->nMediaTimestamp, AVSYNC_DROP);
             }
             
@@ -379,7 +396,7 @@ static OMX_ERRORTYPE  virtual_MagOmxComponentClock_Notify(
             OMX_TIME_CONFIG_TIMESTAMPTYPE *data = (OMX_TIME_CONFIG_TIMESTAMPTYPE *)pNotifyData;
             Mag_AcquireMutex(hCompClock->mhRefTimeUpdateMutex);
             hCompClock->mReferenceTimeBase = CONVERT_TO_MICROSECONDS(data->nTimestamp);
-            hCompClock->mWallTimeBase      = getNowUS() + hCompClock->mClockOffset;
+            hCompClock->mWallTimeBase      = hCompClock->getTimeNow(hCompClock) + hCompClock->mClockOffset;
             Mag_ReleaseMutex(hCompClock->mhRefTimeUpdateMutex);
         }
             break;
@@ -441,6 +458,84 @@ static OMX_ERRORTYPE  virtual_MagOmxComponentClock_TearDownTunnel(
     return OMX_ErrorNone;
 }
 
+static OMX_ERRORTYPE virtual_MagOmxComponentClock_Stop(
+                                        OMX_IN  OMX_HANDLETYPE hComponent){
+    MagOmxComponentClock  clkComp;
+    OMX_U32 i;
+
+    AGILE_LOGV("enter!");
+
+    clkComp     = ooc_cast(hComponent, MagOmxComponentClock);
+
+    for (i = 0; i < MAX_CLOCK_PORT_NUMBER; i++){
+        if (clkComp->mTimeRequestLooper[i]){
+            clkComp->mTimeRequestLooper[i]->setForceOut(clkComp->mTimeRequestLooper[i], MAG_TRUE);
+        }
+    }
+
+    clkComp->mState.eState = OMX_TIME_ClockStateStopped;
+
+    return OMX_ErrorNone;
+}
+
+static OMX_ERRORTYPE virtual_MagOmxComponentClock_Start(
+                                        OMX_IN  OMX_HANDLETYPE hComponent){
+    MagOmxComponentClock  clkComp;
+    OMX_U32 i;
+
+    AGILE_LOGV("enter!");
+
+    clkComp     = ooc_cast(hComponent, MagOmxComponentClock);
+
+    for (i = 0; i < MAX_CLOCK_PORT_NUMBER; i++){
+        if (clkComp->mTimeRequestLooper[i]){
+            clkComp->mTimeRequestLooper[i]->setForceOut(clkComp->mTimeRequestLooper[i], MAG_FALSE);
+        }
+    }
+
+    return OMX_ErrorNone;
+}
+
+static OMX_ERRORTYPE virtual_MagOmxComponentClock_Pause(
+                    OMX_IN  OMX_HANDLETYPE hComponent){
+    MagOmxComponentClock clkComp;
+    OMX_U32 i;
+
+    AGILE_LOGV("enter!");
+    clkComp = ooc_cast(hComponent, MagOmxComponentClock);
+
+    clkComp->mhTimer->pause(clkComp->mhTimer);
+    for (i = 0; i < MAX_CLOCK_PORT_NUMBER; i++){
+        if (clkComp->mTimeRequestLooper[i]){
+            clkComp->mTimeRequestLooper[i]->suspend(clkComp->mTimeRequestLooper[i]);
+        }
+    }
+
+    return OMX_ErrorNone;
+}
+
+static OMX_ERRORTYPE virtual_MagOmxComponentClock_Resume(
+                    OMX_IN  OMX_HANDLETYPE hComponent){
+    MagOmxComponentClock clkComp;
+    OMX_U32 i;
+
+    AGILE_LOGV("enter!");
+    clkComp = ooc_cast(hComponent, MagOmxComponentClock);
+
+    for (i = 0; i < MAX_CLOCK_PORT_NUMBER; i++){
+        if (clkComp->mTimeRequestLooper[i]){
+            clkComp->mTimeRequestLooper[i]->resume(clkComp->mTimeRequestLooper[i]);
+        }
+    }
+    clkComp->mhTimer->resume(clkComp->mhTimer);
+
+    return OMX_ErrorNone;
+}
+
+static OMX_TICKS MagOmxComponentClock_getTimeNow(MagOmxComponentClock compClock) {
+    return compClock->mhTimer->get(compClock->mhTimer);
+    /*return Mag_GetSystemTime(MAG_SYSTEM_TIME_MONOTONIC) / 1000LL;*/
+}
 
 static MagMessageHandle MagOmxComponentClock_createCmdMessage(OMX_HANDLETYPE handle, ui32 what) {
     MagOmxComponentClock hComponent = NULL;
@@ -546,6 +641,7 @@ static _status_t MagOmxComponentClock_getTimeRequestLooper(OMX_HANDLETYPE handle
             if (NULL != hComponent->mTimeRequestMsgHandler[port_id]){
                 hComponent->mTimeRequestLooper[port_id]->registerHandler(hComponent->mTimeRequestLooper[port_id], 
                                                                          hComponent->mTimeRequestMsgHandler[port_id]);
+                hComponent->mTimeRequestLooper[port_id]->setTimer(hComponent->mTimeRequestLooper[port_id], hComponent->mhTimer);
                 hComponent->mTimeRequestLooper[port_id]->start(hComponent->mTimeRequestLooper[port_id]);
             }else{
                 AGILE_LOGE("failed to create Handler[%d]", port_id);
@@ -607,7 +703,8 @@ static OMX_TICKS     MagOmxComponentClock_getMediaTimeNow(MagOmxComponentClock c
 
     if (compClock->mState.eState == OMX_TIME_ClockStateRunning){
         Mag_AcquireMutex(compClock->mhRefTimeUpdateMutex);
-        tnow = compClock->mReferenceTimeBase + (compClock->mxScale * (getNowUS() - compClock->mWallTimeBase) / 10.0);
+        tnow = compClock->mReferenceTimeBase + (compClock->mxScale * 
+               (compClock->getTimeNow(compClock) - compClock->mWallTimeBase) / 10.0);
         Mag_ReleaseMutex(compClock->mhRefTimeUpdateMutex);
     }else{
         tnow = 0;
@@ -682,6 +779,10 @@ static void MagOmxComponentClock_initialize(Class this){
     MagOmxComponentClockVtableInstance.MagOmxComponentImpl.MagOMX_Port_Query       = virtual_MagOmxComponentClock_Query;
     MagOmxComponentClockVtableInstance.MagOmxComponentImpl.MagOMX_AddPortOnRequest = virtual_MagOmxComponentClock_AddPortOnRequest;
     MagOmxComponentClockVtableInstance.MagOmxComponentImpl.MagOMX_TearDownTunnel   = virtual_MagOmxComponentClock_TearDownTunnel;
+    MagOmxComponentClockVtableInstance.MagOmxComponentImpl.MagOMX_Stop             = virtual_MagOmxComponentClock_Stop;
+    MagOmxComponentClockVtableInstance.MagOmxComponentImpl.MagOMX_Start            = virtual_MagOmxComponentClock_Start;
+    MagOmxComponentClockVtableInstance.MagOmxComponentImpl.MagOMX_Pause            = virtual_MagOmxComponentClock_Pause;
+    MagOmxComponentClockVtableInstance.MagOmxComponentImpl.MagOMX_Resume           = virtual_MagOmxComponentClock_Resume;
 
     MagOmxComponentClockVtableInstance.MagOMX_Clock_DecideStartTime = NULL;
     MagOmxComponentClockVtableInstance.MagOMX_Clock_GetOffset       = NULL;
@@ -730,6 +831,7 @@ static void MagOmxComponentClock_constructor(MagOmxComponentClock thiz, const vo
     thiz->getMediaTimeNow          = MagOmxComponentClock_getMediaTimeNow;
     thiz->getMediaTimeRequest      = MagOmxComponentClock_getMediaTimeRequest;
     thiz->sendAVSyncAction         = MagOmxComponentClock_sendAVSyncAction;
+    thiz->getTimeNow               = MagOmxComponentClock_getTimeNow;
 
     memset(&thiz->mState, 0, sizeof(OMX_TIME_CONFIG_CLOCKSTATETYPE));
     initHeader(&thiz->mState, sizeof(OMX_TIME_CONFIG_CLOCKSTATETYPE));
@@ -745,6 +847,8 @@ static void MagOmxComponentClock_constructor(MagOmxComponentClock thiz, const vo
     Mag_CreateEventGroup(&thiz->mStateChangeEvtGrp);
     if (MAG_ErrNone == Mag_CreateEvent(&thiz->mStateChangeEvt, MAG_EVT_PRIO_DEFAULT))
         Mag_AddEventGroup(thiz->mStateChangeEvtGrp, thiz->mStateChangeEvt);
+
+    thiz->mhTimer = Mag_createTimer();
 }
 
 static void MagOmxComponentClock_destructor(MagOmxComponentClock thiz, MagOmxComponentClockVtable vtab){
@@ -752,4 +856,5 @@ static void MagOmxComponentClock_destructor(MagOmxComponentClock thiz, MagOmxCom
 
     Mag_DestroyMutex(&thiz->mhMutex);
     Mag_DestroyMutex(&thiz->mhRefTimeUpdateMutex);
+    Mag_destroyTimer(&thiz->mhTimer);
 }

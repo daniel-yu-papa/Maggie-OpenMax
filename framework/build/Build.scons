@@ -223,6 +223,7 @@ FRAMEWORK_CORE_INC_PATH = """core/base/inc
 FRAMEWORK_PLATFORM_INC_PATH = """platform/hal/inc 
                                  platform/memory/inc 
                                  platform/thread/inc 
+                                 platform/timer/inc 
                                  version"""
 
 LibraryModule(name                  = 'MagCore_Base',
@@ -260,7 +261,6 @@ LibraryModule(name                  = 'MagPlatform_Mem',
 LibraryModule(name                  = 'MagPlatform_Thread',
               build_source_dirs     = ['platform/thread/src/impl'],
               build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH)+Split(AGILELOG_INC_PATH))
-
 
 Application(name    = 'MagPlatform_RbTreeTest', 
                 dir     = 'core/base/src/test', 
@@ -328,6 +328,7 @@ LibraryModule(name                  = 'MagFramework',
                                        'platform/hal/src',
                                        'platform/memory/src/impl',
                                        'platform/thread/src/impl',
+                                       'platform/timer/src',
                                        'version'],
               build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH)+Split(AGILELOG_INC_PATH),
               extra_libs            = ['librt.so', 'libpthread.so', 'libMagAgilelog.so'],

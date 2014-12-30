@@ -155,13 +155,15 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vsch_ProceedBuffer(
     MagOmxPort destPort;
     AVFrame *destFrame = NULL;
     AVFrame *srcFrame = NULL;
-    int ret;
 
-	if ((srcbufHeader->pBuffer != NULL) && (srcbufHeader->nFilledLen > 0)){
-		vschCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
-        destPort = ooc_cast(hDestPort, MagOmxPort);
-        
-        destbufHeader = MagOmxPortVirtual(destPort)->GetOutputBuffer(destPort);
+	vschCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
+    destPort = ooc_cast(hDestPort, MagOmxPort);
+    
+    destbufHeader = MagOmxPortVirtual(destPort)->GetOutputBuffer(destPort);
+
+    if (srcbufHeader->pBuffer != NULL && srcbufHeader->nFilledLen > 0){
+        int ret;
+
         srcFrame = (AVFrame *)srcbufHeader->pBuffer;
         AGILE_LOGV("srcFrame: w:%d, h:%d, format:%d", srcFrame->width, srcFrame->height, srcFrame->format);
 
@@ -172,16 +174,21 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vsch_ProceedBuffer(
         destFrame = av_frame_alloc();
         ret = av_frame_ref(destFrame, (AVFrame *)srcbufHeader->pBuffer);
         destbufHeader->pBuffer = (OMX_U8 *)destFrame;
+        AGILE_LOGV("Put decoded Video Src Frame: %p - Dest Frame: %p, time stamp: 0x%llx, len: %d to AVSync",
+                srcbufHeader->pBuffer, 
+                destbufHeader->pBuffer, 
+                destbufHeader->nTimeStamp, 
+                destbufHeader->nFilledLen);
+    }else{
+        destbufHeader->pBuffer    = NULL;
+        destbufHeader->nFilledLen = 0;
+        destbufHeader->nOffset    = 0;
+        destbufHeader->nTimeStamp = srcbufHeader->nTimeStamp;
+        AGILE_LOGD("proceed the EOS buffer header!!!, nTimeStamp = 0x%llx", destbufHeader->nTimeStamp);
+    }
 
-		AGILE_LOGV("Put decoded Video Src Frame: %p - Dest Frame: %p, time stamp: 0x%llx, len: %d to AVSync",
-                    srcbufHeader->pBuffer, 
-			        destbufHeader->pBuffer, 
-                    destbufHeader->nTimeStamp, 
-                    destbufHeader->nFilledLen);
-
-        vschCompImpl->putOutputBuffer(vschCompImpl, destPort, destbufHeader);
-		vschCompImpl->syncDisplay(vschCompImpl, destbufHeader);
-	}
+    vschCompImpl->putOutputBuffer(vschCompImpl, destPort, destbufHeader);
+	vschCompImpl->syncDisplay(vschCompImpl, destbufHeader);
 
 	return OMX_ErrorNone;
 }

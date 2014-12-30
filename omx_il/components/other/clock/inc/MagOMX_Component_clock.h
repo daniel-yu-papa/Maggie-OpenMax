@@ -62,6 +62,7 @@ ClassMembers(MagOmxComponentClock, MagOmxComponentImpl, \
     OMX_TICKS        (*getMediaTimeNow)(MagOmxComponentClock compClock); \
     OMX_TICKS        (*getMediaTimeRequest)(MagOmxComponentClock compClock, OMX_TICKS mtr, OMX_TICKS offset); \
     OMX_ERRORTYPE    (*sendAVSyncAction)(MagOmxComponentClock compClock, OMX_U32 port_id, OMX_TICKS mediaTimestamp, MagOMX_AVSync_Action_t action); \
+    OMX_TICKS        (*getTimeNow)(MagOmxComponentClock compClock); \
 )
     MagMutexHandle         mhMutex;
     MagMutexHandle         mhRefTimeUpdateMutex;
@@ -91,6 +92,8 @@ ClassMembers(MagOmxComponentClock, MagOmxComponentImpl, \
 
     MagEventHandle          mStateChangeEvt;
     MagEventGroupHandle     mStateChangeEvtGrp;
+
+    MagTimerHandle          mhTimer;
 
 EndOfClassMembers;
 

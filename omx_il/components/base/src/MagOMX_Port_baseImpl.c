@@ -663,7 +663,11 @@ static OMX_ERRORTYPE virtual_Pause(OMX_HANDLETYPE hPort){
     root = getRoot(hPort);
     base = getBase(hPort);
 
-    base->mLooper->suspend(base->mLooper);
+    PORT_LOGV(root, "enter!");
+    
+    if (base->mLooper)
+        base->mLooper->suspend(base->mLooper);
+
     return OMX_ErrorNone;
 }
 
@@ -674,8 +678,10 @@ static OMX_ERRORTYPE virtual_Resume(OMX_HANDLETYPE hPort){
     root = getRoot(hPort);
     base = getBase(hPort);
 
-    PORT_LOGV(root, "done!");
-    base->mLooper->resume(base->mLooper);
+    PORT_LOGV(root, "enter!");
+
+    if (base->mLooper)
+        base->mLooper->resume(base->mLooper);
     
     return OMX_ErrorNone;
 }
@@ -934,7 +940,7 @@ static OMX_ERRORTYPE virtual_EmptyThisBuffer(
 
         base->mEmptyThisBufferMsg->setPointer(base->mEmptyThisBufferMsg, "buffer_header", (void *)pBuffer, MAG_FALSE);
         base->mEmptyThisBufferMsg->postMessage(base->mEmptyThisBufferMsg, 0);
-        PORT_LOGV(root, "post the EmptyThisBuffer message(buffer: %p)", pBuffer);
+        PORT_LOGV(root, "post the EmptyThisBuffer message(buffer: %p(%p))", pBuffer, pBuffer->pBuffer);
     }else{
         PORT_LOGE(root, "could not do it on the OUTPUT port!");
         return OMX_ErrorIncorrectStateOperation;

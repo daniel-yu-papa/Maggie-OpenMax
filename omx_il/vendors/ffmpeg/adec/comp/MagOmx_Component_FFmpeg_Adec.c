@@ -172,7 +172,13 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_Start(
 
 static OMX_ERRORTYPE virtual_FFmpeg_Adec_Stop(
                     OMX_IN  OMX_HANDLETYPE hComponent){
-	AGILE_LOGV("enter!");
+    MagOmxComponent_FFmpeg_Adec adecComp;
+
+    AGILE_LOGV("enter!");
+
+    adecComp = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Adec);
+    avcodec_close(adecComp->mpAudioStream->codec);
+    
 	return OMX_ErrorNone;
 }
 
@@ -242,13 +248,14 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_ProceedBuffer(
 	}
 
 	root = ooc_cast(hComponent, MagOmxComponent);
-	if ((srcbufHeader->pBuffer != NULL) && (srcbufHeader->nFilledLen > 0)){
-		port = ooc_cast(hDestPort, MagOmxPort);
-	    
-		adecComp     = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Adec);
-		pMbuf = (MagOmxMediaBuffer_t *)srcbufHeader->pAppPrivate;
+	port = ooc_cast(hDestPort, MagOmxPort);
+    
+	adecComp     = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Adec);
+	pMbuf = (MagOmxMediaBuffer_t *)srcbufHeader->pAppPrivate;
 
-		av_init_packet(&codedPkt);
+	av_init_packet(&codedPkt);
+
+    if (srcbufHeader->pBuffer){
 		codedPkt.data = srcbufHeader->pBuffer;
 		codedPkt.size = srcbufHeader->nFilledLen;
 		codedPkt.pts  = srcbufHeader->nTimeStamp;
@@ -271,72 +278,87 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_ProceedBuffer(
 	            codedPkt.side_data[i].type = pMbuf->side_data[i].type;
 	        }
 		}
+    }else{
+        codedPkt.data = NULL;
+        codedPkt.size = 0;
+        COMP_LOGV(root, "get EOS frame");
+    }
 
-		COMP_LOGV(root, "decode audio buffer header %p(%p, %d)(pts:0x%llx, si:%d, flags:%s, dur:%d)!",
-			             srcbufHeader, srcbufHeader->pBuffer, srcbufHeader->nFilledLen,
-			             codedPkt.pts,
-			             codedPkt.stream_index, codedPkt.flags == AV_PKT_FLAG_KEY ? "I" : "P",
-			             codedPkt.duration);
+	COMP_LOGV(root, "decode audio buffer header %p(%p, %d)(pts:0x%llx, si:%d, flags:%s, dur:%d)!",
+		             srcbufHeader, srcbufHeader->pBuffer, srcbufHeader->nFilledLen,
+		             codedPkt.pts,
+		             codedPkt.stream_index, codedPkt.flags == AV_PKT_FLAG_KEY ? "I" : "P",
+		             codedPkt.duration);
 
-		do {
-			decodedFrame = av_frame_alloc();
-			decodedLen = avcodec_decode_audio4(adecComp->mpAudioStream->codec, 
-				                               decodedFrame, &got_frame, &codedPkt);
+	do {
+		decodedFrame = av_frame_alloc();
+		decodedLen = avcodec_decode_audio4(adecComp->mpAudioStream->codec, 
+			                               decodedFrame, &got_frame, &codedPkt);
 
-			if (decodedLen < 0){
-				COMP_LOGE(root, "Failed to decode the audio frame(size:%d, pts:0x%x), skip it", 
-					             codedPkt.size, codedPkt.pts);
-				break;
-			}
+		if (decodedLen <= 0){
+            if (codedPkt.data){
+                COMP_LOGE(root, "Failed to decode the audio frame(size:%d, pts:0x%x), skip it", 
+                             codedPkt.size, codedPkt.pts);
+            }else{
+                COMP_LOGD(root, "Audio decoder finished the full stream playback!!!");
+                av_frame_unref(decodedFrame);
+                destbufHeader = MagOmxPortVirtual(port)->GetOutputBuffer(port);
+                destbufHeader->pBuffer    = NULL;
+                destbufHeader->nFilledLen = 0;
+                destbufHeader->nTimeStamp = kInvalidTimeStamp;
+                MagOmxPortVirtual(port)->sendOutputBuffer(port, destbufHeader);
+            }
+			
+			break;
+		}
 
-			codedPkt.dts  =  AV_NOPTS_VALUE;
-			codedPkt.pts  =  AV_NOPTS_VALUE;
-			codedPkt.data += decodedLen;
-			codedPkt.size -= decodedLen;
+		codedPkt.dts  =  AV_NOPTS_VALUE;
+		codedPkt.pts  =  AV_NOPTS_VALUE;
+		codedPkt.data += decodedLen;
+		codedPkt.size -= decodedLen;
 
-			if ((codedPkt.data && codedPkt.size <= 0) || (!codedPkt.data && !got_frame))
-				continueDec = OMX_FALSE;
+		if ((codedPkt.data && codedPkt.size <= 0) || (!codedPkt.data && !got_frame))
+			continueDec = OMX_FALSE;
 
-			if (!got_frame){
-				continue;
+		if (!got_frame){
+			continue;
+		}else{
+			destbufHeader = MagOmxPortVirtual(port)->GetOutputBuffer(port);
+			/*COMP_LOGV(root, "audio decoded sample_rate:%d, pts: 0x%llx, pkt_pts: 0x%llx, codec timebase(%d:%d), stream timebase(%d:%d)",
+				             decodedFrame->sample_rate, decodedFrame->pts,
+				             decodedFrame->pkt_pts,  
+				             adecComp->mpAudioStream->codec->time_base.num, 
+				             adecComp->mpAudioStream->codec->time_base.den,
+				             adecComp->mpAudioStream->time_base.num,
+				             adecComp->mpAudioStream->time_base.den);*/
+
+			/*decodedFrame->sample_rate: 48000
+			 *decodedFrame->pts == AV_NOPTS_VALUE
+			 *mpAudioStream->codec->time_base = {1, 48000}
+			 *mpAudioStream->time_base = {1, 90000}
+			*/
+			tb = (AVRational){1, decodedFrame->sample_rate};
+			if (decodedFrame->pts != AV_NOPTS_VALUE){
+                /*decodedFrame->pts = av_rescale_q(decodedFrame->pts, 
+                	                             adecComp->mpAudioStream->codec->time_base, 
+                	                             tb);*/
+			}else if (decodedFrame->pkt_pts != AV_NOPTS_VALUE){
+                /*decodedFrame->pts = av_rescale_q(decodedFrame->pkt_pts, 
+                	                             adecComp->mpAudioStream->time_base, 
+                	                             tb);*/
+                decodedFrame->pts = decodedFrame->pkt_pts;
 			}else{
-				destbufHeader = MagOmxPortVirtual(port)->GetOutputBuffer(port);
-				/*COMP_LOGV(root, "audio decoded sample_rate:%d, pts: 0x%llx, pkt_pts: 0x%llx, codec timebase(%d:%d), stream timebase(%d:%d)",
-					             decodedFrame->sample_rate, decodedFrame->pts,
-					             decodedFrame->pkt_pts,  
-					             adecComp->mpAudioStream->codec->time_base.num, 
-					             adecComp->mpAudioStream->codec->time_base.den,
-					             adecComp->mpAudioStream->time_base.num,
-					             adecComp->mpAudioStream->time_base.den);*/
+				AGILE_LOGE("audio decoded frame pts(0x%x) error", decodedFrame->pts);
+            }
 
-				/*decodedFrame->sample_rate: 48000
-				 *decodedFrame->pts == AV_NOPTS_VALUE
-				 *mpAudioStream->codec->time_base = {1, 48000}
-				 *mpAudioStream->time_base = {1, 90000}
-				*/
-				tb = (AVRational){1, decodedFrame->sample_rate};
-				if (decodedFrame->pts != AV_NOPTS_VALUE){
-                    /*decodedFrame->pts = av_rescale_q(decodedFrame->pts, 
-                    	                             adecComp->mpAudioStream->codec->time_base, 
-                    	                             tb);*/
-				}else if (decodedFrame->pkt_pts != AV_NOPTS_VALUE){
-                    /*decodedFrame->pts = av_rescale_q(decodedFrame->pkt_pts, 
-                    	                             adecComp->mpAudioStream->time_base, 
-                    	                             tb);*/
-                    decodedFrame->pts = decodedFrame->pkt_pts;
-				}else{
-					AGILE_LOGE("audio decoded frame pts(0x%x) error", decodedFrame->pts);
-                }
-
-				destbufHeader->pBuffer = (OMX_U8 *)decodedFrame;
-				destbufHeader->nFilledLen = decodedLen;
-				destbufHeader->nTimeStamp = decodedFrame->pts;
-				MagOmxPortVirtual(port)->sendOutputBuffer(port, destbufHeader);
-				COMP_LOGV(root, "Succeed to decode the audio frame (len: %d, pts: 0x%x)! Send to output buffer: 0x%x", 
-				                 decodedLen, decodedFrame->pts, destbufHeader);
-			}
-		}while(continueDec);
-	}
+			destbufHeader->pBuffer = (OMX_U8 *)decodedFrame;
+			destbufHeader->nFilledLen = decodedLen;
+			destbufHeader->nTimeStamp = decodedFrame->pts;
+			MagOmxPortVirtual(port)->sendOutputBuffer(port, destbufHeader);
+			COMP_LOGV(root, "Succeed to decode the audio frame (len: %d, pts: 0x%x)! Send to output buffer: 0x%x", 
+			                 decodedLen, decodedFrame->pts, destbufHeader);
+		}
+	}while(continueDec);
 
 	return OMX_ErrorNone;
 }

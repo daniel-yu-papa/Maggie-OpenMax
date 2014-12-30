@@ -76,13 +76,33 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vren_Preroll(
 
 static OMX_ERRORTYPE virtual_FFmpeg_Vren_Start(
                     OMX_IN  OMX_HANDLETYPE hComponent){
+    MagOmxComponent_FFmpeg_Vren thiz;
+    thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vren);
 
-	return OMX_ErrorNone;
+    AGILE_LOGV("enter!");
+#ifdef CAPTURE_YUV_DATA_TO_FILE
+    if (!thiz->mfYUVFile){
+        thiz->mfYUVFile = fopen("./video.yuv","wb+");
+        if (thiz->mfYUVFile == NULL){
+            AGILE_LOGE("Failed to open the file: ./video.yuv");
+        }
+    }
+#endif
+    return OMX_ErrorNone;
 }
 
 static OMX_ERRORTYPE virtual_FFmpeg_Vren_Stop(
                     OMX_IN  OMX_HANDLETYPE hComponent){
+    MagOmxComponent_FFmpeg_Vren thiz;
+    thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vren);
+
 	AGILE_LOGV("enter!");
+#ifdef CAPTURE_YUV_DATA_TO_FILE
+    if (thiz->mfYUVFile){
+        fclose(thiz->mfYUVFile);
+        thiz->mfYUVFile = NULL;
+    }
+#endif
 	return OMX_ErrorNone;
 }
 
@@ -130,6 +150,14 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vren_ProceedBuffer(
 
     vrenCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
     thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vren);
+
+    if (srcbufHeader->pBuffer    == NULL && 
+        srcbufHeader->nFilledLen == 0    && 
+        srcbufHeader->nTimeStamp == kInvalidTimeStamp){
+        AGILE_LOGV("get the EOS frame and send out the eos event to application");
+        vrenCompImpl->sendEvents(hComponent, OMX_EventBufferFlag, 0, 0, NULL);
+        return OMX_ErrorNone;
+    }
 
     decodedFrame = (AVFrame *)srcbufHeader->pBuffer;
     timeStamp    = srcbufHeader->nTimeStamp;

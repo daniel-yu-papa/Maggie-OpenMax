@@ -187,7 +187,12 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_Start(
 
 static OMX_ERRORTYPE virtual_FFmpeg_Vdec_Stop(
                     OMX_IN  OMX_HANDLETYPE hComponent){
-	AGILE_LOGV("enter!");
+    MagOmxComponent_FFmpeg_Vdec vdecComp;
+
+    AGILE_LOGV("enter!");
+    vdecComp = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vdec);
+    avcodec_close(vdecComp->mpVideoStream->codec);
+    
 	return OMX_ErrorNone;
 }
 
@@ -255,13 +260,14 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_ProceedBuffer(
 	}
 
 	root = ooc_cast(hComponent, MagOmxComponent);
-	if ((srcbufHeader->pBuffer != NULL) && (srcbufHeader->nFilledLen > 0)){
-		destPort = ooc_cast(hDestPort, MagOmxPort);
-	    
-		vdecComp     = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vdec);
-		pMbuf = (MagOmxMediaBuffer_t *)srcbufHeader->pAppPrivate;
+	destPort = ooc_cast(hDestPort, MagOmxPort);
+    
+	vdecComp     = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vdec);
+	pMbuf = (MagOmxMediaBuffer_t *)srcbufHeader->pAppPrivate;
 
-		av_init_packet(&codedPkt);
+	av_init_packet(&codedPkt);
+
+    if (srcbufHeader->pBuffer){
 		codedPkt.data = srcbufHeader->pBuffer;
 		codedPkt.size = srcbufHeader->nFilledLen;
 		codedPkt.pts  = srcbufHeader->nTimeStamp;
@@ -284,65 +290,84 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_ProceedBuffer(
 	            codedPkt.side_data[i].type = pMbuf->side_data[i].type;
 	        }
 		}
+    }else{
+        codedPkt.data = NULL;
+        codedPkt.size = 0;
+        COMP_LOGV(root, "get EOS frame");
+    }
 
 #ifdef CAPTURE_ES_DATA
-        if (vdecComp->mfEsData)
-            fwrite(codedPkt.data, 1, codedPkt.size, vdecComp->mfEsData);
-            fflush(vdecComp->mfEsData);
+    if (vdecComp->mfEsData)
+        fwrite(codedPkt.data, 1, codedPkt.size, vdecComp->mfEsData);
+        fflush(vdecComp->mfEsData);
 #endif
 
-		COMP_LOGV(root, "decode video buffer header %p(%p, %d)(pts:0x%llx, si:%d, flags:%s, dur:%d)!",
-			             srcbufHeader, srcbufHeader->pBuffer, srcbufHeader->nFilledLen,
-			             codedPkt.pts,
-			             codedPkt.stream_index, codedPkt.flags == AV_PKT_FLAG_KEY ? "I" : "P",
-			             codedPkt.duration);
+	COMP_LOGV(root, "decode video buffer header %p(%p, %d)(pts:0x%llx, si:%d, flags:%s, dur:%d)!",
+		             srcbufHeader, srcbufHeader->pBuffer, srcbufHeader->nFilledLen,
+		             codedPkt.pts,
+		             codedPkt.stream_index, codedPkt.flags == AV_PKT_FLAG_KEY ? "I" : "P",
+		             codedPkt.duration);
 
-		decodedFrame = av_frame_alloc();
-		decodedLen = avcodec_decode_video2(vdecComp->mpVideoStream->codec, 
-			                               decodedFrame, &got_frame, &codedPkt);
-		
-		if (got_frame){
-			destbufHeader = MagOmxPortVirtual(destPort)->GetOutputBuffer(destPort);
+decode:
+	decodedFrame = av_frame_alloc();
+	decodedLen = avcodec_decode_video2(vdecComp->mpVideoStream->codec, 
+		                               decodedFrame, &got_frame, &codedPkt);
+	
+	if (got_frame && decodedLen > 0){
+		destbufHeader = MagOmxPortVirtual(destPort)->GetOutputBuffer(destPort);
 
-			decodedFrame->pts = av_frame_get_best_effort_timestamp(decodedFrame);
-			decodedFrame->sample_aspect_ratio = av_guess_sample_aspect_ratio(vdecComp->mpAVFormat, 
-				                                                             vdecComp->mpVideoStream, 
-				                                                             decodedFrame);
-			destbufHeader->pBuffer = (OMX_U8 *)decodedFrame;
-			destbufHeader->nFilledLen = decodedLen;
-			/*if (decodedFrame->pts != AV_NOPTS_VALUE)
-				decodedFrame->pts = av_q2d(vdecComp->mpVideoStream->time_base) * decodedFrame->pts;*/
-			destbufHeader->nTimeStamp = decodedFrame->pts;
+		decodedFrame->pts = av_frame_get_best_effort_timestamp(decodedFrame);
+		decodedFrame->sample_aspect_ratio = av_guess_sample_aspect_ratio(vdecComp->mpAVFormat, 
+			                                                             vdecComp->mpVideoStream, 
+			                                                             decodedFrame);
+		destbufHeader->pBuffer = (OMX_U8 *)decodedFrame;
+		destbufHeader->nFilledLen = decodedLen;
+		/*if (decodedFrame->pts != AV_NOPTS_VALUE)
+			decodedFrame->pts = av_q2d(vdecComp->mpVideoStream->time_base) * decodedFrame->pts;*/
+		destbufHeader->nTimeStamp = decodedFrame->pts;
 
 #ifdef CAPTURE_DECODED_YUV_DATA
-            if (vdecComp->mfDecodedYUV){
-                for (i = 0; i < decodedFrame->height; i++){
-                    fwrite(decodedFrame->data[0] + i * decodedFrame->linesize[0], 
-                           1, decodedFrame->width, 
-                           vdecComp->mfDecodedYUV);
-                }
-
-                for (i = 0; i < decodedFrame->height / 2; i++){
-                    fwrite(decodedFrame->data[1] + i * decodedFrame->linesize[1], 
-                           1, decodedFrame->width / 2, 
-                           vdecComp->mfDecodedYUV);
-                }
-
-                for (i = 0; i < decodedFrame->height / 2; i++){
-                    fwrite(decodedFrame->data[2] + i * decodedFrame->linesize[2], 
-                           1, decodedFrame->width / 2, 
-                           vdecComp->mfDecodedYUV);
-                }
-
-                fflush(vdecComp->mfDecodedYUV);
+        if (vdecComp->mfDecodedYUV){
+            for (i = 0; i < decodedFrame->height; i++){
+                fwrite(decodedFrame->data[0] + i * decodedFrame->linesize[0], 
+                       1, decodedFrame->width, 
+                       vdecComp->mfDecodedYUV);
             }
+
+            for (i = 0; i < decodedFrame->height / 2; i++){
+                fwrite(decodedFrame->data[1] + i * decodedFrame->linesize[1], 
+                       1, decodedFrame->width / 2, 
+                       vdecComp->mfDecodedYUV);
+            }
+
+            for (i = 0; i < decodedFrame->height / 2; i++){
+                fwrite(decodedFrame->data[2] + i * decodedFrame->linesize[2], 
+                       1, decodedFrame->width / 2, 
+                       vdecComp->mfDecodedYUV);
+            }
+
+            fflush(vdecComp->mfDecodedYUV);
+        }
 #endif
-			MagOmxPortVirtual(destPort)->sendOutputBuffer(destPort, destbufHeader);
-			COMP_LOGV(root, "Get the video frame (len: %d, pts: 0x%llx, format: %d, pict_type: %d)!", 
-				             decodedLen, decodedFrame->pts,
-                             decodedFrame->format, decodedFrame->pict_type);
-		}
-	}
+		MagOmxPortVirtual(destPort)->sendOutputBuffer(destPort, destbufHeader);
+		COMP_LOGV(root, "Get the video frame (len: %d, pts: 0x%llx, format: %d, pict_type: %d)!", 
+			             decodedLen, decodedFrame->pts,
+                         decodedFrame->format, decodedFrame->pict_type);
+
+        if (codedPkt.data == NULL){
+            goto decode;
+        }
+	}else{
+        if (codedPkt.data == NULL){
+            destbufHeader = MagOmxPortVirtual(destPort)->GetOutputBuffer(destPort);
+
+            destbufHeader->pBuffer    = NULL;
+            destbufHeader->nFilledLen = 0;
+            destbufHeader->nTimeStamp = kInvalidTimeStamp;
+            MagOmxPortVirtual(destPort)->sendOutputBuffer(destPort, destbufHeader);
+            COMP_LOGV(root, "Send out EOS video frame!");
+        }
+    }
 
 	return OMX_ErrorNone;
 }

@@ -34,8 +34,10 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vren_ProceedReturnedBuffer(OMX_HANDLETYPE po
 	}
 
 	/*release the used video frame buffer*/
-	frame = (AVFrame *)pBufHeader->pBuffer;
-	av_frame_unref(frame);
+	if (pBufHeader->pBuffer){
+		frame = (AVFrame *)pBufHeader->pBuffer;
+		av_frame_unref(frame);
+	}
 
 	return OMX_ErrorNone;
 }

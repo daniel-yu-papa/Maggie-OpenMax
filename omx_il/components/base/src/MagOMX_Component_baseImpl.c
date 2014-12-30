@@ -155,8 +155,6 @@ static void onBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
         if (!msg->findPointer(msg, "buffer_header", (void **)&srcBufHeader)){
             COMP_LOGE(root, "[msg]: failed to find the buffer_header!");
             return;
-        }else{
-            COMP_LOGE(root, "[msg]: get the buffer: %p!", srcBufHeader->pBuffer);
         }
 
         if (!msg->findPointer(msg, "destination_port", (void **)&hDestPort)){
@@ -176,6 +174,20 @@ static void onBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
                       (base->mFlushingPorts == srcBufHeader->nInputPortIndex)){
                 isFlushing = OMX_TRUE;
             }
+        }
+
+        if ((base->mTransitionState == OMX_TransitionStateToIdle) ||
+            (base->mState == OMX_StateIdle)){
+            COMP_LOGD(root, "directly return the buffer!");
+            /*return back the buffer immediately*/
+            if (msg->findMessage(msg, "return_buf_msg", &returnBufMsg)){
+                returnBufMsg->setPointer(returnBufMsg, "buffer_header", srcBufHeader, MAG_FALSE);
+                returnBufMsg->setPointer(returnBufMsg, "component_obj", priv, MAG_FALSE);
+                returnBufMsg->postMessage(returnBufMsg, 0);
+            }else{
+                COMP_LOGE(root, "failed to find the return_buf_msg!");
+            }
+            return;
         }
 
         if (MagOmxComponentImplVirtual(base)->MagOMX_ProceedBuffer){
@@ -241,6 +253,124 @@ static void onBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
 /********************************
  *State Transition Actions
  ********************************/
+static OMX_ERRORTYPE doPrerollStateLoaded_Idle(OMX_IN OMX_HANDLETYPE hComponent){
+    MagOmxComponentImpl base;
+
+    base = getBase(hComponent);
+    base->mTransitionState = OMX_TransitionStateToIdle;
+
+    return OMX_ErrorNone;
+}
+
+static OMX_ERRORTYPE doPrerollStateLoaded_WaitforResources(OMX_IN OMX_HANDLETYPE hComponent){
+    return OMX_ErrorNone;
+}
+
+static OMX_ERRORTYPE doPrerollStateIdle_Loaded(OMX_IN OMX_HANDLETYPE hComponent){
+    MagOmxComponentImpl base;
+
+    base = getBase(hComponent);
+    base->mTransitionState = OMX_TransitionStateToLoaded;
+
+    return OMX_ErrorNone;
+}
+
+static OMX_ERRORTYPE doPrerollStateIdle_Executing(OMX_IN OMX_HANDLETYPE hComponent){
+    MagOmxComponent root;
+    MagOmxComponentImpl base;
+    OMX_ERRORTYPE err;
+
+    root = getRoot(hComponent);
+    base = getBase(hComponent);
+    base->mTransitionState = OMX_TransitionStateToExecuting;
+
+     if (MagOmxComponentImplVirtual(base)->MagOMX_Start){
+        err = MagOmxComponentImplVirtual(base)->MagOMX_Start(hComponent);
+
+        if (err != OMX_ErrorNone){
+            COMP_LOGE(root, "failed to start the component!");
+            return err;
+        }
+    }
+
+    return OMX_ErrorNone;
+}
+
+static OMX_ERRORTYPE doPrerollStateIdle_Pause(OMX_IN OMX_HANDLETYPE hComponent){
+    MagOmxComponentImpl base;
+
+    base = getBase(hComponent);
+    base->mTransitionState = OMX_TransitionStateToPause;
+    
+    return OMX_ErrorNone;
+}
+
+static OMX_ERRORTYPE doPrerollStateExecuting_Idle(OMX_IN OMX_HANDLETYPE hComponent){
+    MagOmxComponentImpl base;
+
+    base = getBase(hComponent);
+    base->mTransitionState = OMX_TransitionStateToIdle;
+
+    if (MagOmxComponentImplVirtual(base)->MagOMX_Stop){
+        return MagOmxComponentImplVirtual(base)->MagOMX_Stop(hComponent);
+    }
+
+    return OMX_ErrorNone; 
+}
+
+static OMX_ERRORTYPE doPrerollStateExecuting_Pause(OMX_IN OMX_HANDLETYPE hComponent){
+    MagOmxComponentImpl base;
+
+    base = getBase(hComponent);
+    base->mTransitionState = OMX_TransitionStateToPause;
+    
+    if (MagOmxComponentImplVirtual(base)->MagOMX_Pause){
+        MagOmxComponentImplVirtual(base)->MagOMX_Pause(hComponent);
+    }
+    return OMX_ErrorNone;
+}
+
+static OMX_ERRORTYPE doPrerollStatePause_Idle(OMX_IN OMX_HANDLETYPE hComponent){
+    MagOmxComponentImpl base;
+
+    base = getBase(hComponent);
+    base->mTransitionState = OMX_TransitionStateToIdle;
+    
+    return OMX_ErrorNone;
+}
+
+static OMX_ERRORTYPE doPrerollStatePause_Executing(OMX_IN OMX_HANDLETYPE hComponent){
+    MagOmxComponentImpl base;
+
+    base = getBase(hComponent);
+    base->mTransitionState = OMX_TransitionStateToExecuting;
+    
+    if (MagOmxComponentImplVirtual(base)->MagOMX_Resume){
+        return MagOmxComponentImplVirtual(base)->MagOMX_Resume(hComponent);
+    }
+
+    return OMX_ErrorNone;
+}
+
+static OMX_ERRORTYPE doPrerollStateWaitforResources_Loaded(OMX_IN OMX_HANDLETYPE hComponent){
+    MagOmxComponentImpl base;
+
+    base = getBase(hComponent);
+    base->mTransitionState = OMX_TransitionStateToLoaded;
+    
+    return OMX_ErrorNone;
+}
+
+static OMX_ERRORTYPE doSPrerolltateWaitforResources_Idle(OMX_IN OMX_HANDLETYPE hComponent){
+    MagOmxComponentImpl base;
+
+    base = getBase(hComponent);
+    base->mTransitionState = OMX_TransitionStateToIdle;
+    
+    return OMX_ErrorNone;
+}
+
+
 static OMX_ERRORTYPE doStateLoaded_WaitforResources(OMX_IN OMX_HANDLETYPE hComponent){
     COMP_LOGV(getRoot(hComponent), "Enter!");
     return OMX_ErrorNone;
@@ -340,30 +470,17 @@ static OMX_ERRORTYPE doStateIdle_Executing(OMX_IN OMX_HANDLETYPE hComponent){
     root = getRoot(hComponent);
     base = getBase(hComponent);
 
-    if (MagOmxComponentImplVirtual(base)->MagOMX_Start){
-        err = MagOmxComponentImplVirtual(base)->MagOMX_Start(hComponent);
-
-        if (err != OMX_ErrorNone){
-            COMP_LOGE(root, "failed to start the component!");
-            return err;
-        }
-
-        for (n = rbtree_first(base->mPortTreeRoot); n; n = rbtree_next(n)) {
-            port = ooc_cast(n->value, MagOmxPort);
-            if (port->getDef_Enabled(port)){
-                err = MagOmxPortVirtual(port)->Run(n->value);
-                if (err != OMX_ErrorNone){
-                    COMP_LOGE(root, "failed to start the port data flow!");
-                    return err;
-                }
+    for (n = rbtree_first(base->mPortTreeRoot); n; n = rbtree_next(n)) {
+        port = ooc_cast(n->value, MagOmxPort);
+        if (port->getDef_Enabled(port)){
+            err = MagOmxPortVirtual(port)->Run(n->value);
+            if (err != OMX_ErrorNone){
+                COMP_LOGE(root, "failed to start the port data flow!");
+                return err;
             }
         }
-        base->mbGetStartTime = OMX_FALSE;
-    }else{
-        COMP_LOGE(root, "pure virtual func: MagOMX_Start() is not overrided!!");
-        return OMX_ErrorNotImplemented;
-    }  
-
+    }
+    base->mbGetStartTime = OMX_FALSE;
     return OMX_ErrorNone;
 }
 
@@ -423,7 +540,7 @@ static OMX_ERRORTYPE doStateExecuting_Idle(OMX_IN OMX_HANDLETYPE hComponent){
             }
         }
 
-        return MagOmxComponentImplVirtual(base)->MagOMX_Stop(hComponent);
+        /*return MagOmxComponentImplVirtual(base)->MagOMX_Stop(hComponent);*/
     }else{
         COMP_LOGE(root, "pure virtual func: MagOMX_Stop() is not overrided!!");
         return OMX_ErrorNotImplemented;
@@ -441,24 +558,17 @@ static OMX_ERRORTYPE doStateExecuting_Pause(OMX_IN OMX_HANDLETYPE hComponent){
 
     root = getRoot(hComponent);
     base = getBase(hComponent);
-
-    if (MagOmxComponentImplVirtual(base)->MagOMX_Pause){
-        MagOmxComponentImplVirtual(base)->MagOMX_Pause(hComponent);
-
-        for (n = rbtree_first(base->mPortTreeRoot); n; n = rbtree_next(n)) {
-            port = ooc_cast(n->value, MagOmxPort);
-            if (port->getDef_Enabled(port)){
-                err = MagOmxPortVirtual(port)->Pause(n->value);
-                if (err != OMX_ErrorNone){
-                    COMP_LOGE(root, "failed to pause the port!");
-                    return err;
-                }
+    
+    for (n = rbtree_first(base->mPortTreeRoot); n; n = rbtree_next(n)) {
+        port = ooc_cast(n->value, MagOmxPort);
+        if (port->getDef_Enabled(port)){
+            err = MagOmxPortVirtual(port)->Pause(n->value);
+            if (err != OMX_ErrorNone){
+                COMP_LOGE(root, "failed to pause the port!");
+                return err;
             }
         }
-    }else{
-        COMP_LOGE(root, "pure virtual func: MagOMX_Pause() is not overrided!!");
-        return OMX_ErrorNotImplemented;
-    }  
+    }
 
     return OMX_ErrorNone; 
 }
@@ -516,23 +626,16 @@ static OMX_ERRORTYPE doStatePause_Executing(OMX_IN OMX_HANDLETYPE hComponent){
     root = getRoot(hComponent);
     base = getBase(hComponent);
 
-    if (MagOmxComponentImplVirtual(base)->MagOMX_Resume){
-        for (n = rbtree_first(base->mPortTreeRoot); n; n = rbtree_next(n)) {
-            port = ooc_cast(n->value, MagOmxPort);
-            if (port->getDef_Enabled(port)){
-                err = MagOmxPortVirtual(port)->Resume(n->value);
-                if (err != OMX_ErrorNone){
-                    COMP_LOGE(root, "failed to resume the port!");
-                    return err;
-                }
+    for (n = rbtree_first(base->mPortTreeRoot); n; n = rbtree_next(n)) {
+        port = ooc_cast(n->value, MagOmxPort);
+        if (port->getDef_Enabled(port)){
+            err = MagOmxPortVirtual(port)->Resume(n->value);
+            if (err != OMX_ErrorNone){
+                COMP_LOGE(root, "failed to resume the port!");
+                return err;
             }
         }
-
-        return MagOmxComponentImplVirtual(base)->MagOMX_Resume(hComponent);
-    }else{
-        COMP_LOGE(root, "pure virtual func: MagOMX_Resume() is not overrided!!");
-        return OMX_ErrorNotImplemented;
-    } 
+    }
 
     return OMX_ErrorNone;
 }
@@ -1143,30 +1246,66 @@ static OMX_ERRORTYPE virtual_SendCommand(
                 OMX_IN  OMX_PTR pCmdData){
 
     MagOmxComponentImpl base;
+    MagOmxComponent     root;
+
     if (NULL == hComponent){
         return OMX_ErrorBadParameter;
     }
 
     base = getBase(hComponent);
-
+    root = getRoot(hComponent);
+    
     if (Cmd == OMX_CommandStateSet){
+        OMX_STATETYPE target_state = (OMX_STATETYPE)nParam1;
+
         if (base->mState == OMX_StateMax){
-            if (nParam1 == OMX_StateLoaded){
+            if (target_state == OMX_StateLoaded){
                 base->mState = OMX_StateLoaded;
                 return OMX_ErrorNone;
             }else{
-                COMP_LOGE(getRoot(hComponent), "Invalid state transition: current state:OMX_StateMax --> target state:%s", OmxState2String(nParam1));
+                COMP_LOGE(getRoot(hComponent), "Invalid state transition: current state:OMX_StateMax --> target state:%s", OmxState2String(target_state));
                 return OMX_ErrorIncorrectStateTransition;
             }
         }else{
+            if ((target_state < OMX_StateLoaded) || (target_state > OMX_StateWaitForResources)){
+                COMP_LOGE(root, "Invalid state transition: current state:%s --> target state:0x%x", OmxState2String(base->mState), target_state);
+                return OMX_ErrorIncorrectStateTransition;
+            }
+
+            switch (target_state){
+                case OMX_StateLoaded:
+                    base->mTransitionState = OMX_TransitionStateToLoaded;
+                    break;
+
+                case OMX_StateIdle:
+                    base->mTransitionState = OMX_TransitionStateToIdle;
+                    break;
+                
+                case OMX_StateExecuting:
+                    base->mTransitionState = OMX_TransitionStateToExecuting;
+                    break;
+
+                case OMX_StatePause:
+                    base->mTransitionState = OMX_TransitionStateToPause;
+                    break;
+
+                default:
+                    base->mTransitionState = OMX_TransitionStateNone;
+                    break;
+            }
+
+            /*do set state preroll action if it has*/
+            if (base->mPrerollStateTransitTable[toIndex(base->mState)][toIndex(target_state)]){
+                base->mPrerollStateTransitTable[toIndex(base->mState)][toIndex(target_state)](hComponent);
+            }
+
             if ( !base->mCmdSetStateMsg ){
                 base->mCmdSetStateMsg = base->createMessage(hComponent, MagOmxComponentImpl_CommandStateSetMsg);  
             }
-            base->mCmdSetStateMsg->setUInt32(base->mCmdSetStateMsg, "param", nParam1);
+            base->mCmdSetStateMsg->setUInt32(base->mCmdSetStateMsg, "param", target_state);
             base->mCmdSetStateMsg->setPointer(base->mCmdSetStateMsg, "cmd_data", pCmdData, MAG_FALSE);
 
             base->mCmdSetStateMsg->postMessage(base->mCmdSetStateMsg, 0);
-            COMP_LOGD(getRoot(hComponent), "send out set state message(param: %d)!", nParam1);
         }
     }else if (Cmd == OMX_CommandFlush){
         if ( !base->mCmdFlushMsg ){
@@ -1849,35 +1988,8 @@ static OMX_ERRORTYPE MagOmxComponentImpl_setState(OMX_HANDLETYPE hComponent, OMX
     base = getBase(hComponent);
 
     COMP_LOGD(root, "Try (current state:%s --> target state:%s)", OmxState2String(base->mState), OmxState2String(target_state));
-    
-    if ((target_state < OMX_StateLoaded) || (target_state > OMX_StateWaitForResources)){
-        COMP_LOGE(root, "Invalid state transition: current state:%s --> target state:0x%x", OmxState2String(base->mState), target_state);
-        return OMX_ErrorIncorrectStateTransition;
-    }
 
     if (base->mStateTransitTable[toIndex(base->mState)][toIndex(target_state)]){
-        switch (target_state){
-            case OMX_StateLoaded:
-                base->mTransitionState = OMX_TransitionStateToLoaded;
-                break;
-
-            case OMX_StateIdle:
-                base->mTransitionState = OMX_TransitionStateToIdle;
-                break;
-            
-            case OMX_StateExecuting:
-                base->mTransitionState = OMX_TransitionStateToExecuting;
-                break;
-
-            case OMX_StatePause:
-                base->mTransitionState = OMX_TransitionStateToPause;
-                break;
-
-            default:
-                base->mTransitionState = OMX_TransitionStateNone;
-                break;
-        }
-
         ret = base->mStateTransitTable[toIndex(base->mState)][toIndex(target_state)](hComponent);
         if (ret == OMX_ErrorNone){
             COMP_LOGD(root, "Transit current state:%s --> target state:%s -- OK!", OmxState2String(base->mState), OmxState2String(target_state));
@@ -2600,6 +2712,19 @@ static void MagOmxComponentImpl_constructor(MagOmxComponentImpl thiz, const void
     thiz->mStateTransitTable[toIndex(OMX_StatePause)][toIndex(OMX_StateExecuting)]         = doStatePause_Executing;
     thiz->mStateTransitTable[toIndex(OMX_StateWaitForResources)][toIndex(OMX_StateLoaded)] = doStateWaitforResources_Loaded;
     thiz->mStateTransitTable[toIndex(OMX_StateWaitForResources)][toIndex(OMX_StateIdle)]   = doStateWaitforResources_Idle;
+
+    memset(thiz->mPrerollStateTransitTable, 0, sizeof(doStateTransition)*25);
+    thiz->mPrerollStateTransitTable[toIndex(OMX_StateLoaded)][toIndex(OMX_StateIdle)]             = doPrerollStateLoaded_Idle;
+    thiz->mPrerollStateTransitTable[toIndex(OMX_StateLoaded)][toIndex(OMX_StateWaitForResources)] = doPrerollStateLoaded_WaitforResources;
+    thiz->mPrerollStateTransitTable[toIndex(OMX_StateIdle)][toIndex(OMX_StateLoaded)]             = doPrerollStateIdle_Loaded;
+    thiz->mPrerollStateTransitTable[toIndex(OMX_StateIdle)][toIndex(OMX_StateExecuting)]          = doPrerollStateIdle_Executing;
+    thiz->mPrerollStateTransitTable[toIndex(OMX_StateIdle)][toIndex(OMX_StatePause)]              = doPrerollStateIdle_Pause;
+    thiz->mPrerollStateTransitTable[toIndex(OMX_StateExecuting)][toIndex(OMX_StateIdle)]          = doPrerollStateExecuting_Idle;
+    thiz->mPrerollStateTransitTable[toIndex(OMX_StateExecuting)][toIndex(OMX_StatePause)]         = doPrerollStateExecuting_Pause;
+    thiz->mPrerollStateTransitTable[toIndex(OMX_StatePause)][toIndex(OMX_StateIdle)]              = doPrerollStatePause_Idle;
+    thiz->mPrerollStateTransitTable[toIndex(OMX_StatePause)][toIndex(OMX_StateExecuting)]         = doPrerollStatePause_Executing;
+    thiz->mPrerollStateTransitTable[toIndex(OMX_StateWaitForResources)][toIndex(OMX_StateLoaded)] = doPrerollStateWaitforResources_Loaded;
+    thiz->mPrerollStateTransitTable[toIndex(OMX_StateWaitForResources)][toIndex(OMX_StateIdle)]   = doSPrerolltateWaitforResources_Idle;
 
     thiz->mParametersDB            = createMagMiniDB(64);
 

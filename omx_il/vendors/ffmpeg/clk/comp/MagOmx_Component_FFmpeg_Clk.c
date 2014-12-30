@@ -41,30 +41,6 @@ static OMX_ERRORTYPE virtual_Clock_Preroll(
 	return OMX_ErrorNone;
 }
 
-static OMX_ERRORTYPE virtual_Clock_Start(
-                    OMX_IN  OMX_HANDLETYPE hComponent){
-	AGILE_LOGV("enter!");
-	return OMX_ErrorNone;
-}
-
-static OMX_ERRORTYPE virtual_Clock_Stop(
-                    OMX_IN  OMX_HANDLETYPE hComponent){
-	AGILE_LOGV("enter!");
-	return OMX_ErrorNone;
-}
-
-static OMX_ERRORTYPE virtual_Clock_Pause(
-                    OMX_IN  OMX_HANDLETYPE hComponent){
-	AGILE_LOGV("enter!");
-	return OMX_ErrorNone;
-}
-
-static OMX_ERRORTYPE virtual_Clock_Resume(
-                    OMX_IN  OMX_HANDLETYPE hComponent){
-	AGILE_LOGV("enter!");
-	return OMX_ErrorNone;
-}
-
 static OMX_ERRORTYPE virtual_Clock_Deinit(
                     OMX_IN  OMX_HANDLETYPE hComponent){
 	OMX_U32 i;
@@ -189,10 +165,6 @@ static void MagOmxComponent_FFmpeg_Clk_initialize(Class this){
     MagOmxComponent_FFmpeg_ClkVtableInstance.MagOmxComponentClock.MagOmxComponentImpl.MagOMX_GetComponentUUID  = virtual_Clock_GetComponentUUID;
     MagOmxComponent_FFmpeg_ClkVtableInstance.MagOmxComponentClock.MagOmxComponentImpl.MagOMX_Prepare           = virtual_Clock_Prepare;
     MagOmxComponent_FFmpeg_ClkVtableInstance.MagOmxComponentClock.MagOmxComponentImpl.MagOMX_Preroll           = virtual_Clock_Preroll;
-    MagOmxComponent_FFmpeg_ClkVtableInstance.MagOmxComponentClock.MagOmxComponentImpl.MagOMX_Start             = virtual_Clock_Start;
-    MagOmxComponent_FFmpeg_ClkVtableInstance.MagOmxComponentClock.MagOmxComponentImpl.MagOMX_Stop              = virtual_Clock_Stop;
-    MagOmxComponent_FFmpeg_ClkVtableInstance.MagOmxComponentClock.MagOmxComponentImpl.MagOMX_Pause             = virtual_Clock_Pause;
-    MagOmxComponent_FFmpeg_ClkVtableInstance.MagOmxComponentClock.MagOmxComponentImpl.MagOMX_Resume            = virtual_Clock_Resume;
     MagOmxComponent_FFmpeg_ClkVtableInstance.MagOmxComponentClock.MagOmxComponentImpl.MagOMX_Deinit            = virtual_Clock_Deinit;
     MagOmxComponent_FFmpeg_ClkVtableInstance.MagOmxComponentClock.MagOmxComponentImpl.MagOMX_Reset             = virtual_Clock_Reset;
     MagOmxComponent_FFmpeg_ClkVtableInstance.MagOmxComponentClock.MagOmxComponentImpl.MagOMX_ComponentRoleEnum = virtual_Clock_ComponentRoleEnum;

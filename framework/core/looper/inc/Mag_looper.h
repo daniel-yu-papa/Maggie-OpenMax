@@ -9,6 +9,7 @@
 #include "Mag_hal.h"
 #include "Mag_thread.h"
 #include "Mag_mem.h"
+#include "Mag_timer.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -145,20 +146,26 @@ typedef struct MagLooper{
     i32 mFreeNodeNum;
     boolean mEventInExecuting;
     boolean mMergeSameTypeMsg;
-    
-    void (*registerHandler)(struct MagLooper *self, const MagHandler_t *handler);
+
+    boolean mForceOut;
+
+    MagTimerHandle mTimer;
+
+    void      (*registerHandler)(struct MagLooper *self, const MagHandler_t *handler);
     _status_t (*unregisterHandler)(struct MagLooper *self, i32 handlerID);
     _status_t (*start)(struct MagLooper *self);
     _status_t (*stop)(struct MagLooper *self);
     _status_t (*suspend)(struct MagLooper *self);
     _status_t (*resume)(struct MagLooper *self);
     void      (*clear)(struct MagLooper *self);
-    void (*postMessage)(struct MagLooper *self, MagMessage_t *msg, i64 delayUS);
+    void      (*setForceOut)(struct MagLooper *self, boolean set); /*force all delay message released immediately OR not*/
+    void      (*postMessage)(struct MagLooper *self, MagMessage_t *msg, i64 delayUS);
 
-    ui32 (*getHandlerID)(struct MagLooper *self);
+    ui32      (*getHandlerID)(struct MagLooper *self);
     _status_t (*waitOnAllDone)(struct MagLooper *self);
-    void (*setMergeMsg)(struct MagLooper *self);
-    void (*setPriority)(struct MagLooper *self, MagLooperPriority_t pri);
+    void      (*setMergeMsg)(struct MagLooper *self);
+    void      (*setPriority)(struct MagLooper *self, MagLooperPriority_t pri);
+    void      (*setTimer)(struct MagLooper *self, MagTimerHandle hTimer);
 }MagLooper_t;
 
 typedef MagLooper_t* MagLooperHandle;

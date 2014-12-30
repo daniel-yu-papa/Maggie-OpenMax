@@ -276,7 +276,7 @@ static magMemBlock_t *findAllocMemBlock(magMempoolHandle hMemPool, void *pBuf){
     if (pNode != &hMemPool->allocatedMBListHead){
         mb = (magMemBlock_t *)list_entry(pNode, magMemBlock_t, node);
         if (pBuf != mb->pBuf){
-            AGILE_LOGE("[0x%x]: the free buffer[0x%x] is NOT the first node.", hMemPool, pBuf);
+            AGILE_LOGE("[0x%x]: the free buffer[0x%x] is NOT the first node[0x%x].", hMemPool, pBuf, mb->pBuf);
             /*only for debugging purpose*/
             debugNode = pNode->next;
             debugCount++;

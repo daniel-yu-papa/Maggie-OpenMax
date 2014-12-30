@@ -9,7 +9,10 @@
 
 static ui32 gLooperId = 0;
 
-static i64 getNowUS() {
+static i64 getNowUS(MagLooperHandle hLooper) {
+    if (hLooper->mTimer){
+        return hLooper->mTimer->get(hLooper->mTimer);
+    }
     return Mag_GetSystemTime(MAG_SYSTEM_TIME_MONOTONIC) / 1000ll;
 }
 
@@ -60,7 +63,7 @@ static MagLooperEvent_t *getNoDelayMessage(MagLooperHandle hLooper){
     currentNode = hLooper->mNoDelayEvtQueue.next;
 
     if(currentNode == &hLooper->mNoDelayEvtQueue){
-        AGILE_LOGV("mNoDelayEvtQueue is empty!");
+        /*AGILE_LOGV("mNoDelayEvtQueue is empty!");*/
         return NULL;
     }else{
         if (hLooper->mMergeSameTypeMsg == MAG_FALSE){
@@ -173,7 +176,7 @@ static boolean LooperThreadReadyToRun(void *priv){
 static boolean LooperThreadEntry(void *priv){
     MagLooperHandle looper = (MagLooperHandle)priv;
     MagLooperEvent_t *msg = NULL;
-    
+
     if (NULL == priv)
         return MAG_FALSE;
 
@@ -190,41 +193,56 @@ static boolean LooperThreadEntry(void *priv){
         i32 tdiff;
 
         rbtree_getMinValue(looper->mDelayEvtTreeRoot, &looper->mDelayEvtWhenUS, &value);
-        nowUS = getNowUS();
-        /*AGILE_LOGV("min value: %lld", looper->mDelayEvtWhenUS);*/
-        tdiff = (i32)(looper->mDelayEvtWhenUS - nowUS);
-        if (tdiff > DELAY_TIME_DIFF_TOLARANCE){
-            msg = getNoDelayMessage(looper);
-            if (msg)
-                looper->mEventInExecuting = MAG_TRUE;
-
-            Mag_ReleaseMutex(looper->mLock);
-            if (NULL == msg){
-                #if 0
-                if (tdiff == 1){
-                    /*AGILE_LOGD("wait on event, timeout=%d", tdiff);*/
-                    Mag_WaitForEventGroup(looper->mMQPushEvtGroup, MAG_EG_OR, (i32)(looper->mDelayEvtWhenMS - nowMS));
-                }
-                #endif
-                return MAG_TRUE;
+        if (!looper->mForceOut){
+            if (looper->mDelayEvtWhenUS != MAG_MAX_INTEGER){
+                nowUS = getNowUS(looper);
+                /*AGILE_LOGV("min value: %lld", looper->mDelayEvtWhenUS);*/
+                tdiff = (i32)(looper->mDelayEvtWhenUS - nowUS);
             }else{
+                AGILE_LOGD("get the message with delay of MAG_MAX_INTEGER");
+                tdiff = 0;
+            }
+
+            if (tdiff > DELAY_TIME_DIFF_TOLARANCE){
+                msg = getNoDelayMessage(looper);
+                if (msg)
+                    looper->mEventInExecuting = MAG_TRUE;
+
+                Mag_ReleaseMutex(looper->mLock);
+                if (NULL == msg){
+                    #if 0
+                    if (tdiff == 1){
+                        /*AGILE_LOGD("wait on event, timeout=%d", tdiff);*/
+                        Mag_WaitForEventGroup(looper->mMQPushEvtGroup, MAG_EG_OR, (i32)(looper->mDelayEvtWhenMS - nowMS));
+                    }
+                    #endif
+                    return MAG_TRUE;
+                }else{
+                    deliverMessage(looper, msg);
+                }
+            }else{
+                /*debug only*/
+                if (tdiff < (0 - DELAY_TIME_DIFF_TOLARANCE)){
+                    AGILE_LOGE("the delay time passed(%d us)", tdiff);
+                }
+
+                msg = (MagLooperEvent_t *)value;
+                rbtree_delete(&looper->mDelayEvtTreeRoot, looper->mDelayEvtWhenUS);
+                if (msg)
+                    looper->mEventInExecuting = MAG_TRUE;
+                Mag_ReleaseMutex(looper->mLock);
+                
                 deliverMessage(looper, msg);
             }
         }else{
-            MagLooperEvent_t *evt;
-
-            /*debug only*/
-            if (tdiff < (0 - DELAY_TIME_DIFF_TOLARANCE)){
-                AGILE_LOGE("the delay time passed(%d us)", tdiff);
-            }
-
-            evt = (MagLooperEvent_t *)value;
+            AGILE_LOGD("force the delay[%lld us] message out", looper->mDelayEvtWhenUS);
+            msg = (MagLooperEvent_t *)value;
             rbtree_delete(&looper->mDelayEvtTreeRoot, looper->mDelayEvtWhenUS);
-            if (evt)
+            if (msg)
                 looper->mEventInExecuting = MAG_TRUE;
             Mag_ReleaseMutex(looper->mLock);
             
-            deliverMessage(looper, evt);
+            deliverMessage(looper, msg);
         }
     }else{
         msg = getNoDelayMessage(looper);
@@ -260,12 +278,14 @@ static _status_t MagLooper_start(MagLooperHandle hLooper){
         return MAG_BAD_VALUE;
     }
 
+    hLooper->mForceOut = MAG_FALSE;
     ret = hLooper->mLooperThread->run(hLooper->mLooperThread);
     if (ret != MAG_NO_ERROR){
         AGILE_LOGE("failed to run Looper!, ret = 0x%x", ret);
         Mag_DestroyThread(&hLooper->mLooperThread);
         hLooper->mLooperThread = NULL;
-    }  
+    } 
+    
     return ret;
 }
 
@@ -296,7 +316,10 @@ static _status_t MagLooper_resume(MagLooperHandle hLooper){
 
 static void MagLooper_clear(MagLooperHandle hLooper){
     clearMessageQueue(hLooper);
-    
+}
+
+static void MagLooper_setForceOut(MagLooperHandle hLooper, boolean set){
+    hLooper->mForceOut = set;
 }
 
 static void internal_copyMessage(MagMessage_t *to, MagMessage_t *from){
@@ -325,7 +348,11 @@ static void MagLooper_postMessage(MagLooperHandle hLooper, MagMessage_t *msg, i6
             /*if (delayUS == 0){
                 delayUS = 1;
             }*/
-            evt->mWhenUS = getNowUS() + delayUS;
+            if (delayUS != MAG_MAX_INTEGER)
+                evt->mWhenUS = getNowUS(hLooper) + delayUS;
+            else
+                evt->mWhenUS = MAG_MAX_INTEGER;
+
             if (hLooper->mDelayEvtTreeRoot == NULL)
                 postEvt = MAG_TRUE;
             
@@ -396,6 +423,10 @@ static void MagLooper_setPriority(struct MagLooper *self, MagLooperPriority_t pr
         self->mLooperThread->setParm_Priority(self->mLooperThread, MAGTHREAD_PRIORITY_NORMAL);
 }
 
+static void MagLooper_setTimer(MagLooperHandle hLooper, MagTimerHandle hTimer){
+    hLooper->mTimer = hTimer;
+}
+
 MagLooperHandle createLooper(const char *pName){
     MagLooperHandle pLooper;
     char threadName[64];
@@ -410,13 +441,15 @@ MagLooperHandle createLooper(const char *pName){
         
         pLooper->mHandlerTreeRoot   = NULL;
         pLooper->mDelayEvtTreeRoot  = NULL;
+        pLooper->mTimer             = NULL;
         pLooper->mEventInExecuting  = MAG_FALSE;
         pLooper->mMergeSameTypeMsg  = MAG_FALSE;
+        pLooper->mForceOut          = MAG_FALSE;
 
         INIT_LIST(&pLooper->mNoDelayEvtQueue);
         INIT_LIST(&pLooper->mFreeEvtQueue);
         Mag_CreateMutex(&pLooper->mLock);
-        
+
         pLooper->mLooperThread = Mag_CreateThread(threadName, LooperThreadEntry, (void *)pLooper);
         if (pLooper->mLooperThread != NULL){
             pLooper->mLooperThread->setFunc_readyToRun(pLooper->mLooperThread, LooperThreadReadyToRun);
@@ -442,8 +475,10 @@ MagLooperHandle createLooper(const char *pName){
         pLooper->getHandlerID      = MagLooper_getHandlerID;
         pLooper->waitOnAllDone     = MagLooper_waitOnAllDone;
         pLooper->clear             = MagLooper_clear;
+        pLooper->setForceOut       = MagLooper_setForceOut;
         pLooper->setMergeMsg       = MagLooper_setMergeMsg;
         pLooper->setPriority       = MagLooper_setPriority;
+        pLooper->setTimer          = MagLooper_setTimer;
 
         for (i = 0; i < NUM_PRE_ALLOCATED_EVENTS; i++){
             pEvent = mag_mallocz(sizeof(MagLooperEvent_t));

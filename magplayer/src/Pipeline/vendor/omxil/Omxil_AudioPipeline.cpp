@@ -218,6 +218,10 @@ OMX_ERRORTYPE OmxilAudioPipeline::AudioRenderEventHandler(
         }else if (Data1 == OMX_CommandFlush){
             AGILE_LOGD("Aren component flushes port %d is done!", Data2);
         }
+    }else if (eEvent == OMX_EventBufferFlag){
+        /*detected the EOS*/
+        AGILE_LOGI("get the EOS event and notify APP the playback completion");
+        pApipeline->notifyPlaybackComplete();
     }else{
         AGILE_LOGD("unsupported event: %d, Data1: %u, Data2: %u\n", eEvent, Data1, Data2);
     }
@@ -417,12 +421,14 @@ _status_t OmxilAudioPipeline::setup(){
 _status_t OmxilAudioPipeline::start(){
     _status_t ret;
 
+    Mag_ClearEvent(mADecStExecutingEvent);
+    Mag_ClearEvent(mARenStExecutingEvent);
+
     OMX_SendCommand(mhAudioRender, OMX_CommandStateSet, OMX_StateExecuting, NULL);
     OMX_SendCommand(mhAudioDecoder, OMX_CommandStateSet, OMX_StateExecuting, NULL);
 
-    Mag_ClearEvent(mADecStExecutingEvent);
-    Mag_ClearEvent(mARenStExecutingEvent);
     Mag_WaitForEventGroup(mStExecutingEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
+    AGILE_LOGI("exit!");
 
     ret = MagAudioPipelineImpl::start();
     return ret;
@@ -431,24 +437,41 @@ _status_t OmxilAudioPipeline::start(){
 _status_t OmxilAudioPipeline::stop(){
     MagAudioPipelineImpl::stop();
 
+    Mag_ClearEvent(mADecStIdleEvent);
+    Mag_ClearEvent(mARenStIdleEvent);
+
     OMX_SendCommand(mhAudioRender, OMX_CommandStateSet, OMX_StateIdle, NULL);
     OMX_SendCommand(mhAudioDecoder, OMX_CommandStateSet, OMX_StateIdle, NULL);
+
+    Mag_WaitForEventGroup(mStIdleEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
+    
     return MAG_NO_ERROR;
 }
 
 _status_t OmxilAudioPipeline::pause(){
     MagAudioPipelineImpl::pause();
 
+    /*Mag_ClearEvent(mADecStPauseEvent);
+    Mag_ClearEvent(mARenStPauseEvent);*/
+
     OMX_SendCommand(mhAudioRender, OMX_CommandStateSet, OMX_StatePause, NULL);
     OMX_SendCommand(mhAudioDecoder, OMX_CommandStateSet, OMX_StatePause, NULL);
+
+    /*Mag_WaitForEventGroup(mStPauseEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);*/
     return MAG_NO_ERROR;
 }
 
 _status_t OmxilAudioPipeline::resume(){
     MagAudioPipelineImpl::resume();
 
+    /*Mag_ClearEvent(mADecStExecutingEvent);
+    Mag_ClearEvent(mARenStExecutingEvent);*/
+
     OMX_SendCommand(mhAudioRender, OMX_CommandStateSet, OMX_StateExecuting, NULL);
     OMX_SendCommand(mhAudioDecoder, OMX_CommandStateSet, OMX_StateExecuting, NULL);
+
+    /*Mag_WaitForEventGroup(mStExecutingEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);*/
+    
     return MAG_NO_ERROR;
 }
 
@@ -465,19 +488,21 @@ _status_t OmxilAudioPipeline::reset(){
 
     if ( mState == ST_PLAY || mState == ST_PAUSE ){
         mState = ST_STOP;
+        Mag_ClearEvent(mADecStIdleEvent);
+        Mag_ClearEvent(mARenStIdleEvent);
+
         OMX_SendCommand(mhAudioRender, OMX_CommandStateSet, OMX_StateIdle, NULL);
         OMX_SendCommand(mhAudioDecoder, OMX_CommandStateSet, OMX_StateIdle, NULL);  
     }
 
-    Mag_ClearEvent(mADecStIdleEvent);
-    Mag_ClearEvent(mARenStIdleEvent);
     Mag_WaitForEventGroup(mStIdleEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
-
-    OMX_SendCommand(mhAudioRender, OMX_CommandStateSet, OMX_StateLoaded, NULL);
-    OMX_SendCommand(mhAudioDecoder, OMX_CommandStateSet, OMX_StateLoaded, NULL);
 
     Mag_ClearEvent(mADecStLoadedEvent);
     Mag_ClearEvent(mARenStLoadedEvent);
+    
+    OMX_SendCommand(mhAudioRender, OMX_CommandStateSet, OMX_StateLoaded, NULL);
+    OMX_SendCommand(mhAudioDecoder, OMX_CommandStateSet, OMX_StateLoaded, NULL);
+
     Mag_WaitForEventGroup(mStLoadedEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
 
     OMX_FreeHandle(mhAudioRender);
@@ -500,15 +525,25 @@ _status_t OmxilAudioPipeline::pushEsPackets(MagOmxMediaBuffer_t *buf){
 
     pBufHeader = mpBufferMgr->get();
     if (pBufHeader){
-        pBufHeader->pAppPrivate = buf;
-        pBufHeader->pBuffer     = static_cast<OMX_U8 *>(buf->buffer);
-        pBufHeader->nAllocLen   = buf->buffer_size;
-        pBufHeader->nFilledLen  = buf->buffer_size;
-        pBufHeader->nOffset     = 0;
-        pBufHeader->nTimeStamp  = buf->pts;
+        if (!buf->eosFrame){
+            pBufHeader->pAppPrivate = buf;
+            pBufHeader->pBuffer     = static_cast<OMX_U8 *>(buf->buffer);
+            pBufHeader->nAllocLen   = buf->buffer_size;
+            pBufHeader->nFilledLen  = buf->buffer_size;
+            pBufHeader->nOffset     = 0;
+            pBufHeader->nTimeStamp  = buf->pts;
+        }else{
+            pBufHeader->pAppPrivate = static_cast<OMX_PTR>(buf);
+            pBufHeader->pBuffer     = NULL;
+            pBufHeader->nAllocLen   = 0;
+            pBufHeader->nFilledLen  = 0;
+            pBufHeader->nOffset     = 0;
+            pBufHeader->nTimeStamp  = kInvalidTimeStamp;
+        }
 
-        AGILE_LOGD("push audio buffer header: %p(buf:%p, size:%d, pts:0x%x)",
-                    pBufHeader, pBufHeader->pBuffer, pBufHeader->nFilledLen, pBufHeader->nTimeStamp);
+        AGILE_LOGD("push audio buffer header: %p(buf:%p, size:%d, pts:0x%x)[%s]",
+                    pBufHeader, pBufHeader->pBuffer, pBufHeader->nFilledLen, pBufHeader->nTimeStamp,
+                    buf->eosFrame ? "EOS" : "PKT");
 
         ret = OMX_EmptyThisBuffer(mhAudioDecoder, pBufHeader);
         if (ret != OMX_ErrorNone){

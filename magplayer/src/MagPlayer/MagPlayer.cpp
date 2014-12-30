@@ -1221,7 +1221,7 @@ void MagPlayer::onComponentNotify(MagMessageHandle msg){
 
         i32 totalTrack = mTrackTable->totalTrackNum;
         i32 i;
-#if 0        
+#if 1        
         for (i = 0; i < totalTrack; i++){
             if (mTrackTable->trackTableList[i]->status == TRACK_PLAY){
                 AGILE_LOGD("track %d is still playing", i);

@@ -30,13 +30,6 @@ static OMX_ERRORTYPE localSetupComponent(
 
 	thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Aren);
 
-#ifdef CAPTURE_PCM_DATA_TO_FILE
-	thiz->mfPCMFile = fopen("./audio.pcm","wb+");
-	if (thiz->mfPCMFile == NULL){
-		AGILE_LOGE("Failed to open the file: ./audio.pcm");
-	}
-#endif
-
 	param.portIndex    = START_PORT_INDEX + 0;
 	param.isInput      = OMX_TRUE;
 	param.bufSupplier  = OMX_BufferSupplyUnspecified;
@@ -66,6 +59,12 @@ static OMX_ERRORTYPE localSetupComponent(
 
 	arenCompImpl->setupPortDataFlow(arenCompImpl, arenInPort, NULL);
 
+#ifdef CAPTURE_PCM_DATA_TO_FILE
+    thiz->mfPCMFile = fopen("./audio.pcm","wb+");
+    if (thiz->mfPCMFile == NULL){
+        AGILE_LOGE("Failed to open the file: ./audio.pcm");
+    }
+#endif
 	return OMX_ErrorNone;
 }
 
@@ -87,12 +86,35 @@ static OMX_ERRORTYPE virtual_FFmpeg_Aren_Preroll(
 
 static OMX_ERRORTYPE virtual_FFmpeg_Aren_Start(
                     OMX_IN  OMX_HANDLETYPE hComponent){
+    MagOmxComponent_FFmpeg_Aren thiz;
+
+    AGILE_LOGV("enter!");
+    thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Aren);
+
+#ifdef CAPTURE_PCM_DATA_TO_FILE
+    if (!thiz->mfPCMFile){
+        thiz->mfPCMFile = fopen("./audio.pcm","wb+");
+        if (thiz->mfPCMFile == NULL){
+            AGILE_LOGE("Failed to open the file: ./audio.pcm");
+        }
+    }
+#endif
 	return OMX_ErrorNone;
 }
 
 static OMX_ERRORTYPE virtual_FFmpeg_Aren_Stop(
                     OMX_IN  OMX_HANDLETYPE hComponent){
+    MagOmxComponent_FFmpeg_Aren thiz;
+
 	AGILE_LOGV("enter!");
+    thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Aren);
+
+#ifdef CAPTURE_PCM_DATA_TO_FILE
+    if (thiz->mfPCMFile){
+        fclose(thiz->mfPCMFile);
+        thiz->mfPCMFile = NULL;
+    }
+#endif
 	return OMX_ErrorNone;
 }
 
@@ -143,20 +165,14 @@ static OMX_ERRORTYPE virtual_FFmpeg_Aren_ProceedBuffer(
                     OMX_IN  OMX_HANDLETYPE hComponent, 
                     OMX_IN  OMX_BUFFERHEADERTYPE *srcbufHeader,
                     OMX_IN  OMX_HANDLETYPE hDestPort){
-	AVFrame *decodedFrame = NULL;
-	OMX_TICKS timeStamp;
 	MagOmxComponentImpl         arenCompImpl;
 
-	if ((srcbufHeader->pBuffer != NULL) && (srcbufHeader->nFilledLen > 0)){
-		arenCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
+	arenCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
 
-		decodedFrame = (AVFrame *)srcbufHeader->pBuffer;
-		timeStamp    = srcbufHeader->nTimeStamp;
-		AGILE_LOGV("Put decoded Audio Frame: %p, time stamp: 0x%llx, len: %d to AVSync", 
-			        decodedFrame, timeStamp, srcbufHeader->nFilledLen);
+	AGILE_LOGV("Put decoded Audio Frame: %p, time stamp: 0x%llx, len: %d to AVSync", 
+		        srcbufHeader->pBuffer, srcbufHeader->nTimeStamp, srcbufHeader->nFilledLen);
 
-		arenCompImpl->syncDisplay(arenCompImpl, srcbufHeader);
-	}
+	arenCompImpl->syncDisplay(arenCompImpl, srcbufHeader);
 
 	return OMX_ErrorNotReady;
 }
@@ -182,6 +198,16 @@ static OMX_ERRORTYPE  virtual_FFmpeg_Aren_DoAVSync(
 		AGILE_LOGE("failed to releaseDisplay!");
 		return ret;
 	}
+
+    if (getBuffer->pBuffer    == NULL && 
+        getBuffer->nFilledLen == 0    && 
+        getBuffer->nTimeStamp == kInvalidTimeStamp){
+        AGILE_LOGV("get the EOS frame and send out the eos event to application");
+        arenCompImpl->sendReturnBuffer(arenCompImpl, getBuffer);
+        arenCompImpl->sendEvents(hComponent, OMX_EventBufferFlag, 0, 0, NULL);
+        return OMX_ErrorNone;
+    }
+
 	decodedFrame = (AVFrame *)getBuffer->pBuffer;
     action       = (MagOMX_AVSync_Action_t)mediaTime->nClientPrivate;
 	timeStamp    = getBuffer->nTimeStamp;
@@ -193,8 +219,10 @@ static OMX_ERRORTYPE  virtual_FFmpeg_Aren_DoAVSync(
 		        decodedFrame, data_size, timeStamp, action == AVSYNC_PLAY ? "play" : "drop");
 
 #ifdef CAPTURE_PCM_DATA_TO_FILE
-	fwrite(decodedFrame->data[0], 1, data_size, thiz->mfPCMFile);
-    fflush(thiz->mfPCMFile);
+    if (thiz->mfPCMFile){
+    	fwrite(decodedFrame->data[0], 1, data_size, thiz->mfPCMFile);
+        fflush(thiz->mfPCMFile);
+    }
 #endif
 
 	arenCompImpl->sendReturnBuffer(arenCompImpl, getBuffer);

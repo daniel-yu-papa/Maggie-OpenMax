@@ -20,6 +20,7 @@
 #include "Mag_ooc.h"
 #include "Mag_thread.h"
 #include "Mag_FrameworkVer.h"
+#include "Mag_timer.h"
 
 #ifdef __cplusplus
 #include "tinyxml2.h"

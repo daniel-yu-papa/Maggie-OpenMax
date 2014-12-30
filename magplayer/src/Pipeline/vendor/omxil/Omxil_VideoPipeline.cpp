@@ -294,6 +294,10 @@ OMX_ERRORTYPE OmxilVideoPipeline::VideoRenderEventHandler(
         }else if (Data1 == OMX_CommandFlush){
             AGILE_LOGD("Vren component flushes port %d is done!", Data2);
         }
+    }else if (eEvent == OMX_EventBufferFlag){
+        /*detected the EOS*/
+        AGILE_LOGI("get the EOS event and notify APP the playback completion");
+        pVpipeline->notifyPlaybackComplete();
     }else{
         AGILE_LOGD("unsupported event: %d, Data1: %u, Data2: %u\n", eEvent, Data1, Data2);
     }
@@ -563,14 +567,16 @@ _status_t OmxilVideoPipeline::setup(){
 _status_t OmxilVideoPipeline::start(){
     _status_t ret;
 
+    Mag_ClearEvent(mVDecStExecutingEvent);
+    Mag_ClearEvent(mVSchStExecutingEvent);
+    Mag_ClearEvent(mVRenStExecutingEvent);
+
     OMX_SendCommand(mhVideoRender, OMX_CommandStateSet, OMX_StateExecuting, NULL);
     OMX_SendCommand(mhVideoScheduler, OMX_CommandStateSet, OMX_StateExecuting, NULL);
     OMX_SendCommand(mhVideoDecoder, OMX_CommandStateSet, OMX_StateExecuting, NULL);
 
-    Mag_ClearEvent(mVDecStExecutingEvent);
-    Mag_ClearEvent(mVSchStExecutingEvent);
-    Mag_ClearEvent(mVRenStExecutingEvent);
     Mag_WaitForEventGroup(mStExecutingEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
+    AGILE_LOGI("exit!");
 
     ret = MagVideoPipelineImpl::start();
     return ret;
@@ -579,27 +585,47 @@ _status_t OmxilVideoPipeline::start(){
 _status_t OmxilVideoPipeline::stop(){
     MagVideoPipelineImpl::stop();
 
+    Mag_ClearEvent(mVDecStIdleEvent);
+    Mag_ClearEvent(mVSchStIdleEvent);
+    Mag_ClearEvent(mVRenStIdleEvent);
+
     OMX_SendCommand(mhVideoRender, OMX_CommandStateSet, OMX_StateIdle, NULL);
     OMX_SendCommand(mhVideoScheduler, OMX_CommandStateSet, OMX_StateIdle, NULL);
     OMX_SendCommand(mhVideoDecoder, OMX_CommandStateSet, OMX_StateIdle, NULL);
+
+    Mag_WaitForEventGroup(mStIdleEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
+    
     return MAG_NO_ERROR;
 }
 
 _status_t OmxilVideoPipeline::pause(){
     MagVideoPipelineImpl::pause();
 
+    /*Mag_ClearEvent(mVDecStPauseEvent);
+    Mag_ClearEvent(mVSchStPauseEvent);
+    Mag_ClearEvent(mVRenStPauseEvent);*/
+
     OMX_SendCommand(mhVideoRender, OMX_CommandStateSet, OMX_StatePause, NULL);
     OMX_SendCommand(mhVideoScheduler, OMX_CommandStateSet, OMX_StatePause, NULL);
     OMX_SendCommand(mhVideoDecoder, OMX_CommandStateSet, OMX_StatePause, NULL);
+
+    /*Mag_WaitForEventGroup(mStPauseEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);*/
     return MAG_NO_ERROR;
 }
 
 _status_t OmxilVideoPipeline::resume(){
     MagVideoPipelineImpl::resume();
 
+    /*Mag_ClearEvent(mVDecStExecutingEvent);
+    Mag_ClearEvent(mVSchStExecutingEvent);
+    Mag_ClearEvent(mVRenStExecutingEvent);*/
+
     OMX_SendCommand(mhVideoRender, OMX_CommandStateSet, OMX_StateExecuting, NULL);
     OMX_SendCommand(mhVideoScheduler, OMX_CommandStateSet, OMX_StateExecuting, NULL);
     OMX_SendCommand(mhVideoDecoder, OMX_CommandStateSet, OMX_StateExecuting, NULL);
+
+    /*Mag_WaitForEventGroup(mStExecutingEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);*/
+    
     return MAG_NO_ERROR;
 }
 
@@ -617,23 +643,25 @@ _status_t OmxilVideoPipeline::reset(){
 
     if ( mState == ST_PLAY || mState == ST_PAUSE ){
         mState = ST_STOP;
+        Mag_ClearEvent(mVDecStIdleEvent);
+        Mag_ClearEvent(mVSchStIdleEvent);
+        Mag_ClearEvent(mVRenStIdleEvent);
+
         OMX_SendCommand(mhVideoRender, OMX_CommandStateSet, OMX_StateIdle, NULL);
 	    OMX_SendCommand(mhVideoScheduler, OMX_CommandStateSet, OMX_StateIdle, NULL);
 	    OMX_SendCommand(mhVideoDecoder, OMX_CommandStateSet, OMX_StateIdle, NULL);
     }
 
-    Mag_ClearEvent(mVDecStIdleEvent);
-    Mag_ClearEvent(mVSchStIdleEvent);
-    Mag_ClearEvent(mVRenStIdleEvent);
     Mag_WaitForEventGroup(mStIdleEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
+
+    Mag_ClearEvent(mVDecStLoadedEvent);
+    Mag_ClearEvent(mVSchStLoadedEvent);
+    Mag_ClearEvent(mVRenStLoadedEvent);
 
     OMX_SendCommand(mhVideoRender, OMX_CommandStateSet, OMX_StateLoaded, NULL);
     OMX_SendCommand(mhVideoScheduler, OMX_CommandStateSet, OMX_StateLoaded, NULL);
     OMX_SendCommand(mhVideoDecoder, OMX_CommandStateSet, OMX_StateLoaded, NULL);
 
-    Mag_ClearEvent(mVDecStLoadedEvent);
-    Mag_ClearEvent(mVSchStLoadedEvent);
-    Mag_ClearEvent(mVRenStLoadedEvent);
     Mag_WaitForEventGroup(mStLoadedEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
 
     OMX_FreeHandle(mhVideoRender);
@@ -659,15 +687,25 @@ _status_t OmxilVideoPipeline::pushEsPackets(MagOmxMediaBuffer_t *buf){
 
     pBufHeader = mpBufferMgr->get();
     if (pBufHeader){
-        pBufHeader->pAppPrivate = static_cast<OMX_PTR>(buf);
-        pBufHeader->pBuffer     = static_cast<OMX_U8 *>(buf->buffer);
-        pBufHeader->nAllocLen   = buf->buffer_size;
-        pBufHeader->nFilledLen  = buf->buffer_size;
-        pBufHeader->nOffset     = 0;
-        pBufHeader->nTimeStamp  = buf->pts;
+        if (!buf->eosFrame){
+            pBufHeader->pAppPrivate = static_cast<OMX_PTR>(buf);
+            pBufHeader->pBuffer     = static_cast<OMX_U8 *>(buf->buffer);
+            pBufHeader->nAllocLen   = buf->buffer_size;
+            pBufHeader->nFilledLen  = buf->buffer_size;
+            pBufHeader->nOffset     = 0;
+            pBufHeader->nTimeStamp  = buf->pts;
+        }else{
+            pBufHeader->pAppPrivate = static_cast<OMX_PTR>(buf);
+            pBufHeader->pBuffer     = NULL;
+            pBufHeader->nAllocLen   = 0;
+            pBufHeader->nFilledLen  = 0;
+            pBufHeader->nOffset     = 0;
+            pBufHeader->nTimeStamp  = kInvalidTimeStamp;
+        }
 
-        AGILE_LOGD("push video buffer header: %p(buf:%p, size:%d, pts:0x%x)",
-                    pBufHeader, pBufHeader->pBuffer, pBufHeader->nFilledLen, pBufHeader->nTimeStamp);
+        AGILE_LOGD("push video buffer header: %p(buf:%p, size:%d, pts:0x%x)[%s]",
+                    pBufHeader, pBufHeader->pBuffer, pBufHeader->nFilledLen, pBufHeader->nTimeStamp,
+                    buf->eosFrame ? "EOS" : "PKT");
         ret = OMX_EmptyThisBuffer(mhVideoDecoder, pBufHeader);
         if (ret != OMX_ErrorNone){
             AGILE_LOGE("Do OMX_EmptyThisBuffer(buf:%p, size:%d, pts:0x%x) - Failed!",
@@ -677,6 +715,7 @@ _status_t OmxilVideoPipeline::pushEsPackets(MagOmxMediaBuffer_t *buf){
             AGILE_LOGV("Do OMX_EmptyThisBuffer(buf:%p, size:%d, pts:0x%x) - Ok!",
                         pBufHeader->pBuffer, pBufHeader->nFilledLen, pBufHeader->nTimeStamp);
         }
+
     }else{
         AGILE_LOGE("Failed to get free buffer header!");
         err = MAG_NO_MEMORY;

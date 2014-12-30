@@ -57,4 +57,6 @@ enum {
 
 #define MAG_TIMEOUT_INFINITE 0xF0000000
 
+#define MAG_MAX_INTEGER      INT_MAX
+
 #endif

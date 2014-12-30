@@ -177,6 +177,8 @@ _status_t MagPipelineManager::stop(){
 	MagAudioPipeline *audio;
 	_status_t ret;
 
+    mpClockComp->stop();
+
     next = mVideoPipelineHead.next;
     while (next != &mVideoPipelineHead){
         item = (MAG_PIPELINE_ENTRY_t *)list_entry(next, MAG_PIPELINE_ENTRY_t, node);
@@ -200,8 +202,6 @@ _status_t MagPipelineManager::stop(){
         }
         next = next->next;
     }
-
-    mpClockComp->stop();
 
     return MAG_NO_ERROR;
 }

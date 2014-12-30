@@ -35,8 +35,10 @@ static OMX_ERRORTYPE virtual_FFmpeg_Aren_ProceedReturnedBuffer(OMX_HANDLETYPE po
 	}
 
 	/*release the used audio frame buffer*/
-	frame = (AVFrame *)pBufHeader->pBuffer;
-	av_frame_unref(frame);
+	if (pBufHeader->pBuffer){
+		frame = (AVFrame *)pBufHeader->pBuffer;
+		av_frame_unref(frame);
+	}
 
 	return OMX_ErrorNone;
 }

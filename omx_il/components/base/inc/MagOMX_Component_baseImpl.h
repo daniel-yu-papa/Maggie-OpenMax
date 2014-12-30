@@ -173,6 +173,7 @@ ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
     _status_t        (*getBufferLooper)(OMX_HANDLETYPE handle); 
     
     OMX_ERRORTYPE    (*setState)(OMX_HANDLETYPE handle, OMX_STATETYPE state);   \
+    OMX_ERRORTYPE    (*setStatePreroll)(OMX_HANDLETYPE handle, OMX_STATETYPE state);   \
     OMX_ERRORTYPE    (*flushPort)(OMX_HANDLETYPE handle, OMX_U32 port_index);   \
     OMX_ERRORTYPE    (*enablePort)(OMX_HANDLETYPE handle, OMX_U32 port_index);  \
     OMX_ERRORTYPE    (*disablePort)(OMX_HANDLETYPE handle, OMX_U32 port_index); \
@@ -254,6 +255,7 @@ ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
     OMX_STATETYPE    mState;
     OMX_EXTSTATETRANSTYPE mTransitionState;
     doStateTransition mStateTransitTable[5][5]; /*[current state][target state]*/
+    doStateTransition mPrerollStateTransitTable[5][5]; /*[current state][target state]*/
     
     MagMiniDBHandle  mParametersDB;
     RBTreeNodeHandle mPortTreeRoot;

@@ -109,7 +109,7 @@ void OmxilBufferMgr::put(OMX_BUFFERHEADERTYPE *bufHeader){
 }
 
 bool OmxilBufferMgr::needPushBuffers(void){
-    if (mFreeNodeNum > 0){
+    if (mFreeNodeNum > 1){
         return true; 
     }else{
         AGILE_LOGV("[Component[%p] needPushBuffers], free buffers = %d", 
