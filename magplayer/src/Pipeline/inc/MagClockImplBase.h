@@ -19,6 +19,7 @@ public:
     virtual _status_t stop() = 0;
     virtual _status_t pause() = 0;
     virtual _status_t resume() = 0;
+    virtual _status_t flush() = 0;
     virtual _status_t reset() = 0;
     virtual i64       getPlayingTime() = 0;
 };

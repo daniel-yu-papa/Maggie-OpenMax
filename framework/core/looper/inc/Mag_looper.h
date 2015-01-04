@@ -158,7 +158,7 @@ typedef struct MagLooper{
     _status_t (*suspend)(struct MagLooper *self);
     _status_t (*resume)(struct MagLooper *self);
     void      (*clear)(struct MagLooper *self);
-    void      (*setForceOut)(struct MagLooper *self, boolean set); /*force all delay message released immediately OR not*/
+    void      (*forceOut)(struct MagLooper *self); /*force all delay message released immediately*/
     void      (*postMessage)(struct MagLooper *self, MagMessage_t *msg, i64 delayUS);
 
     ui32      (*getHandlerID)(struct MagLooper *self);

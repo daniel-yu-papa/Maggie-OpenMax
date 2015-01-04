@@ -18,7 +18,7 @@ void *monitorThreadProc(void *arg){
         printf("audio buffer: %d ms, video buffer: %d ms, loadingSpeed %d Bytes/Sec/\n", 
                 bufStat.audio_buffer_time, bufStat.video_buffer_time, bufStat.loadingSpeed);
 
-        sleep(4);
+        sleep(1);
     }
 
     printf("exit monitorThreadProc!\n");

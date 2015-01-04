@@ -249,7 +249,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_ProceedBuffer(
 
 	root = ooc_cast(hComponent, MagOmxComponent);
 	port = ooc_cast(hDestPort, MagOmxPort);
-    
+
 	adecComp     = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Adec);
 	pMbuf = (MagOmxMediaBuffer_t *)srcbufHeader->pAppPrivate;
 
@@ -409,6 +409,16 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_SetParameter(
 	return OMX_ErrorNone;
 }
 
+static OMX_ERRORTYPE virtual_FFmpeg_Adec_Flush(
+                    OMX_IN  OMX_HANDLETYPE hComponent){
+    MagOmxComponent_FFmpeg_Adec thiz;
+
+    thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Adec);
+    avcodec_flush_buffers(thiz->mpAudioStream->codec);
+
+    return OMX_ErrorNone;
+}
+
 /*Class Constructor/Destructor*/
 static void MagOmxComponent_FFmpeg_Adec_initialize(Class this){
 	AGILE_LOGV("Enter!");
@@ -426,6 +436,8 @@ static void MagOmxComponent_FFmpeg_Adec_initialize(Class this){
     MagOmxComponent_FFmpeg_AdecVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_ComponentRoleEnum = virtual_FFmpeg_Adec_ComponentRoleEnum;
     MagOmxComponent_FFmpeg_AdecVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_ProceedBuffer     = virtual_FFmpeg_Adec_ProceedBuffer;
     MagOmxComponent_FFmpeg_AdecVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_DoAVSync          = virtual_FFmpeg_Adec_DoAVSync;
+    MagOmxComponent_FFmpeg_AdecVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_Flush             = virtual_FFmpeg_Adec_Flush;
+
 
     MagOmxComponent_FFmpeg_AdecVtableInstance.MagOmxComponentAudio.MagOmx_Audio_GetParameter = virtual_FFmpeg_Adec_GetParameter;
     MagOmxComponent_FFmpeg_AdecVtableInstance.MagOmxComponentAudio.MagOmx_Audio_SetParameter = virtual_FFmpeg_Adec_SetParameter;

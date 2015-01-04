@@ -19,6 +19,7 @@ public:
     virtual _status_t stop();
     virtual _status_t pause();
     virtual _status_t resume();
+    virtual _status_t flush();
     virtual _status_t reset();
     virtual i64       getPlayingTime();
 
@@ -41,7 +42,7 @@ private:
 
     MagEventHandle         mClkStPauseEvent;
     MagEventGroupHandle    mStPauseEventGroup;
-    
+
     static OMX_ERRORTYPE ClockEventHandler(
                                 OMX_HANDLETYPE hComponent,
                                 OMX_PTR pAppData,

@@ -58,6 +58,10 @@ private:
     MagEventHandle         mADecStPauseEvent;
     MagEventHandle         mARenStPauseEvent;
     MagEventGroupHandle    mStPauseEventGroup;
+
+    MagEventHandle         mADecFlushDoneEvent;
+    MagEventHandle         mARenFlushDoneEvent;
+    MagEventGroupHandle    mFlushDoneEventGroup;
     
     i32 mARenClockPortIdx;
     

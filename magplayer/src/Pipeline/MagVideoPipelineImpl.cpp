@@ -113,14 +113,14 @@ _status_t MagVideoPipelineImpl::pause(){
 }
 
 _status_t MagVideoPipelineImpl::resume(){
-    if (mIsFlushed){
+    /*if (mIsFlushed){
         mIsFlushed = false;
         if (mState == ST_PLAY){
             postFillThisBuffer();
         }else{
             AGILE_LOGD("[flush to resume] in state: %s, keep it!", state2String(mState));
         }
-    }else{
+    }else{*/
         if ((mState == ST_PAUSE) || (mState == ST_PLAY)){
             mState = ST_PLAY;
             postFillThisBuffer();
@@ -128,7 +128,7 @@ _status_t MagVideoPipelineImpl::resume(){
             AGILE_LOGE("it is in invalid state: (%s)! quit ...", state2String(mState));
             return MAG_INVALID_OPERATION;
         }
-    }
+    /*}*/
     return MAG_NO_ERROR;
 }
 

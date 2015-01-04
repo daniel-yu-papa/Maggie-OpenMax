@@ -418,6 +418,16 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_SetParameter(
 	return OMX_ErrorNone;
 }
 
+static OMX_ERRORTYPE virtual_FFmpeg_Vdec_Flush(
+                    OMX_IN  OMX_HANDLETYPE hComponent){
+    MagOmxComponent_FFmpeg_Vdec thiz;
+
+    thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vdec);
+    avcodec_flush_buffers(thiz->mpVideoStream->codec);
+
+    return OMX_ErrorNone;
+}
+
 /*Class Constructor/Destructor*/
 static void MagOmxComponent_FFmpeg_Vdec_initialize(Class this){
 	AGILE_LOGV("Enter!");
@@ -435,6 +445,7 @@ static void MagOmxComponent_FFmpeg_Vdec_initialize(Class this){
     MagOmxComponent_FFmpeg_VdecVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_ComponentRoleEnum = virtual_FFmpeg_Vdec_ComponentRoleEnum;
     MagOmxComponent_FFmpeg_VdecVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_ProceedBuffer     = virtual_FFmpeg_Vdec_ProceedBuffer;
     MagOmxComponent_FFmpeg_VdecVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_DoAVSync          = virtual_FFmpeg_Vdec_DoAVSync;
+    MagOmxComponent_FFmpeg_VdecVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_Flush             = virtual_FFmpeg_Vdec_Flush;
 
     MagOmxComponent_FFmpeg_VdecVtableInstance.MagOmxComponentVideo.MagOmx_Video_GetParameter = virtual_FFmpeg_Vdec_GetParameter;
     MagOmxComponent_FFmpeg_VdecVtableInstance.MagOmxComponentVideo.MagOmx_Video_SetParameter = virtual_FFmpeg_Vdec_SetParameter;

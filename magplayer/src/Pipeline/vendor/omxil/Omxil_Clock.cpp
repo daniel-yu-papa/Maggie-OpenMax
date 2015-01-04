@@ -84,11 +84,11 @@ OMX_ERRORTYPE OmxilClock::ClockEventHandler(
                     break;
             }
         }else if (Data1 == OMX_CommandPortEnable){
-            AGILE_LOGD("Adec component enables port %d is done!", Data2);
+            AGILE_LOGD("Clock component enables port %d is done!", Data2);
         }else if (Data1 == OMX_CommandPortDisable){
-            AGILE_LOGD("Adec component disables port %d is done!", Data2);
+            AGILE_LOGD("Clock component disables port %d is done!", Data2);
         }else if (Data1 == OMX_CommandFlush){
-            AGILE_LOGD("Adec component flushes port %d is done!", Data2);
+            AGILE_LOGD("Clock component flushes port %d is done!", Data2);
         }
     }else{
         AGILE_LOGD("unsupported event: %d, Data1: %u, Data2: %u\n", eEvent, Data1, Data2);
@@ -284,6 +284,12 @@ _status_t OmxilClock::start(){
 _status_t OmxilClock::stop(){
 	OMX_SendCommand(mhClock, OMX_CommandStateSet, OMX_StateIdle, NULL);
 	return MAG_NO_ERROR;
+}
+
+_status_t OmxilClock::flush(){
+    OMX_SendCommand(mhClock, OMX_CommandFlush, OMX_ALL, NULL);
+
+    return MAG_NO_ERROR;
 }
 
 _status_t OmxilClock::pause(){

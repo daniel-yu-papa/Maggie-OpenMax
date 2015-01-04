@@ -213,10 +213,10 @@ _status_t MagPipelineManager::pause(ui8 flag){
 	MagAudioPipeline *audio;
 	_status_t ret;
 
-	if (flag & PAUSE_CLOCK_FLAG)
+	/*if (flag & PAUSE_CLOCK_FLAG)*/
 		mpClockComp->pause();
 
-	if (flag & PAUSE_AV_FLAG){
+	/*if (flag & PAUSE_AV_FLAG){*/
 	    next = mVideoPipelineHead.next;
 	    while (next != &mVideoPipelineHead){
 	        item = (MAG_PIPELINE_ENTRY_t *)list_entry(next, MAG_PIPELINE_ENTRY_t, node);
@@ -240,7 +240,7 @@ _status_t MagPipelineManager::pause(ui8 flag){
 	        }
 	        next = next->next;
 	    }
-	}
+	/*}*/
     return MAG_NO_ERROR;
 }
 
@@ -286,7 +286,7 @@ _status_t MagPipelineManager::flush(){
 	MagAudioPipeline *audio;
 	_status_t ret;
 
-	mpClockComp->stop();
+	mpClockComp->flush();
 
     next = mVideoPipelineHead.next;
     while (next != &mVideoPipelineHead){

@@ -67,6 +67,11 @@ _status_t MagClock::resume(){
 	return clk->resume();
 }
 
+_status_t MagClock::flush(){
+	MagClockImplBase *clk = getClockImpl();
+	return clk->flush();
+}
+
 _status_t MagClock::reset(){
 	MagClockImplBase *clk = getClockImpl();
 	return clk->reset();

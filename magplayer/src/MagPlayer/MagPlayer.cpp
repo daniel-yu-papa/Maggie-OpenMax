@@ -661,6 +661,7 @@ void MagPlayer::onFlush(MagMessageHandle msg){
 
         resumeTo();
         mState = mFlushBackState;
+        AGILE_LOGD("flushed and back to state: %s!", state2String(mState));
     }else{
         if ((ST_FLUSHING == mState) || (ST_BUFFERING == mState)){
             AGILE_LOGW("in state: %s. ignore the flush action!", state2String(mState));
@@ -848,12 +849,11 @@ _status_t MagPlayer::resumeTo(){
     AGILE_LOGV("enter!");
     ret = mDemuxer->resume();
 
-    if (ret == MAG_NO_ERROR){
-
+    /*if (ret == MAG_NO_ERROR){
         if (mAVPipelineMgr != NULL){
             mAVPipelineMgr->resume();
         }
-    }
+    }*/
     AGILE_LOGV("exit!");
     return MAG_NO_ERROR;
 }

@@ -63,6 +63,11 @@ private:
     MagEventHandle         mVSchStPauseEvent;
     MagEventHandle         mVRenStPauseEvent;
     MagEventGroupHandle    mStPauseEventGroup;
+
+    MagEventHandle         mVDecFlushDoneEvent;
+    MagEventHandle         mVSchFlushDoneEvent;
+    MagEventHandle         mVRenFlushDoneEvent;
+    MagEventGroupHandle    mFlushDoneEventGroup;
     
     i32 mVSchClockPortIdx;
 

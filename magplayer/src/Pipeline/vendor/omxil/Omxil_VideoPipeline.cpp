@@ -65,6 +65,17 @@ OmxilVideoPipeline::OmxilVideoPipeline():
         Mag_AddEventGroup(mStPauseEventGroup, mVRenStPauseEvent);
     }
 
+    Mag_CreateEventGroup(&mFlushDoneEventGroup);
+    if (MAG_ErrNone == Mag_CreateEvent(&mVDecFlushDoneEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mFlushDoneEventGroup, mVDecFlushDoneEvent);
+    }
+    if (MAG_ErrNone == Mag_CreateEvent(&mVSchFlushDoneEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mFlushDoneEventGroup, mVSchFlushDoneEvent);
+    }
+    if (MAG_ErrNone == Mag_CreateEvent(&mVRenFlushDoneEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mFlushDoneEventGroup, mVRenFlushDoneEvent);
+    }
+
     mVideoDecCallbacks.EventHandler    = OmxilVideoPipeline::VideoDecoderEventHandler;
     mVideoDecCallbacks.EmptyBufferDone = OmxilVideoPipeline::VideoDecoderEmptyBufferDone;
     mVideoDecCallbacks.FillBufferDone  = OmxilVideoPipeline::VideoDecoderFillBufferDone;
@@ -98,6 +109,11 @@ OmxilVideoPipeline::~OmxilVideoPipeline(){
     Mag_DestroyEvent(&mVSchStPauseEvent);
     Mag_DestroyEvent(&mVRenStPauseEvent);
     Mag_DestroyEventGroup(&mStPauseEventGroup);
+
+    Mag_DestroyEvent(&mVDecFlushDoneEvent);
+    Mag_DestroyEvent(&mVSchFlushDoneEvent);
+    Mag_DestroyEvent(&mVRenFlushDoneEvent);
+    Mag_DestroyEventGroup(&mFlushDoneEventGroup);
 
     OMX_Deinit();
 }
@@ -150,6 +166,7 @@ OMX_ERRORTYPE OmxilVideoPipeline::VideoDecoderEventHandler(
             AGILE_LOGD("Vdec component disables port %d is done!", Data2);
         }else if (Data1 == OMX_CommandFlush){
             AGILE_LOGD("Vdec component flushes port %d is done!", Data2);
+            Mag_SetEvent(pVpipeline->mVDecFlushDoneEvent);
         }
     }else{
         AGILE_LOGD("unsupported event: %d, Data1: %u, Data2: %u\n", eEvent, Data1, Data2);
@@ -236,6 +253,7 @@ OMX_ERRORTYPE OmxilVideoPipeline::VideoScheduleEventHandler(
             AGILE_LOGD("Vsch component disables port %d is done!", Data2);
         }else if (Data1 == OMX_CommandFlush){
             AGILE_LOGD("Vsch component flushes port %d is done!", Data2);
+            Mag_SetEvent(pVpipeline->mVSchFlushDoneEvent);
         }
     }else{
         AGILE_LOGD("unsupported event: %d, Data1: %u, Data2: %u\n", eEvent, Data1, Data2);
@@ -293,6 +311,7 @@ OMX_ERRORTYPE OmxilVideoPipeline::VideoRenderEventHandler(
             AGILE_LOGD("Vren component disables port %d is done!", Data2);
         }else if (Data1 == OMX_CommandFlush){
             AGILE_LOGD("Vren component flushes port %d is done!", Data2);
+            Mag_SetEvent(pVpipeline->mVRenFlushDoneEvent);
         }
     }else if (eEvent == OMX_EventBufferFlag){
         /*detected the EOS*/
@@ -601,40 +620,49 @@ _status_t OmxilVideoPipeline::stop(){
 _status_t OmxilVideoPipeline::pause(){
     MagVideoPipelineImpl::pause();
 
-    /*Mag_ClearEvent(mVDecStPauseEvent);
+    Mag_ClearEvent(mVDecStPauseEvent);
     Mag_ClearEvent(mVSchStPauseEvent);
-    Mag_ClearEvent(mVRenStPauseEvent);*/
+    Mag_ClearEvent(mVRenStPauseEvent);
 
     OMX_SendCommand(mhVideoRender, OMX_CommandStateSet, OMX_StatePause, NULL);
     OMX_SendCommand(mhVideoScheduler, OMX_CommandStateSet, OMX_StatePause, NULL);
     OMX_SendCommand(mhVideoDecoder, OMX_CommandStateSet, OMX_StatePause, NULL);
 
-    /*Mag_WaitForEventGroup(mStPauseEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);*/
+    Mag_WaitForEventGroup(mStPauseEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
     return MAG_NO_ERROR;
 }
 
 _status_t OmxilVideoPipeline::resume(){
     MagVideoPipelineImpl::resume();
 
-    /*Mag_ClearEvent(mVDecStExecutingEvent);
+    Mag_ClearEvent(mVDecStExecutingEvent);
     Mag_ClearEvent(mVSchStExecutingEvent);
-    Mag_ClearEvent(mVRenStExecutingEvent);*/
+    Mag_ClearEvent(mVRenStExecutingEvent);
 
     OMX_SendCommand(mhVideoRender, OMX_CommandStateSet, OMX_StateExecuting, NULL);
     OMX_SendCommand(mhVideoScheduler, OMX_CommandStateSet, OMX_StateExecuting, NULL);
     OMX_SendCommand(mhVideoDecoder, OMX_CommandStateSet, OMX_StateExecuting, NULL);
 
-    /*Mag_WaitForEventGroup(mStExecutingEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);*/
-    
+    Mag_WaitForEventGroup(mStExecutingEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
+
     return MAG_NO_ERROR;
 }
 
 _status_t OmxilVideoPipeline::flush(){
     MagVideoPipelineImpl::flush();
 
-    OMX_SendCommand(mhVideoRender, OMX_CommandStateSet, OMX_StateIdle, NULL);
-    OMX_SendCommand(mhVideoScheduler, OMX_CommandStateSet, OMX_StateIdle, NULL);
-    OMX_SendCommand(mhVideoDecoder, OMX_CommandStateSet, OMX_StateIdle, NULL);
+    Mag_ClearEvent(mVDecFlushDoneEvent);
+    Mag_ClearEvent(mVSchFlushDoneEvent);
+    Mag_ClearEvent(mVRenFlushDoneEvent);
+
+    OMX_SendCommand(mhVideoRender, OMX_CommandFlush, OMX_ALL, NULL);
+    OMX_SendCommand(mhVideoScheduler, OMX_CommandFlush, OMX_ALL, NULL);
+    OMX_SendCommand(mhVideoDecoder, OMX_CommandFlush, OMX_ALL, NULL);
+
+    Mag_WaitForEventGroup(mFlushDoneEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
+    mIsFlushed = false;
+    AGILE_LOGI("exit!");
+
     return MAG_NO_ERROR;
 }
 

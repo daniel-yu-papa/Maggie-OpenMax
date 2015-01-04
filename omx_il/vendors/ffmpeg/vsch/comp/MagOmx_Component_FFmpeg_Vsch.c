@@ -159,6 +159,8 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vsch_ProceedBuffer(
 	vschCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
     destPort = ooc_cast(hDestPort, MagOmxPort);
     
+    AGILE_LOGV("enter!");
+
     destbufHeader = MagOmxPortVirtual(destPort)->GetOutputBuffer(destPort);
 
     if (srcbufHeader->pBuffer != NULL && srcbufHeader->nFilledLen > 0){

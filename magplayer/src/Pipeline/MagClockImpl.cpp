@@ -45,6 +45,10 @@ _status_t MagClockImpl::resume(){
 	return MAG_NO_ERROR;
 }
 
+_status_t MagClockImpl::flush(){
+	return MAG_NO_ERROR;
+}
+
 _status_t MagClockImpl::reset(){
 	return MAG_NO_ERROR;
 }

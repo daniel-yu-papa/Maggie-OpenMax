@@ -80,6 +80,9 @@ Virtuals(MagOmxComponentImpl, MagOmxComponent)
     OMX_ERRORTYPE (*MagOMX_Resume)(
                     OMX_IN  OMX_HANDLETYPE hComponent);
 
+    OMX_ERRORTYPE (*MagOMX_Flush)(
+                    OMX_IN  OMX_HANDLETYPE hComponent);
+
     OMX_ERRORTYPE (*MagOMX_Deinit)(
                     OMX_IN  OMX_HANDLETYPE hComponent);
 

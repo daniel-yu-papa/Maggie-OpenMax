@@ -60,6 +60,14 @@ OmxilAudioPipeline::OmxilAudioPipeline():
         Mag_AddEventGroup(mStPauseEventGroup, mARenStPauseEvent);
     }
 
+    Mag_CreateEventGroup(&mFlushDoneEventGroup);
+    if (MAG_ErrNone == Mag_CreateEvent(&mADecFlushDoneEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mFlushDoneEventGroup, mADecFlushDoneEvent);
+    }
+    if (MAG_ErrNone == Mag_CreateEvent(&mARenFlushDoneEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(mFlushDoneEventGroup, mARenFlushDoneEvent);
+    }
+
     mAudioDecCallbacks.EventHandler    = OmxilAudioPipeline::AudioDecoderEventHandler;
     mAudioDecCallbacks.EmptyBufferDone = OmxilAudioPipeline::AudioDecoderEmptyBufferDone;
     mAudioDecCallbacks.FillBufferDone  = OmxilAudioPipeline::AudioDecoderFillBufferDone;
@@ -78,6 +86,18 @@ OmxilAudioPipeline::~OmxilAudioPipeline(){
     Mag_DestroyEvent(&mARenStLoadedEvent);
     Mag_DestroyEventGroup(&mStLoadedEventGroup);
     
+    Mag_DestroyEvent(&mADecStExecutingEvent);
+    Mag_DestroyEvent(&mARenStExecutingEvent);
+    Mag_DestroyEventGroup(&mStExecutingEventGroup);
+
+    Mag_DestroyEvent(&mADecStPauseEvent);
+    Mag_DestroyEvent(&mARenStPauseEvent);
+    Mag_DestroyEventGroup(&mStPauseEventGroup);
+
+    Mag_DestroyEvent(&mADecFlushDoneEvent);
+    Mag_DestroyEvent(&mARenFlushDoneEvent);
+    Mag_DestroyEventGroup(&mFlushDoneEventGroup);
+
     OMX_Deinit();
 }
 
@@ -130,6 +150,7 @@ OMX_ERRORTYPE OmxilAudioPipeline::AudioDecoderEventHandler(
             AGILE_LOGD("Adec component disables port %d is done!", Data2);
         }else if (Data1 == OMX_CommandFlush){
             AGILE_LOGD("Adec component flushes port %d is done!", Data2);
+            Mag_SetEvent(pApipeline->mADecFlushDoneEvent);
         }
     }else{
         AGILE_LOGD("unsupported event: %d, Data1: %u, Data2: %u\n", eEvent, Data1, Data2);
@@ -217,6 +238,7 @@ OMX_ERRORTYPE OmxilAudioPipeline::AudioRenderEventHandler(
             AGILE_LOGD("Aren component disables port %d is done!", Data2);
         }else if (Data1 == OMX_CommandFlush){
             AGILE_LOGD("Aren component flushes port %d is done!", Data2);
+            Mag_SetEvent(pApipeline->mARenFlushDoneEvent);
         }
     }else if (eEvent == OMX_EventBufferFlag){
         /*detected the EOS*/
@@ -451,35 +473,44 @@ _status_t OmxilAudioPipeline::stop(){
 _status_t OmxilAudioPipeline::pause(){
     MagAudioPipelineImpl::pause();
 
-    /*Mag_ClearEvent(mADecStPauseEvent);
-    Mag_ClearEvent(mARenStPauseEvent);*/
+    Mag_ClearEvent(mADecStPauseEvent);
+    Mag_ClearEvent(mARenStPauseEvent);
 
     OMX_SendCommand(mhAudioRender, OMX_CommandStateSet, OMX_StatePause, NULL);
     OMX_SendCommand(mhAudioDecoder, OMX_CommandStateSet, OMX_StatePause, NULL);
 
-    /*Mag_WaitForEventGroup(mStPauseEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);*/
+    Mag_WaitForEventGroup(mStPauseEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
+    
     return MAG_NO_ERROR;
 }
 
 _status_t OmxilAudioPipeline::resume(){
     MagAudioPipelineImpl::resume();
 
-    /*Mag_ClearEvent(mADecStExecutingEvent);
-    Mag_ClearEvent(mARenStExecutingEvent);*/
+    Mag_ClearEvent(mADecStExecutingEvent);
+    Mag_ClearEvent(mARenStExecutingEvent);
 
     OMX_SendCommand(mhAudioRender, OMX_CommandStateSet, OMX_StateExecuting, NULL);
     OMX_SendCommand(mhAudioDecoder, OMX_CommandStateSet, OMX_StateExecuting, NULL);
 
-    /*Mag_WaitForEventGroup(mStExecutingEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);*/
-    
+    Mag_WaitForEventGroup(mStExecutingEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
+
     return MAG_NO_ERROR;
 }
 
 _status_t OmxilAudioPipeline::flush(){
     MagAudioPipelineImpl::flush();
 
-    OMX_SendCommand(mhAudioRender, OMX_CommandStateSet, OMX_StateIdle, NULL);
-    OMX_SendCommand(mhAudioDecoder, OMX_CommandStateSet, OMX_StateIdle, NULL);
+    Mag_ClearEvent(mADecFlushDoneEvent);
+    Mag_ClearEvent(mARenFlushDoneEvent);
+
+    OMX_SendCommand(mhAudioRender, OMX_CommandFlush, OMX_ALL, NULL);
+    OMX_SendCommand(mhAudioDecoder, OMX_CommandFlush, OMX_ALL, NULL);
+
+    Mag_WaitForEventGroup(mFlushDoneEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
+    mIsFlushed = false;
+    AGILE_LOGI("exit!");
+
     return MAG_NO_ERROR;
 }
 

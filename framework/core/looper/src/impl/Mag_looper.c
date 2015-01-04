@@ -235,9 +235,16 @@ static boolean LooperThreadEntry(void *priv){
                 deliverMessage(looper, msg);
             }
         }else{
-            AGILE_LOGD("force the delay[%lld us] message out", looper->mDelayEvtWhenUS);
+            AGILE_LOGD("Looper[%p] forces the delay[%lld us] message out", looper, looper->mDelayEvtWhenUS);
             msg = (MagLooperEvent_t *)value;
             rbtree_delete(&looper->mDelayEvtTreeRoot, looper->mDelayEvtWhenUS);
+
+            /*the delay message queue is empty now, to reset the mForceOut flag*/
+            if (looper->mDelayEvtTreeRoot == NULL){
+                AGILE_LOGD("[0x%x]the delay message queue is empty now, to reset the mForceOut flag!", looper);
+                looper->mForceOut = MAG_FALSE;
+            }
+
             if (msg)
                 looper->mEventInExecuting = MAG_TRUE;
             Mag_ReleaseMutex(looper->mLock);
@@ -318,8 +325,8 @@ static void MagLooper_clear(MagLooperHandle hLooper){
     clearMessageQueue(hLooper);
 }
 
-static void MagLooper_setForceOut(MagLooperHandle hLooper, boolean set){
-    hLooper->mForceOut = set;
+static void MagLooper_forceOut(MagLooperHandle hLooper){
+    hLooper->mForceOut = MAG_TRUE;
 }
 
 static void internal_copyMessage(MagMessage_t *to, MagMessage_t *from){
@@ -332,7 +339,7 @@ static void internal_copyMessage(MagMessage_t *to, MagMessage_t *from){
         }
     }
 }
-
+/*delayUS: -1 force the message to be added into the no delay queue*/
 static void MagLooper_postMessage(MagLooperHandle hLooper, MagMessage_t *msg, i64 delayUS){
     MagLooperEvent_t *evt;
     boolean postEvt = MAG_FALSE;
@@ -343,7 +350,7 @@ static void MagLooper_postMessage(MagLooperHandle hLooper, MagMessage_t *msg, i6
     if (evt != NULL){
         internal_copyMessage(evt->mMessage, msg);
 #if 1
-        if ((hLooper->mDelayEvtTreeRoot) || (delayUS > 0)){
+        if ((hLooper->mDelayEvtTreeRoot || (delayUS > 0)) && (delayUS != -1)){
             /*if there are delayed messages added, all no-delay messages become the delayed messages*/
             /*if (delayUS == 0){
                 delayUS = 1;
@@ -475,7 +482,7 @@ MagLooperHandle createLooper(const char *pName){
         pLooper->getHandlerID      = MagLooper_getHandlerID;
         pLooper->waitOnAllDone     = MagLooper_waitOnAllDone;
         pLooper->clear             = MagLooper_clear;
-        pLooper->setForceOut       = MagLooper_setForceOut;
+        pLooper->forceOut          = MagLooper_forceOut;
         pLooper->setMergeMsg       = MagLooper_setMergeMsg;
         pLooper->setPriority       = MagLooper_setPriority;
         pLooper->setTimer          = MagLooper_setTimer;
