@@ -29,6 +29,9 @@ public:
     bool              isPlaying();
     _status_t         getClkConnectedComp(i32 *port, void **ppComp);
 
+    _status_t         getDecodedFrame(void **ppVideoFrame);
+    _status_t         putUsedFrame(void *pVideoFrame);
+
 private:
     OMX_STRING    getCompNameByCodecId(ui32 OMXCodec);
 
@@ -44,6 +47,9 @@ private:
 
     OmxilBufferMgr *mpBufferMgr;
     
+    OmxilBufferMgr *mpDecodedBufferMgr;
+    OmxilBufferMgr *mpFreedBufferMgr;
+
     MagEventHandle         mVDecStIdleEvent;
     MagEventHandle         mVSchStIdleEvent;
     MagEventHandle         mVRenStIdleEvent;
@@ -109,6 +115,11 @@ private:
                                 OMX_U32 Data1,
                                 OMX_U32 Data2,
                                 OMX_PTR pEventData);
+
+    static OMX_ERRORTYPE  VideoRenderFillBufferDone(
+                                OMX_IN OMX_HANDLETYPE hComponent,
+                                OMX_IN OMX_PTR pAppData,
+                                OMX_IN OMX_BUFFERHEADERTYPE* pBuffer);
 };
 
 #endif

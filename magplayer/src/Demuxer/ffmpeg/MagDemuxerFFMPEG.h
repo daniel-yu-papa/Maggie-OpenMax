@@ -79,6 +79,9 @@ private:
 
     void            fillMediaBuffer(Stream_Track *track, AVPacket *pPacket);
 
+    void            fillVideoMetaData(TrackInfo_t *track, AVStream *aStream);
+    void            fillAudioMetaData(TrackInfo_t *track, AVStream *aStream);
+
     i32 AVIO_Read (ui8 *buf, int buf_size);
     i32 AVIO_Write(ui8* buf, int buf_size);
     i64 AVIO_Seek (i64 offset, i32 whence);

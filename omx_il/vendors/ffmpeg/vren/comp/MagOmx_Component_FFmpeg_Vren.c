@@ -20,6 +20,7 @@ AllocateClass(MagOmxComponent_FFmpeg_Vren, MagOmxComponentVideo);
 static OMX_ERRORTYPE localSetupComponent(
                     OMX_IN  OMX_HANDLETYPE hComponent){
     MagOmxPort_FFmpeg_Vren         vrenInPort;
+    MagOmxPort_FFmpeg_Vren         vrenOutPort;
     MagOmxPort_Constructor_Param_t param;
     MagOmxComponentImpl            vrenCompImpl;
     MagOmxComponent                vrenComp;
@@ -28,6 +29,10 @@ static OMX_ERRORTYPE localSetupComponent(
     AGILE_LOGV("enter!");
 
     thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vren);
+    vrenCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
+    vrenComp     = ooc_cast(hComponent, MagOmxComponent);
+
+    vrenComp->setName(vrenComp, (OMX_U8 *)COMPONENT_NAME);
 
     param.portIndex    = START_PORT_INDEX + 0;
     param.isInput      = OMX_TRUE;
@@ -39,13 +44,20 @@ static OMX_ERRORTYPE localSetupComponent(
     vrenInPort = ooc_new(MagOmxPort_FFmpeg_Vren, &param);
     MAG_ASSERT(vrenInPort);
 
-    vrenCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
-    vrenComp     = ooc_cast(hComponent, MagOmxComponent);
-    
-    vrenComp->setName(vrenComp, (OMX_U8 *)COMPONENT_NAME);
-    vrenCompImpl->addPort(vrenCompImpl, START_PORT_INDEX + 0, vrenInPort);
+    param.portIndex    = START_PORT_INDEX + 1;
+    param.isInput      = OMX_FALSE;
+    param.bufSupplier  = OMX_BufferSupplyUnspecified;
+    param.formatStruct = 0;
+    sprintf((char *)param.name, "%s-Out", VREN_PORT_NAME);
 
-    vrenCompImpl->setupPortDataFlow(vrenCompImpl, vrenInPort, NULL);
+    ooc_init_class(MagOmxPort_FFmpeg_Vren);
+    vrenOutPort = ooc_new(MagOmxPort_FFmpeg_Vren, &param);
+    MAG_ASSERT(vrenOutPort);
+
+    vrenCompImpl->addPort(vrenCompImpl, START_PORT_INDEX + 0, vrenInPort);
+    vrenCompImpl->addPort(vrenCompImpl, START_PORT_INDEX + 1, vrenOutPort);
+
+    vrenCompImpl->setupPortDataFlow(vrenCompImpl, vrenInPort, vrenOutPort);
 
 #ifdef CAPTURE_YUV_DATA_TO_FILE
     thiz->mfYUVFile = fopen("./video.yuv","wb+");
@@ -142,14 +154,18 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vren_ProceedBuffer(
                     OMX_IN  OMX_HANDLETYPE hComponent, 
                     OMX_IN  OMX_BUFFERHEADERTYPE *srcbufHeader,
                     OMX_IN  OMX_HANDLETYPE hDestPort){
-    MagOmxComponentImpl         vrenCompImpl;
-    AVFrame                     *decodedFrame;
-    OMX_TICKS                   timeStamp;
+    MagOmxComponentImpl     vrenCompImpl;
+    AVFrame                 *decodedFrame;
+    AVFrame                 *destFrame = NULL;
+    OMX_BUFFERHEADERTYPE    *destbufHeader;
+    MagOmxPort              destPort;
+    int ret;
+
     MagOmxComponent_FFmpeg_Vren thiz;
-    int i;
 
     vrenCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
     thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vren);
+    destPort = ooc_cast(hDestPort, MagOmxPort);
 
     if (srcbufHeader->pBuffer    == NULL && 
         srcbufHeader->nFilledLen == 0    && 
@@ -159,16 +175,28 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vren_ProceedBuffer(
         return OMX_ErrorNone;
     }
 
+    destbufHeader = MagOmxPortVirtual(destPort)->GetOutputBuffer(destPort);
+
     decodedFrame = (AVFrame *)srcbufHeader->pBuffer;
-    timeStamp    = srcbufHeader->nTimeStamp;
 
     AGILE_LOGV("Display decoded Video Frame: %p[w: %d, h: %d, pixelFormat: %d][linesize: %d, %d, %d], time stamp: 0x%llx to playback", 
                 decodedFrame, decodedFrame->width, decodedFrame->height, decodedFrame->format, 
                 decodedFrame->linesize[0], decodedFrame->linesize[1], decodedFrame->linesize[2],
-                timeStamp);
+                srcbufHeader->nTimeStamp);
+
+    destbufHeader->nFilledLen = srcbufHeader->nFilledLen;
+    destbufHeader->nOffset    = srcbufHeader->nOffset;
+    destbufHeader->nTimeStamp = srcbufHeader->nTimeStamp;
+
+    destFrame = av_frame_alloc();
+    ret = av_frame_ref(destFrame, (AVFrame *)srcbufHeader->pBuffer);
+    destbufHeader->pBuffer = (OMX_U8 *)destFrame;
+
+    MagOmxPortVirtual(destPort)->sendOutputBuffer(destPort, destbufHeader);
 
 #ifdef CAPTURE_YUV_DATA_TO_FILE
     if (thiz->mfYUVFile){
+        int i;
         for (i = 0; i < decodedFrame->height; i++){
             fwrite(decodedFrame->data[0] + i * decodedFrame->linesize[0], 
                    1, decodedFrame->width, 

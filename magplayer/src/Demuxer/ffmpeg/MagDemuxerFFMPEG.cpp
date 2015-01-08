@@ -519,6 +519,34 @@ int MagDemuxerFFMPEG::demux_interrupt_cb(void *ctx)
     return is->abort_request;
 }
 
+void MagDemuxerFFMPEG::fillVideoMetaData(TrackInfo_t *track, AVStream *vStream){
+    const char *profile;
+
+    track->meta_data.video.width = vStream->codec->width;
+    track->meta_data.video.height = vStream->codec->height;
+    if (vStream->avg_frame_rate.den && vStream->avg_frame_rate.num)
+        track->meta_data.video.fps = av_q2d(vStream->avg_frame_rate);
+
+    profile = av_get_profile_name(avcodec_find_decoder(vStream->codec->codec_id), vStream->codec->profile);
+    strncpy(track->meta_data.video.codec, profile, sizeof(track->meta_data.video.codec));
+    track->meta_data.video.bps = vStream->codec->bit_rate / 1000;
+}
+
+void MagDemuxerFFMPEG::fillAudioMetaData(TrackInfo_t *track, AVStream *aStream){
+    const char *profile;
+    int bits_per_sample;
+    int bit_rate;
+
+    profile = av_get_profile_name(avcodec_find_decoder(aStream->codec->codec_id), aStream->codec->profile);
+    strncpy(track->meta_data.audio.codec, profile, sizeof(track->meta_data.audio.codec));
+
+    track->meta_data.audio.hz = aStream->codec->sample_rate;
+
+    bits_per_sample = av_get_bits_per_sample(aStream->codec->codec_id);
+    bit_rate = bits_per_sample ? aStream->codec->sample_rate * aStream->codec->channels * bits_per_sample : aStream->codec->bit_rate;
+    track->meta_data.audio.bps = bit_rate / 1000;
+}
+
 _status_t  MagDemuxerFFMPEG::probe_add_streams(){
     ui32 i;
     i32 vNum = 0;
@@ -561,12 +589,14 @@ _status_t  MagDemuxerFFMPEG::probe_add_streams(){
                 track->codec = convertCodec_FFMPEGToOMX(st->codec->codec_id, TRACK_VIDEO);
                 mParamDB->setInt32(mParamDB, kDemuxer_Video_Width, st->codec->width);
                 mParamDB->setInt32(mParamDB, kDemuxer_Video_Height, st->codec->height);
+                fillVideoMetaData(track, st);
                 track->type = TRACK_VIDEO;
                 vNum++;
             }else if (st->codec->codec_type == AVMEDIA_TYPE_AUDIO){
                 sprintf(track->name, "Stream%d_Audio", i);
                 track->codec = convertCodec_FFMPEGToOMX(st->codec->codec_id, TRACK_AUDIO);
                 track->type = TRACK_AUDIO;
+                fillAudioMetaData(track, st);
                 aNum++;
             }else if (st->codec->codec_type == AVMEDIA_TYPE_SUBTITLE){
                 sprintf(track->name, "Stream%d_Subtitle", i);

@@ -22,6 +22,8 @@ public:
     virtual _status_t reset();
     virtual _status_t getClkConnectedComp(i32 *port, void **ppComp);
     virtual _status_t setVolume(fp32 leftVolume, fp32 rightVolume);
+    virtual _status_t getDecodedFrame(void **ppAudioFrame);
+    virtual _status_t putUsedFrame(void *pAudioFrame);
     
 protected:
     MagAudioPipelineImplBase *getPipelineImpl();

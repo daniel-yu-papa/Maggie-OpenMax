@@ -27,7 +27,7 @@ public:
     virtual _status_t        setVolume(float leftVolume, float rightVolume) = 0;
     virtual _status_t        setParameter(int key, void *request) = 0;
     virtual _status_t        getParameter(int key, void **reply) = 0;
-    virtual _status_t        invoke(const ui32 methodID, const void *request, void *reply) = 0;
+    virtual _status_t        invoke(const ui32 methodID, void *request, void *reply) = 0;
     virtual ui32             getVersion() = 0;
 };
 

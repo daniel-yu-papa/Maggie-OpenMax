@@ -8,6 +8,12 @@
 #define PAUSE_CLOCK_FLAG 0x01
 #define PAUSE_AV_FLAG    0x02
 
+typedef enum{
+    MAG_PIPELINE_VIDEO_TYPE,
+    MAG_PIPELINE_AUDIO_TYPE,
+    MAG_PIPELINE_SUBTITLE_TYPE
+}MAG_PIPELINE_TYPE_t;
+
 typedef struct{
 	List_t node;
 
@@ -25,6 +31,9 @@ public:
 	
 	_status_t removeVideoPipeline(MagVideoPipeline *pVideoPipeline);
     _status_t removeAudioPipeline(MagAudioPipeline *pAudioPipeline);
+
+    _status_t getDecodedFrame(MAG_PIPELINE_TYPE_t type, void *pPipeline, void **ppFrame);
+    _status_t putUsedFrame(MAG_PIPELINE_TYPE_t type, void *pPipeline, void *pFrame);
 
     _status_t setup();
 	_status_t start();

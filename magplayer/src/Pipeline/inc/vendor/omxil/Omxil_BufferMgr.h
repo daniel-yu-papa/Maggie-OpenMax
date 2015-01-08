@@ -11,7 +11,7 @@ typedef struct{
 
 class OmxilBufferMgr{
 public:
-    OmxilBufferMgr(ui32 buf_size, ui32 buf_num);
+    OmxilBufferMgr(ui32 buf_size, ui32 buf_num, bool block);
     ~OmxilBufferMgr();
 
     OMX_ERRORTYPE create(OMX_HANDLETYPE hComp, ui32 portIdx, OMX_HANDLETYPE privData);
@@ -28,6 +28,11 @@ private:
     MagMutexHandle mListMutex;
     List_t mBufFreeListHead;
     List_t mBufBusyListHead;
+
+    bool mBlock;
+
+    MagEventHandle         mPutBufEvent;
+    MagEventGroupHandle    mWaitBufEventGroup;
 
     OMX_HANDLETYPE mhComponent;
 };

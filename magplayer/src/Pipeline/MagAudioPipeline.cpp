@@ -77,6 +77,16 @@ _status_t MagAudioPipeline::setVolume(fp32 leftVolume, fp32 rightVolume){
 	return apl->setVolume(leftVolume, rightVolume);
 }
 
+_status_t MagAudioPipeline::getDecodedFrame(void **ppAudioFrame){
+	MagAudioPipelineImplBase *apl = getPipelineImpl();
+	return apl->getDecodedFrame(ppAudioFrame);
+}
+
+_status_t MagAudioPipeline::putUsedFrame(void *pAudioFrame){
+	MagAudioPipelineImplBase *apl = getPipelineImpl();
+	return apl->putUsedFrame(pAudioFrame);
+}
+
 MagAudioPipelineImplBase *MagAudioPipeline::getPipelineImpl(){
 	if (mPipeline)
 		return mPipeline;

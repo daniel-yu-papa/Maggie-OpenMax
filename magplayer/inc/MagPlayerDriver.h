@@ -25,7 +25,7 @@ public:
     _status_t        setVolume(float leftVolume, float rightVolume);
     _status_t        setParameter(int key, void *request);
     _status_t        getParameter(int key, void **reply);
-    _status_t        invoke(const unsigned int methodID, const void *request, void *reply);
+    _status_t        invoke(const unsigned int methodID, void *request, void *reply);
     ui32             getVersion();
 
 protected:

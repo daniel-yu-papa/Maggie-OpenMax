@@ -65,6 +65,14 @@ _status_t MagAudioPipelineImpl::setup(){
     return MAG_NO_ERROR;
 }
 
+_status_t MagAudioPipelineImpl::getDecodedFrame(void **ppAudioFrame){
+    return MAG_NO_ERROR;
+}
+
+_status_t MagAudioPipelineImpl::putUsedFrame(void *pAudioFrame){
+    return MAG_NO_ERROR;
+}
+
 _status_t MagAudioPipelineImpl::start(){
     AGILE_LOGV("enter!");
 

@@ -62,6 +62,14 @@ _status_t MagVideoPipeline::getClkConnectedComp(i32 *port, void **ppComp){
 	return getPipelineImpl()->getClkConnectedComp(port, ppComp);
 }
 
+_status_t MagVideoPipeline::getDecodedFrame(void **ppVideoFrame){
+	return getPipelineImpl()->getDecodedFrame(ppVideoFrame);
+}
+
+_status_t MagVideoPipeline::putUsedFrame(void *pVideoFrame){
+	return getPipelineImpl()->putUsedFrame(pVideoFrame);
+}
+
 MagVideoPipelineImplBase *MagVideoPipeline::getPipelineImpl(){
 	if (mPipeline)
 		return mPipeline;

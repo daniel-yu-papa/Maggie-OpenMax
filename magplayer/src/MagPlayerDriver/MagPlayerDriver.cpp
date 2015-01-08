@@ -109,7 +109,7 @@ _status_t        MagPlayerDriver::getParameter(int key, void **reply){
     return dirver->getParameter(key, reply);
 }
 
-_status_t        MagPlayerDriver::invoke(const unsigned int methodID, const void *request, void *reply){
+_status_t        MagPlayerDriver::invoke(const unsigned int methodID, void *request, void *reply){
     MagPlayerDriverImplBase *dirver = getPlayerDriver();
     return dirver->invoke(methodID, request, reply);
 }

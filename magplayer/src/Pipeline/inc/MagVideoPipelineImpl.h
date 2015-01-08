@@ -23,7 +23,9 @@ public:
     virtual _status_t flush(); 
     virtual _status_t reset();
     virtual _status_t getClkConnectedComp(i32 *port, void **ppComp);
-
+    virtual _status_t getDecodedFrame(void **ppVideoFrame);
+    virtual _status_t putUsedFrame(void *pVideoFrame);
+    
     virtual void setMagPlayerNotifier(MagMessageHandle notifyMsg);
     virtual MagMessageHandle getMagPlayerNotifier();
 

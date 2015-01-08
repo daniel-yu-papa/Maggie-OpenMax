@@ -855,7 +855,7 @@ _status_t MagPlayer::resumeTo(){
         }
     }*/
     AGILE_LOGV("exit!");
-    return MAG_NO_ERROR;
+    return ret;
 }
 
 
@@ -1732,7 +1732,7 @@ void MagPlayer::setDisplayWindow(ui32 x, ui32 y, ui32 w, ui32 h){
     AGILE_LOGD("x = %d, y = %d, w = %d, h = %d", x, y, w, h);
 }
 
-void MagPlayer::getBufferStatus(BufferStatistic_t  *pBufSt){
+_status_t MagPlayer::getBufferStatus(BufferStatistic_t  *pBufSt){
     ui32 videoBufSt = 0;
     ui32 audioBufSt = 0;
     ui32 loadingSpeed = 0;
@@ -1748,13 +1748,80 @@ void MagPlayer::getBufferStatus(BufferStatistic_t  *pBufSt){
     pBufSt->video_buffer_time = videoBufSt;
     pBufSt->audio_buffer_time = audioBufSt;
     pBufSt->loadingSpeed      = loadingSpeed;
+
+    return MAG_NO_ERROR;
 }
 
-_status_t MagPlayer::buildAudioPipeline(){
-    return MAG_NO_ERROR;
+_status_t MagPlayer::getVideoMetaData(VideoMetaData_t *pVmd){
+    TrackInfo_t *ti;
+    ui32 i;
+
+    if ((mDemuxer != NULL) && (mTrackTable != NULL)){
+        for (i = 0; i < mTrackTable->totalTrackNum; i++){
+            ti = mTrackTable->trackTableList[0];
+            if (ti->type == TRACK_VIDEO){
+                memcpy(pVmd, &ti->meta_data.video, sizeof(VideoMetaData_t));
+                return MAG_NO_ERROR;
+            }
+        }
+    }
+    return MAG_UNKNOWN_ERROR;
 }
-_status_t MagPlayer::buildVideoPipeline(){
-    return MAG_NO_ERROR;
+
+_status_t MagPlayer::getAudioMetaData(AudioMetaData_t *pAmd){
+    TrackInfo_t *ti;
+    ui32 i;
+
+    if ((mDemuxer != NULL) && (mTrackTable != NULL)){
+        for (i = 0; i < mTrackTable->totalTrackNum; i++){
+            ti = mTrackTable->trackTableList[0];
+            if (ti->type == TRACK_AUDIO){
+                memcpy(pAmd, &ti->meta_data.audio, sizeof(AudioMetaData_t));
+                return MAG_NO_ERROR;
+            }
+        }
+    }
+    return MAG_UNKNOWN_ERROR;
+}
+
+_status_t MagPlayer::getDecodedVideoFrame(void **ppGetFrame){
+    if (mAVPipelineMgr != NULL && mVideoPipeline != NULL){
+        return mAVPipelineMgr->getDecodedFrame(MAG_PIPELINE_VIDEO_TYPE, 
+                                               static_cast<void *>(mVideoPipeline),
+                                               ppGetFrame);
+    }else{
+        return MAG_BAD_VALUE;
+    }
+}  
+
+_status_t MagPlayer::putUsedVideoFrame(void *pUsedFrame){
+    if (mAVPipelineMgr != NULL && mVideoPipeline != NULL){
+        return mAVPipelineMgr->putUsedFrame(MAG_PIPELINE_VIDEO_TYPE, 
+                                            static_cast<void *>(mVideoPipeline),
+                                            pUsedFrame);
+    }else{
+        return MAG_BAD_VALUE;
+    }
+}
+
+_status_t MagPlayer::getDecodedAudioFrame(void **ppGetFrame){
+    if (mAVPipelineMgr != NULL && mAudioPipeline != NULL){
+        return mAVPipelineMgr->putUsedFrame(MAG_PIPELINE_AUDIO_TYPE, 
+                                            static_cast<void *>(mAudioPipeline),
+                                            ppGetFrame);
+    }else{
+        return MAG_BAD_VALUE;
+    }
+}
+
+_status_t MagPlayer::putUsedAudioFrame(void *pUsedFrame){
+    if (mAVPipelineMgr != NULL && mAudioPipeline != NULL){
+        return mAVPipelineMgr->putUsedFrame(MAG_PIPELINE_AUDIO_TYPE, 
+                                            static_cast<void *>(mAudioPipeline),
+                                            pUsedFrame);
+    }else{
+        return MAG_BAD_VALUE;
+    }
 }
 
 #undef LOOPER_NAME

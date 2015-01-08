@@ -355,3 +355,39 @@ _status_t MagPipelineManager::reset(){
 _status_t MagPipelineManager::setVolume(fp32 leftVolume, fp32 rightVolume){
     return MAG_NO_ERROR;
 }
+
+_status_t MagPipelineManager::getDecodedFrame(MAG_PIPELINE_TYPE_t type, void *pPipeline, void **ppFrame){
+    if (type == MAG_PIPELINE_VIDEO_TYPE){
+        MagVideoPipeline *pVideoPipeline;
+
+        pVideoPipeline = static_cast<MagVideoPipeline *>(pPipeline);
+        return pVideoPipeline->getDecodedFrame(ppFrame);
+    }else if (type == MAG_PIPELINE_AUDIO_TYPE){
+        MagAudioPipeline *pAudioPipeline;
+
+        pAudioPipeline = static_cast<MagAudioPipeline *>(pPipeline);
+        return pAudioPipeline->getDecodedFrame(ppFrame);
+    }else if (type == MAG_PIPELINE_SUBTITLE_TYPE){
+
+    }
+
+    return MAG_NO_ERROR;
+}
+
+_status_t MagPipelineManager::putUsedFrame(MAG_PIPELINE_TYPE_t type, void *pPipeline, void *pFrame){
+    if (type == MAG_PIPELINE_VIDEO_TYPE){
+        MagVideoPipeline *pVideoPipeline;
+
+        pVideoPipeline = static_cast<MagVideoPipeline *>(pPipeline);
+        return pVideoPipeline->putUsedFrame(pFrame);
+    }else if (type == MAG_PIPELINE_AUDIO_TYPE){
+        MagAudioPipeline *pAudioPipeline;
+
+        pAudioPipeline = static_cast<MagAudioPipeline *>(pPipeline);
+        return pAudioPipeline->putUsedFrame(pFrame);
+    }else if (type == MAG_PIPELINE_SUBTITLE_TYPE){
+        
+    }
+
+    return MAG_NO_ERROR;
+}

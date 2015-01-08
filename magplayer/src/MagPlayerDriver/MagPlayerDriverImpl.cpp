@@ -237,7 +237,9 @@ _status_t MagPlayerDriverImpl::getParameter(int key, void **reply){
     return ret;
 }
 
-_status_t MagPlayerDriverImpl::invoke(const ui32 methodID, const void *request, void *reply){
+_status_t MagPlayerDriverImpl::invoke(const ui32 methodID, void *request, void *reply){
+    _status_t ret = MAG_NO_ERROR;
+
     if (MPD_ST_INITIALIZED != mState)
         return MAG_INVALID_OPERATION;
     
@@ -245,16 +247,73 @@ _status_t MagPlayerDriverImpl::invoke(const ui32 methodID, const void *request, 
         case INVOKE_ID_GET_BUFFER_STATUS:
             if (reply != NULL){
                 BufferStatistic_t *pBufSt = static_cast<BufferStatistic_t *>(reply);
-                mpPlayer->getBufferStatus(pBufSt);
+                ret = mpPlayer->getBufferStatus(pBufSt);
             }else{
                 AGILE_LOGE("Failed to do INVOKE_ID_GET_BUFFER_STATUS. reply=NULL");
+                ret = MAG_BAD_VALUE;
+            }
+            break;
+
+        case INVOKE_ID_GET_VIDEO_META_DATA:
+            if (reply != NULL){
+                VideoMetaData_t *pVmd = static_cast<VideoMetaData_t *>(reply);
+                ret = mpPlayer->getVideoMetaData(pVmd);
+            }else{
+                AGILE_LOGE("Failed to do INVOKE_ID_GET_VIDEO_META_DATA. reply=NULL");
+                ret = MAG_BAD_VALUE;
+            }
+            break;
+
+        case INVOKE_ID_GET_AUDIO_META_DATA:
+            if (reply != NULL){
+                AudioMetaData_t *pAmd = static_cast<AudioMetaData_t *>(reply);
+                ret = mpPlayer->getAudioMetaData(pAmd);
+            }else{
+                AGILE_LOGE("Failed to do INVOKE_ID_GET_AUDIO_META_DATA. reply=NULL");
+                ret = MAG_BAD_VALUE;
+            }
+            break;
+
+        case INVOKE_ID_GET_DECODED_VIDEO_FRAME:
+            if (reply != NULL){
+                ret = mpPlayer->getDecodedVideoFrame(&reply);
+            }else{
+                AGILE_LOGE("Failed to do INVOKE_ID_GET_DECODED_VIDEO_FRAME. reply=NULL");
+                ret = MAG_BAD_VALUE;
+            }
+            break;
+
+        case INVOKE_ID_PUT_USED_VIDEO_FRAME:
+            if (request != NULL){
+                ret = mpPlayer->putUsedVideoFrame(request);
+            }else{
+                AGILE_LOGE("Failed to do INVOKE_ID_PUT_USED_VIDEO_FRAME. request=NULL");
+                ret = MAG_BAD_VALUE;
+            }
+            break;
+
+        case INVOKE_ID_GET_DECODED_AUDIO_FRAME:
+            if (reply != NULL){
+                ret = mpPlayer->getDecodedAudioFrame(&reply);
+            }else{
+                AGILE_LOGE("Failed to do INVOKE_ID_GET_DECODED_AUDIO_FRAME. reply=NULL");
+                ret = MAG_BAD_VALUE;
+            }
+            break;
+
+        case INVOKE_ID_PUT_USED_AUDIO_FRAME:
+            if (request != NULL){
+                ret = mpPlayer->putUsedAudioFrame(request);
+            }else{
+                AGILE_LOGE("Failed to do INVOKE_ID_PUT_USED_AUDIO_FRAME. request=NULL");
+                ret = MAG_BAD_VALUE;
             }
             break;
 
         default:
             break;
     }
-    return MAG_NO_ERROR;
+    return ret;
 }
 
 ui32     MagPlayerDriverImpl::getVersion(){

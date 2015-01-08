@@ -425,7 +425,7 @@ _status_t OmxilAudioPipeline::init(i32 trackID, TrackInfo_t *sInfo){
         }
 
         if (mpBufferMgr == NULL){
-            mpBufferMgr = new OmxilBufferMgr(0, AUIDO_PORT_BUFFER_NUMBER);
+            mpBufferMgr = new OmxilBufferMgr(0, AUIDO_PORT_BUFFER_NUMBER, false);
             mpBufferMgr->create(mhAudioDecoder, aDecNoneTunnelPortIdx, NULL);
         }
     }
@@ -630,4 +630,12 @@ _status_t OmxilAudioPipeline::getClkConnectedComp(i32 *port, void **ppComp){
     }
 
     return ret;
+}
+
+_status_t OmxilAudioPipeline::getDecodedFrame(void **ppAudioFrame){
+    return MAG_NO_ERROR;
+}
+
+_status_t OmxilAudioPipeline::putUsedFrame(void *pAudioFrame){
+    return MAG_NO_ERROR;
 }

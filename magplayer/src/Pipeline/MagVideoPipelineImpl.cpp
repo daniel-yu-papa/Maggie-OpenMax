@@ -147,6 +147,14 @@ _status_t MagVideoPipelineImpl::reset(){
     return MAG_NO_ERROR;
 }
 
+_status_t MagVideoPipelineImpl::getDecodedFrame(void **ppVideoFrame){
+    return MAG_NO_ERROR;
+}
+
+_status_t MagVideoPipelineImpl::putUsedFrame(void *pVideoFrame){
+    return MAG_NO_ERROR;
+}
+
 _status_t MagVideoPipelineImpl::getClkConnectedComp(i32 *port, void **ppComp){
     return MAG_NO_ERROR;
 }

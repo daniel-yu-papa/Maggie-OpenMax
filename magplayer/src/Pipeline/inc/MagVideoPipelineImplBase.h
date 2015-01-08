@@ -32,6 +32,8 @@ public:
     virtual _status_t flush()  = 0;
     virtual _status_t reset()  = 0;
     virtual _status_t getClkConnectedComp(i32 *port, void **ppComp) = 0;
+    virtual _status_t getDecodedFrame(void **ppVideoFrame) = 0;
+    virtual _status_t putUsedFrame(void *pVideoFrame) = 0;
 };
 
 #endif

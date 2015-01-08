@@ -406,12 +406,12 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
 
                 Mag_AcquireMutex(base->mhMutex);
                 base->mFreeBuffersNum++;
-                PORT_LOGD(root, "the free buffers are %d, total: %d, mWaitOnAllBuffers: %d", 
+                PORT_LOGD(root, "ReturnThisBufferMsg: the free buffers are %d, total: %d, mWaitOnAllBuffers: %d", 
                                  base->mFreeBuffersNum, base->mBuffersTotal, base->mWaitOnAllBuffers);
                 
                 if (base->mWaitOnAllBuffers){
                     if (base->mFreeBuffersNum == base->mBuffersTotal){
-                        PORT_LOGD(root, "All buffers are returned!");
+                        PORT_LOGD(root, "ReturnThisBufferMsg: All buffers are returned!");
                         Mag_SetEvent(base->mAllBufReturnedEvent); 
                         base->mWaitOnAllBuffers = OMX_FALSE;
                     }
@@ -462,7 +462,31 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
                         }
                     }
                 }else{
-                    PORT_LOGE(root, "None-Tunneled port should not handle the OutputBuffer Message");
+                    void *comp = NULL;
+                    MagOmxComponentImpl hCompImpl;
+
+                    hCompImpl = ooc_cast(root->getAttachedComponent(root), MagOmxComponentImpl);
+
+                    if (!root->isInputPort(root)){
+                        hCompImpl->sendFillBufferDoneEvent(comp, bufHeader);
+                    }else{
+                        PORT_LOGE(root, "the input none-tunnel port should not handle it!!");
+                        break;
+                    }
+
+                    Mag_AcquireMutex(base->mhMutex);
+                    base->mFreeBuffersNum++;
+                    PORT_LOGD(root, "OutputBufferMsg: the free buffers are %d, total: %d, mWaitOnAllBuffers: %d", 
+                                     base->mFreeBuffersNum, base->mBuffersTotal, base->mWaitOnAllBuffers);
+                    
+                    if (base->mWaitOnAllBuffers){
+                        if (base->mFreeBuffersNum == base->mBuffersTotal){
+                            PORT_LOGD(root, "OutputBufferMsg: All buffers are returned!");
+                            Mag_SetEvent(base->mAllBufReturnedEvent); 
+                            base->mWaitOnAllBuffers = OMX_FALSE;
+                        }
+                    }
+                    Mag_ReleaseMutex(base->mhMutex);
                 }
             }
             break;

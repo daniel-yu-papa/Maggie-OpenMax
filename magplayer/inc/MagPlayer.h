@@ -69,7 +69,14 @@ public:
     ui32             getVersion();
     
     void             setDisplayWindow(ui32 x, ui32 y, ui32 w, ui32 h);
-    void             getBufferStatus(BufferStatistic_t  *pBufSt);
+    _status_t        getBufferStatus(BufferStatistic_t  *pBufSt);
+    _status_t        getVideoMetaData(VideoMetaData_t *pVmd);
+    _status_t        getAudioMetaData(AudioMetaData_t *pVmd);
+
+    _status_t        getDecodedVideoFrame(void **ppGetFrame);
+    _status_t        putUsedVideoFrame(void *pUsedFrame);
+    _status_t        getDecodedAudioFrame(void **ppGetFrame);
+    _status_t        putUsedAudioFrame(void *pUsedFrame);
 
     void             setInfoListener(fnNotifyInfo fn, void *priv);
     void             setSeekCompleteListener(fnNotifySeekComplete fn, void *priv);
@@ -247,9 +254,6 @@ private:
     void onBufferObserverNotify(MagMessageHandle msg);
 
     bool isValidFSState(State_t st);
-
-    _status_t buildAudioPipeline();
-    _status_t buildVideoPipeline();
 
     void sendErrorEvent(i32 what, i32 extra);
     _status_t resumeTo();

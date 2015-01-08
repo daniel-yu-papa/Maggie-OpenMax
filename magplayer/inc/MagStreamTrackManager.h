@@ -5,6 +5,7 @@
 #include "MagOmx_Buffer.h"
 #include "MagBufferObserver.h"
 #include "MagESFormat.h"
+#include "MagInvokeDef.h"
 
 #define DEFAULT_VIDEO_BUFFER_SIZE (16 * 1024 * 1024)
 #define MAX_VIDEO_BUFFER_SIZE     (64 * 1024 * 1024)
@@ -50,6 +51,11 @@ typedef struct{
 
     void *avformat;               /*from ffmpeg lib*/
     void *avstream;               /*from ffmpeg lib*/
+
+    union {
+        VideoMetaData_t video;
+        AudioMetaData_t audio;
+    }meta_data;
 }TrackInfo_t;
 
 typedef struct{

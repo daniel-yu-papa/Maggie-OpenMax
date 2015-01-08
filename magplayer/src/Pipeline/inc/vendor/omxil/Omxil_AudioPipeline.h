@@ -22,7 +22,9 @@ public:
     virtual _status_t flush(); 
     virtual _status_t reset();
     virtual _status_t setVolume(fp32 leftVolume, fp32 rightVolume);
-
+    virtual _status_t getDecodedFrame(void **ppAudioFrame);
+    virtual _status_t putUsedFrame(void *pAudioFrame);
+    
     virtual _status_t pushEsPackets(MagOmxMediaBuffer_t *buf);
     virtual bool      needData();
 
