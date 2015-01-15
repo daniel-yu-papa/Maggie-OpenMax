@@ -26,7 +26,7 @@ public:
     virtual _status_t        setVolume(float leftVolume, float rightVolume);
     virtual _status_t        setParameter(int key, void *request);
     virtual _status_t        getParameter(int key, void **reply);
-    virtual _status_t        invoke(const ui32 methodID, void *request, void *reply);
+    virtual _status_t        invoke(const ui32 methodID, void *request, void **reply);
     virtual ui32             getVersion();
     
     static void PrepareCompleteEvtListener(void *priv);

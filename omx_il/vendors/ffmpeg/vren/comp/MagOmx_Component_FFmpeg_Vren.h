@@ -3,7 +3,7 @@
 
 #include "MagOMX_Component_video.h"
 
-#define CAPTURE_YUV_DATA_TO_FILE
+/*#define CAPTURE_YUV_DATA_TO_FILE*/
 
 DeclareClass(MagOmxComponent_FFmpeg_Vren, MagOmxComponentVideo);
 

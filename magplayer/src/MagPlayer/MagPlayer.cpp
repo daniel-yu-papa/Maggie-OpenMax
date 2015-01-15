@@ -1530,7 +1530,7 @@ void MagPlayer::initialize(){
     Mag_RegisterEventCallback(mEventScheduler, mCompleteFlushEvt, onCompleteFlushEvtCB, (void *)this);
     Mag_RegisterEventCallback(mEventScheduler, mErrorEvt, onErrorEvtCB, (void *)this);
 
-    AGILE_LOGV("mCompleteFlushEvt = 0x%p, mCompleteSeekEvt = 0x%p", 
+    AGILE_LOGV("mCompleteFlushEvt = %p, mCompleteSeekEvt = %p", 
                 mCompleteFlushEvt, mCompleteSeekEvt);
 
     mSourceNotifyMsg         = createMessage(MagMsg_SourceNotify);

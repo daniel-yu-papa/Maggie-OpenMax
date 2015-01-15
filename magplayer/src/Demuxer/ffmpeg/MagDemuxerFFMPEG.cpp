@@ -528,7 +528,8 @@ void MagDemuxerFFMPEG::fillVideoMetaData(TrackInfo_t *track, AVStream *vStream){
         track->meta_data.video.fps = av_q2d(vStream->avg_frame_rate);
 
     profile = av_get_profile_name(avcodec_find_decoder(vStream->codec->codec_id), vStream->codec->profile);
-    strncpy(track->meta_data.video.codec, profile, sizeof(track->meta_data.video.codec));
+    if (profile)
+        strncpy(track->meta_data.video.codec, profile, sizeof(track->meta_data.video.codec));
     track->meta_data.video.bps = vStream->codec->bit_rate / 1000;
 }
 
@@ -538,8 +539,8 @@ void MagDemuxerFFMPEG::fillAudioMetaData(TrackInfo_t *track, AVStream *aStream){
     int bit_rate;
 
     profile = av_get_profile_name(avcodec_find_decoder(aStream->codec->codec_id), aStream->codec->profile);
-    strncpy(track->meta_data.audio.codec, profile, sizeof(track->meta_data.audio.codec));
-
+    if (profile)
+        strncpy(track->meta_data.audio.codec, profile, sizeof(track->meta_data.audio.codec));
     track->meta_data.audio.hz = aStream->codec->sample_rate;
 
     bits_per_sample = av_get_bits_per_sample(aStream->codec->codec_id);

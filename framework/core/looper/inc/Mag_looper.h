@@ -85,7 +85,7 @@ typedef struct mag_message{
     boolean (*findString)(struct mag_message *msg, const char *name, char **s);
     boolean (*findMessage)(struct mag_message *msg, const char *name, struct mag_message **message);
 
-    boolean (*postMessage)(struct mag_message *msg, i64 delayMs);
+    boolean (*postMessage)(struct mag_message *msg, i64 delayUs);
 }MagMessage_t;
 
 typedef MagMessage_t* MagMessageHandle;
@@ -148,6 +148,7 @@ typedef struct MagLooper{
     boolean mMergeSameTypeMsg;
 
     boolean mForceOut;
+    boolean mReportPolicy;
 
     MagTimerHandle mTimer;
 

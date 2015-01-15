@@ -3,6 +3,11 @@
 #include "Mag_hal.h"
 #include "Mag_timer.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "Magfw_Timer"
+
 static i64       MagTimer_get(MagTimerHandle handler){
     i64 getTime = 0;
 

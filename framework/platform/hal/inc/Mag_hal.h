@@ -48,6 +48,8 @@ typedef pthread_mutex_t MagStaticMutex;
         pthread_mutex_unlock(&lock)
         
 ui64 Mag_GetSystemTime(i32 clock);
+void Mag_TimeTakenStatistic(boolean start, const char *func, const char *spec);
+
 #ifdef __cplusplus
 }
 #endif

@@ -23,6 +23,8 @@ ClassMembers(MagOmxComponent_FFmpeg_Vdec, MagOmxComponentVideo, \
 	AVStream *mpVideoStream;
 	AVFormatContext *mpAVFormat;
 
+    OMX_TICKS mPrePTS;
+    
 #ifdef CAPTURE_ES_DATA
     FILE *mfEsData;
 #endif

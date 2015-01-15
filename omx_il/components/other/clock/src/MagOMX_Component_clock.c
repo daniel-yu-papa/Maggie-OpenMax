@@ -379,8 +379,10 @@ static OMX_ERRORTYPE  virtual_MagOmxComponentClock_Notify(
                     delay = MAG_MAX_INTEGER;
                 }
                 
+                COMP_LOGD(rootComp, "To add timestamp(tr:0x%llx - tn:0x%llx) with delay %lld to port[%d]", 
+                                     t_request, t_now,
+                                     delay, mtrt->nPortIndex);
                 if (delay >= 0){
-                    COMP_LOGD(rootComp, "add timestamp (0x%llx - 0x%llx) with delay %lld to port[%d]", t_request, t_now, delay, mtrt->nPortIndex);
                     hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex]->postMessage(hCompClock->mCmdMTimeRequestMsg[mtrt->nPortIndex], delay);
                 }else{
                     /*only support the forward playback for now, so drop the stream packet*/
@@ -668,7 +670,10 @@ static _status_t MagOmxComponentClock_getTimeRequestLooper(OMX_HANDLETYPE handle
             if (NULL != hComponent->mTimeRequestMsgHandler[port_id]){
                 hComponent->mTimeRequestLooper[port_id]->registerHandler(hComponent->mTimeRequestLooper[port_id], 
                                                                          hComponent->mTimeRequestMsgHandler[port_id]);
+                
                 hComponent->mTimeRequestLooper[port_id]->setTimer(hComponent->mTimeRequestLooper[port_id], hComponent->mhTimer);
+                hComponent->mTimeRequestLooper[port_id]->setPriority(hComponent->mTimeRequestLooper[port_id], MagLooper_Priority_High);
+
                 hComponent->mTimeRequestLooper[port_id]->start(hComponent->mTimeRequestLooper[port_id]);
             }else{
                 AGILE_LOGE("failed to create Handler[%d]", port_id);
@@ -781,7 +786,7 @@ static OMX_ERRORTYPE MagOmxComponentClock_sendAVSyncAction(MagOmxComponentClock 
     timeUpdate.nWallTimeAtMediaTime = 0;
 
     t_now = compClock->getMediaTimeNow(compClock);
-    COMP_LOGD(root, "sendAVSyncAction[port: %s](0x%llx - 0x%llx[diff: %d] action: %s)!", 
+    COMP_LOGD(root, "sendAVSyncAction[port: %s](tm:0x%llx - tn:0x%llx[diff: %d] action: %s)!", 
                     portRoot->getPortName(portRoot), 
                     CONVERT_TO_MICROSECONDS(mediaTimestamp), 
                     t_now,

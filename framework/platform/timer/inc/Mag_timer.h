@@ -3,6 +3,7 @@
 
 #include "Mag_pub_def.h"  
 #include "Mag_pub_type.h"
+#include "Mag_hal.h"
 
 #ifdef __cplusplus
 extern "C" {

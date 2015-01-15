@@ -17,6 +17,8 @@
 #define START_PORT_INDEX kCompPortStartNumber
 #define PORT_NUMBER      3
 
+#define FILE_YUV_PRE_AYSYNC "./pre_avsync.yuv"
+
 AllocateClass(MagOmxComponent_FFmpeg_Vsch, MagOmxComponentVideo);
 
 static OMX_ERRORTYPE localSetupComponent(
@@ -27,6 +29,7 @@ static OMX_ERRORTYPE localSetupComponent(
 	MagOmxPort_Constructor_Param_t param;
 	MagOmxComponentImpl            vschCompImpl;
 	MagOmxComponent                vschComp;
+    MagOmxComponent_FFmpeg_Vsch    thiz;
 
 	AGILE_LOGV("enter!");
 
@@ -62,13 +65,21 @@ static OMX_ERRORTYPE localSetupComponent(
 
 	vschCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
 	vschComp     = ooc_cast(hComponent, MagOmxComponent);
-	
+	thiz         = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vsch);
+
 	vschComp->setName(vschComp, (OMX_U8 *)COMPONENT_NAME);
 	vschCompImpl->addPort(vschCompImpl, START_PORT_INDEX + 0, vschInPort);
 	vschCompImpl->addPort(vschCompImpl, START_PORT_INDEX + 1, clkInPort);
 	vschCompImpl->addPort(vschCompImpl, START_PORT_INDEX + 2, vrenOutPort);
 
 	vschCompImpl->setupPortDataFlow(vschCompImpl, vschInPort, vrenOutPort);
+
+#ifdef CAPTURE_YUV_FRAME_BEFORE_AVSYNC
+    thiz->mfYUVPreAvsync = fopen(FILE_YUV_PRE_AYSYNC,"wb+");
+    if (!thiz->mfYUVPreAvsync){
+        COMP_LOGE(vschComp, "Failed to open the file: %s", FILE_YUV_PRE_AYSYNC);
+    }
+#endif
 
 	return OMX_ErrorNone;
 }
@@ -118,9 +129,16 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vsch_Deinit(
 	OMX_HANDLETYPE clkInPort;
 	OMX_HANDLETYPE vrenOutPort;
 	MagOmxComponentImpl vschCompImpl;
+    MagOmxComponent_FFmpeg_Vsch thiz;
 
 	AGILE_LOGV("Enter!");
 	vschCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
+    thiz         = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vsch);
+
+#ifdef CAPTURE_YUV_FRAME_BEFORE_AVSYNC
+    fclose(thiz->mfYUVPreAvsync);
+#endif
+
 	vschInPort  = vschCompImpl->getPort(vschCompImpl, START_PORT_INDEX + 0);
 	clkInPort   = vschCompImpl->getPort(vschCompImpl, START_PORT_INDEX + 1);
 	vrenOutPort = vschCompImpl->getPort(vschCompImpl, START_PORT_INDEX + 2);
@@ -151,12 +169,15 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vsch_ProceedBuffer(
                     OMX_IN  OMX_BUFFERHEADERTYPE *srcbufHeader,
                     OMX_IN  OMX_HANDLETYPE hDestPort){
 	MagOmxComponentImpl  vschCompImpl;
+    MagOmxComponent_FFmpeg_Vsch thiz;
     OMX_BUFFERHEADERTYPE *destbufHeader;
     MagOmxPort destPort;
     AVFrame *destFrame = NULL;
     AVFrame *srcFrame = NULL;
+    int i;
 
 	vschCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
+    thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vsch);
     destPort = ooc_cast(hDestPort, MagOmxPort);
     
     AGILE_LOGV("enter!");
@@ -189,6 +210,30 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vsch_ProceedBuffer(
         AGILE_LOGD("proceed the EOS buffer header!!!, nTimeStamp = 0x%llx", destbufHeader->nTimeStamp);
     }
 
+#ifdef CAPTURE_YUV_FRAME_BEFORE_AVSYNC
+        if (thiz->mfYUVPreAvsync){
+            for (i = 0; i < destFrame->height; i++){
+                fwrite(destFrame->data[0] + i * destFrame->linesize[0], 
+                       1, destFrame->width, 
+                       thiz->mfYUVPreAvsync);
+            }
+
+            for (i = 0; i < destFrame->height / 2; i++){
+                fwrite(destFrame->data[1] + i * destFrame->linesize[1], 
+                       1, destFrame->width / 2, 
+                       thiz->mfYUVPreAvsync);
+            }
+
+            for (i = 0; i < destFrame->height / 2; i++){
+                fwrite(destFrame->data[2] + i * destFrame->linesize[2], 
+                       1, destFrame->width / 2, 
+                       thiz->mfYUVPreAvsync);
+            }
+
+            fflush(thiz->mfYUVPreAvsync);
+        }
+#endif
+
     vschCompImpl->putOutputBuffer(vschCompImpl, destPort, destbufHeader);
 	vschCompImpl->syncDisplay(vschCompImpl, destbufHeader);
 
@@ -201,19 +246,29 @@ static OMX_ERRORTYPE  virtual_FFmpeg_Vsch_DoAVSync(
 	MagOmxComponentImpl         vschCompImpl;
 	OMX_BUFFERHEADERTYPE        *getBuffer;
 	OMX_ERRORTYPE               ret;
+    MagOMX_AVSync_Action_t      action;
 	/*MagOmxPort                  hPort;*/
 	
 	vschCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
 
+    action = (MagOMX_AVSync_Action_t)mediaTime->nClientPrivate;
 	ret = vschCompImpl->releaseDisplay(vschCompImpl, mediaTime->nMediaTimestamp, &getBuffer);
 	if (ret != OMX_ErrorNone){
 		AGILE_LOGE("failed to releaseDisplay!");
 		return ret;
 	}
-    AGILE_LOGV("Release decoded Video Frame: time stamp: 0x%llx, len: %d to Vren", 
-                mediaTime->nMediaTimestamp, getBuffer->nFilledLen);
 
-	vschCompImpl->sendOutputBuffer(vschCompImpl, getBuffer);
+    if (action == AVSYNC_PLAY){
+        AGILE_LOGV("Release decoded Video Frame: time stamp: 0x%llx, len: %d to Vren", 
+                    mediaTime->nMediaTimestamp, getBuffer->nFilledLen);
+
+    	vschCompImpl->sendOutputBuffer(vschCompImpl, getBuffer);
+    }else{
+        AGILE_LOGV("Drop decoded Video Frame: time stamp: 0x%llx, len: %d", 
+                    mediaTime->nMediaTimestamp, getBuffer->nFilledLen);
+
+        vschCompImpl->discardOutputBuffer(vschCompImpl, getBuffer);
+    }
 
 	return OMX_ErrorNone;
 }
@@ -231,7 +286,7 @@ static OMX_ERRORTYPE  virtual_FFmpeg_Vsch_GetRenderDelay(
                     OMX_IN OMX_HANDLETYPE hComponent,
                     OMX_OUT OMX_TICKS *pRenderDelay){
     /*in us*/
-    *pRenderDelay = 3000;
+    *pRenderDelay = 10000;
 
     return OMX_ErrorNone;
 }

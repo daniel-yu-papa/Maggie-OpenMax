@@ -75,6 +75,8 @@ OmxilAudioPipeline::OmxilAudioPipeline():
     mAudioRenCallbacks.EventHandler    = OmxilAudioPipeline::AudioRenderEventHandler;
     mAudioRenCallbacks.EmptyBufferDone = NULL;
     mAudioRenCallbacks.FillBufferDone  = NULL;
+
+    mpBufferMgr = NULL;
 }
 
 OmxilAudioPipeline::~OmxilAudioPipeline(){

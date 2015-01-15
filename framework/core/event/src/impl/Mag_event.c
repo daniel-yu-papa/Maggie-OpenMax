@@ -114,15 +114,15 @@ MagErr_t Mag_DestroyEvent(MagEventHandle *pEvtHandle){
     return ret;
 }
 
-static MagErr_t MagPriv_ms2timespec(struct timespec *target, i32 timeoutMsec){
+static MagErr_t MagPriv_us2timespec(struct timespec *target, i32 timeoutUsec){
     i32 rc;
     struct timeval now;
     rc = gettimeofday(&now, NULL);
     if (0 != rc)
         return MAG_ErrGetTime;
 
-    target->tv_nsec = now.tv_usec * 1000 + (timeoutMsec%1000)*1000000;
-    target->tv_sec = now.tv_sec + (timeoutMsec/1000);
+    target->tv_nsec = now.tv_usec * 1000 + (timeoutUsec%1000000) * 1000;
+    target->tv_sec = now.tv_sec + (timeoutUsec/1000000);
     if (target->tv_nsec >= 1000000000) {
         target->tv_nsec -=  1000000000;
         target->tv_sec ++;
@@ -315,6 +315,8 @@ MagErr_t Mag_UnregisterEventCallback(MagEventHandle evtHandle){
 
 MagErr_t Mag_CreateEventGroup(MagEventGroupHandle *evtGrphandle){
     i32 rc;
+    /*pthread_condattr_t attr;
+    pthread_condattr_t *pAttr = NULL;*/
 
     *evtGrphandle = (MagEventGroupHandle)mag_mallocz(sizeof(**evtGrphandle));
     if (NULL == *evtGrphandle)
@@ -325,10 +327,25 @@ MagErr_t Mag_CreateEventGroup(MagEventGroupHandle *evtGrphandle){
         goto err_mutex;
     }
 
-    rc = pthread_cond_init(&(*evtGrphandle)->cond, NULL /* default attributes */);
+    /*rc = pthread_condattr_init(&attr);
+    if(rc != 0){
+        AGILE_LOGE("failed to initialize the pthread_condattr");
+    }else{
+        rc = pthread_condattr_setclock(&attr, CLOCK_REALTIME);
+        if (rc != 0){
+            AGILE_LOGE("failed to setclock as CLOCK_REALTIME");
+        }else{
+            pAttr = &attr;
+        }
+    }*/
+
+    rc = pthread_cond_init(&(*evtGrphandle)->cond, NULL);
     if(rc != 0){
         goto err_cond;
     }
+
+    /*if (pAttr)
+        pthread_condattr_destroy(pAttr);*/
 
     INIT_LIST(&(*evtGrphandle)->EventGroupHead);
     (*evtGrphandle)->eventNum = 0;
@@ -490,38 +507,39 @@ static MagErr_t Mag_ClearAllEvents(MagEventGroupHandle evtGrphandle){
 }
 
 
-MagErr_t Mag_WaitForEventGroup(MagEventGroupHandle evtGrphandle, MAG_EVENT_GROUP_OP_t op, i32 timeoutMsec){
+MagErr_t Mag_WaitForEventGroup(MagEventGroupHandle evtGrphandle, MAG_EVENT_GROUP_OP_t op, i32 timeoutUsec){
     struct timespec target;
     MagErr_t ret = MAG_ErrNone;
     i32 rc;
 
-    if ((timeoutMsec < 0) && (timeoutMsec != (i32)MAG_TIMEOUT_INFINITE))
+    if ((timeoutUsec < 0) && (timeoutUsec != (i32)MAG_TIMEOUT_INFINITE))
         return MAG_BadParameter;
 
-    if(timeoutMsec != (i32)MAG_TIMEOUT_INFINITE){
-        if ((ret = MagPriv_ms2timespec(&target, timeoutMsec)) != MAG_ErrNone)
+    if(timeoutUsec != (i32)MAG_TIMEOUT_INFINITE){
+        if ((ret = MagPriv_us2timespec(&target, timeoutUsec)) != MAG_ErrNone)
             return ret;
     }
     
     rc = pthread_mutex_lock(&evtGrphandle->lock);
     MAG_ASSERT(0 == rc);
 
-    if (0 == timeoutMsec){
+    if (0 == timeoutUsec){
         AGILE_LOGD("Timeout!!");
         ret = MAG_TimeOut;
         goto done;
     }
 
     while(MAG_EventStatusMeet != Mag_EventStatusCheck(evtGrphandle, op)){ /* we might have been wokenup and then event has been cleared */
-        if (timeoutMsec == (i32)MAG_TIMEOUT_INFINITE){
+        if (timeoutUsec == (i32)MAG_TIMEOUT_INFINITE){
             AGILE_LOGV("before pthread_cond_wait(0x%p), tid=%d", evtGrphandle, syscall(SYS_gettid));
             rc = pthread_cond_wait(&evtGrphandle->cond, &evtGrphandle->lock);
             AGILE_LOGV("after pthread_cond_wait(0x%p), tid=%d", evtGrphandle, syscall(SYS_gettid));
         }else{
+            AGILE_LOGV("before pthread_cond_timedwait(%d us)", timeoutUsec);
             rc = pthread_cond_timedwait(&evtGrphandle->cond, &evtGrphandle->lock, &target);
             if(ETIMEDOUT == rc){
                 ret = MAG_TimeOut;
-                AGILE_LOGV("WaitfForEventSet(evtSet: 0x%lx): timeout [%d ms]", (unsigned long)evtGrphandle, timeoutMsec);
+                AGILE_LOGV("WaitfForEventSet(evtSet: 0x%lx): timeout [%d us]", (unsigned long)evtGrphandle, timeoutUsec);
                 goto done;
             }
         }
@@ -715,7 +733,7 @@ restart:
             if ((i32)MAG_TIMEOUT_INFINITE == timeout){
                 rc = pthread_cond_wait(&schedHandle->cond, &schedHandle->lock);
             }else{
-                MagPriv_ms2timespec(&target, timeout);
+                MagPriv_us2timespec(&target, timeout);
                 rc = pthread_cond_timedwait(&schedHandle->cond, &schedHandle->lock, &target);
             }
         }

@@ -2,26 +2,151 @@
 <!DOCTYPE agilelog SYSTEM "agilelog.dtd">
 
 <agilelog version="1.0">
-        <!-- Global configuration applied to whole project -->
+    <!-- Global configuration applied to whole project -->
 	<global_config>
 		<!-- output: file, logcat, stdout, socket -->
-		<output>stdout</output>
+		<output type = "file">
+            <path name = "./mmp"/>
+        </output>
 
-                <!-- debug level: fatal, error, warning, info, debug, verbose-->
-                <!-- it could be overrided by module debugging level -->
-                <debug level = "verbose"/>
+        <!-- debug level: fatal, error, warning, info, debug, verbose-->
+        <!-- it could be overrided by module debugging level -->
+        <debug level = "verbose"/>
 
-                <!-- add the timestamp for each log item or NOT -->
-                <timestamp on = "true"/>
+        <!-- add the timestamp for each log item or NOT. value: true OR false-->
+        <timestamp on = "true"/>
 
-                <!-- write log out: on or off -->
-                <log on = "true"/>
-                
-                <!-- the size of log file: XX MB -->
-                <log_size>2</log_size>
+        <!-- write log out: on or off -->
+        <log on = "true"/>
+        
+        <!-- the size of log file: XX MB -->
+        <log_size>50</log_size>
 	</global_config>
 
-        <module_config>
+    <module_config>
+    	<module name = "Magfw_RBTree">
+    		<debug-switch on = "true"/>
+            <debug-level  level = "error"/>
+        </module>
+
+    	<module name = "Magfw_MiniDB">
+            <debug-switch on = "true"/>
+            <debug-level  level = "error"/>
+        </module>
         
-        </module_config>
+        <module name = "Magfw_Event">
+            <debug-switch on = "true"/>
+            <debug-level  level = "error"/>
+        </module>
+        
+        <module name = "Magfw_Looper">
+            <debug-switch on = "true"/>
+            <debug-level  level = "error"/>
+        </module>
+        
+        <module name = "Magfw_Message">
+            <debug-switch on = "true"/>
+            <debug-level  level = "error"/>
+        </module>
+        
+        <module name = "Magfw_OOC">
+            <debug-switch on = "true"/>
+            <debug-level  level = "error"/>
+        </module>
+        
+        <module name = "Magfw_Hal">
+            <debug-switch on = "true"/>
+            <debug-level  level = "error"/>
+        </module>
+        
+        <module name = "Magfw_Memory">
+            <debug-switch on = "true"/>
+            <debug-level  level = "error"/>
+        </module>
+        
+        <module name = "Magfw_MemPool">
+            <debug-switch on = "true"/>
+            <debug-level  level = "debug"/>
+        </module>
+        
+        <module name = "Magfw_Thread">
+            <debug-switch on = "true"/>
+            <debug-level  level = "error"/>
+        </module>
+        
+        <module name = "Magfw_Timer">
+            <debug-switch on = "true"/>
+            <debug-level  level = "error"/>
+        </module>
+        
+        <module name = "MagPlayerImpl">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "Magply_BuffMgr">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "Magply_ContentPipe">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "Magply_Demuxer">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "Magply_Main">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "Magply_Driver">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "Magply_Pipeline">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "Magply_Pipeline_OMX">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "MagOMX_CompCore">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "MagOMX_CompAudio">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "MagOMX_CompBase">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "MagOMX_CompClk">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "MagOMX_CompVideo">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
+        <module name = "MagOMX_CompVendor">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+    </module_config>
 </agilelog>

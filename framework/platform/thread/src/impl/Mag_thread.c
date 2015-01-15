@@ -48,7 +48,7 @@ static void *loopEntry(void *priv){
 
     if (priv != NULL){
         userData = (MagThread_t *)priv;
-        setpriority(PRIO_PROCESS, 0, userData->mPriority);   
+        /*setpriority(PRIO_PROCESS, 0, userData->mPriority);  */ 
         prctl(PR_SET_NAME, (unsigned long)userData->mName, 0, 0, 0);
         /*mag_free(userData->mName);*/
         loopEntryWrapper(priv);
@@ -61,6 +61,7 @@ static _status_t createThread(MagThread_t *self){
     pthread_attr_t attr; 
     pthread_t thread;
     int result;
+    struct sched_param param;
 
     self->mExitPending = MAG_FALSE;
 
@@ -68,6 +69,14 @@ static _status_t createThread(MagThread_t *self){
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     if (self->mStackSize) {
         pthread_attr_setstacksize(&attr, self->mStackSize);
+    }
+
+    if (self->mPriority == MAGTHREAD_PRIORITY_HIGH){
+        AGILE_LOGD("set the thread %p as the SCHED_RR@50", self);
+        param.sched_priority = 50;
+        pthread_attr_setschedpolicy(&attr, SCHED_RR);
+        pthread_attr_setschedparam(&attr, &param);
+        pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED) ;
     }
 
     errno = 0;

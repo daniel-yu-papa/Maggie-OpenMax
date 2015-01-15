@@ -28,7 +28,7 @@ public:
     virtual int        setVolume(float leftVolume, float rightVolume);
     virtual int        setParameter(int key, void *request);
     virtual int        getParameter(int key, void **reply);
-    virtual int        invoke(const unsigned int methodID, void *request, void *reply);
+    virtual int        invoke(const unsigned int methodID, void *request, void **reply);
     virtual int        registerEventCallback(mmp_event_callback_t cb, void *handler);
 
     mmp_event_callback_t mAppEventCallback;

@@ -300,6 +300,7 @@ static void MagOmxPort_initialize(Class this){
     MagOmxPortVtableInstance.SendEvent             = NULL;
     MagOmxPortVtableInstance.GetSharedBufferMsg    = NULL;
     MagOmxPortVtableInstance.GetOutputBuffer       = NULL;
+    MagOmxPortVtableInstance.PutOutputBuffer       = NULL;
     MagOmxPortVtableInstance.GetDomainType         = NULL;
     MagOmxPortVtableInstance.SetPortSpecificDef    = NULL;
     MagOmxPortVtableInstance.GetPortSpecificDef    = NULL;
@@ -308,7 +309,7 @@ static void MagOmxPort_initialize(Class this){
     MagOmxPortVtableInstance.putReturnBuffer       = NULL;
     MagOmxPortVtableInstance.sendReturnBuffer      = NULL;
     MagOmxPortVtableInstance.sendOutputBuffer      = NULL;
-
+    MagOmxPortVtableInstance.SendOutputBufferToAPP = NULL;
 }
 
 /*

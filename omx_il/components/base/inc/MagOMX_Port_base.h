@@ -120,6 +120,9 @@ Virtuals(MagOmxPort, Base)
     /*Get the output buffer that holds the generated data from the Component*/
     OMX_BUFFERHEADERTYPE* (*GetOutputBuffer)(OMX_HANDLETYPE hPort);
 
+    /*Put the output buffer*/
+    void (*PutOutputBuffer)(OMX_HANDLETYPE hPort, OMX_BUFFERHEADERTYPE* pBuf);
+
     /*Get the port domain tpye*/
     OMX_PORTDOMAINTYPE (*GetDomainType)(OMX_HANDLETYPE hPort);
 
@@ -152,6 +155,11 @@ Virtuals(MagOmxPort, Base)
     /*send out the buffer to the destinate port*/
     OMX_ERRORTYPE (*sendOutputBuffer)(OMX_HANDLETYPE hPort, 
                                       OMX_BUFFERHEADERTYPE* pBuffer);
+
+    /*directly send out the output buffer to APP*/
+    void (*SendOutputBufferToAPP)(OMX_HANDLETYPE hPort, 
+                                  OMX_BUFFERHEADERTYPE* pBufHeader);
+    
 EndOfVirtuals;
 
 
@@ -243,6 +251,11 @@ typedef struct{
     List_t freeBufPortListH;
 
     OMX_BUFFERHEADERTYPE  *pOmxBufferHeader;
+
+    /*
+     * for debugging using only
+     */
+    OMX_U32 sequence;
 }MagOMX_Port_Buffer_t;
 
 static inline void PortLogPriv(MagOmxPort hPort, 

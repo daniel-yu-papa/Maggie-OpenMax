@@ -320,7 +320,7 @@ decode:
 		decodedFrame->sample_aspect_ratio = av_guess_sample_aspect_ratio(vdecComp->mpAVFormat, 
 			                                                             vdecComp->mpVideoStream, 
 			                                                             decodedFrame);
-		destbufHeader->pBuffer = (OMX_U8 *)decodedFrame;
+		destbufHeader->pBuffer = (OMX_U8 *)av_frame_clone(decodedFrame);
 		destbufHeader->nFilledLen = decodedLen;
 		/*if (decodedFrame->pts != AV_NOPTS_VALUE)
 			decodedFrame->pts = av_q2d(vdecComp->mpVideoStream->time_base) * decodedFrame->pts;*/
@@ -350,10 +350,14 @@ decode:
         }
 #endif
 		MagOmxPortVirtual(destPort)->sendOutputBuffer(destPort, destbufHeader);
-		COMP_LOGV(root, "Get the video frame (len: %d, pts: 0x%llx, format: %d, pict_type: %d)!", 
-			             decodedLen, decodedFrame->pts,
+		COMP_LOGV(root, "Get the video frame [%p] (len: %d, pts: 0x%llx [diff: %d ms], format: %d, pict_type: %d)!", 
+			             decodedFrame, decodedLen, decodedFrame->pts,
+                         (i32)(decodedFrame->pts - vdecComp->mPrePTS) / 90,
                          decodedFrame->format, decodedFrame->pict_type);
+        vdecComp->mPrePTS = decodedFrame->pts;
 
+        av_frame_free(&decodedFrame);
+        
         if (codedPkt.data == NULL){
             goto decode;
         }
@@ -460,6 +464,7 @@ static void MagOmxComponent_FFmpeg_Vdec_constructor(MagOmxComponent_FFmpeg_Vdec 
     thiz->mpVideoCodec  = NULL;
     thiz->mpAVFormat    = NULL;
     thiz->mpVideoStream = NULL;
+    thiz->mPrePTS       = 0;
 }
 
 static void MagOmxComponent_FFmpeg_Vdec_destructor(MagOmxComponent_FFmpeg_Vdec thiz, MagOmxComponent_FFmpeg_VdecVtable vtab){

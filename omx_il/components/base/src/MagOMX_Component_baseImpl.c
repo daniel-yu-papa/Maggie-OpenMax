@@ -2593,6 +2593,34 @@ static OMX_ERRORTYPE MagOmxComponentImpl_sendOutputBuffer(
     return OMX_ErrorUndefined;
 }
 
+static OMX_ERRORTYPE MagOmxComponentImpl_discardOutputBuffer(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN OMX_BUFFERHEADERTYPE *pBuf){
+    List_t *freeList;
+    List_t *outputList;
+    MagOmx_Port_Node_t *node;
+    MagOMX_Port_Buffer_t *portBufMgr;
+    MagOmxPort hDestPort = NULL;
+
+    portBufMgr = (MagOMX_Port_Buffer_t *)pBuf->pPlatformPrivate;
+
+    freeList   = &portBufMgr->freeBufPortListH;
+    outputList = &portBufMgr->outputBufPortListH;
+
+    if (outputList->prev != outputList){
+        node = (MagOmx_Port_Node_t *)list_entry(outputList->prev, MagOmx_Port_Node_t, node);
+        list_del(&node->node);
+        hDestPort = ooc_cast(node->hPort, MagOmxPort);
+        list_add_tail(&node->node, freeList);
+        MagOmxPortVirtual(hDestPort)->PutOutputBuffer(hDestPort, pBuf);
+        return OMX_ErrorNone;
+    }else{
+        COMP_LOGE(getRoot(hComponent), "No place to output the buffer!");
+    }
+
+    return OMX_ErrorUndefined;
+}
+
 /*Class Constructor/Destructor*/
 static void MagOmxComponentImpl_initialize(Class this){
     AGILE_LOGV("Enter!");
@@ -2684,6 +2712,7 @@ static void MagOmxComponentImpl_constructor(MagOmxComponentImpl thiz, const void
     thiz->sendReturnBuffer         = MagOmxComponentImpl_sendReturnBuffer;
     thiz->putOutputBuffer          = MagOmxComponentImpl_putOutputBuffer;
     thiz->sendOutputBuffer         = MagOmxComponentImpl_sendOutputBuffer;
+    thiz->discardOutputBuffer      = MagOmxComponentImpl_discardOutputBuffer;
 
     thiz->mLooper                  = NULL;
     thiz->mMsgHandler              = NULL;

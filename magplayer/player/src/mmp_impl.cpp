@@ -256,7 +256,7 @@ int MagMediaPlayerImpl::getParameter(int key, void **reply){
     }
 }
 
-int MagMediaPlayerImpl::invoke(const unsigned int methodID, void *request, void *reply){
+int MagMediaPlayerImpl::invoke(const unsigned int methodID, void *request, void **reply){
     if ((mbInitialized) && (!mbError)){
         return (int)mpMediaPlayer->invoke(methodID, request, reply);
     }else{

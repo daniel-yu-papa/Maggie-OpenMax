@@ -124,4 +124,14 @@ ui64 Mag_GetSystemTime(i32 clock)
 #endif
 }
 
+void Mag_TimeTakenStatistic(boolean start, const char *func, const char *spec){
+    static ui64 start_time;
+
+    if (start){
+        start_time = Mag_GetSystemTime(MAG_SYSTEM_TIME_MONOTONIC) / 1000000ll;
+    }else{
+        AGILE_LOGD("%s: %s -- %lld ms", func, spec ? spec : "", 
+                    Mag_GetSystemTime(MAG_SYSTEM_TIME_MONOTONIC) / 1000000ll - start_time);
+    }
+}
 

@@ -13,7 +13,7 @@
 #define COMPONENT_NAME "OMX.Mag.vren.ffmpeg"
 #define ROLE_NAME      OMX_ROLE_IV_RENDERER_YUV_BLTER
 #define START_PORT_INDEX kCompPortStartNumber
-#define PORT_NUMBER      1
+#define PORT_NUMBER      2
 
 AllocateClass(MagOmxComponent_FFmpeg_Vren, MagOmxComponentVideo);
 
@@ -48,7 +48,7 @@ static OMX_ERRORTYPE localSetupComponent(
     param.isInput      = OMX_FALSE;
     param.bufSupplier  = OMX_BufferSupplyUnspecified;
     param.formatStruct = 0;
-    sprintf((char *)param.name, "%s-Out", VREN_PORT_NAME);
+    sprintf((char *)param.name, "%s-Out-App", VREN_PORT_NAME);
 
     ooc_init_class(MagOmxPort_FFmpeg_Vren);
     vrenOutPort = ooc_new(MagOmxPort_FFmpeg_Vren, &param);
@@ -160,6 +160,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vren_ProceedBuffer(
     OMX_BUFFERHEADERTYPE    *destbufHeader;
     MagOmxPort              destPort;
     int ret;
+    int i;
 
     MagOmxComponent_FFmpeg_Vren thiz;
 
@@ -192,11 +193,10 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vren_ProceedBuffer(
     ret = av_frame_ref(destFrame, (AVFrame *)srcbufHeader->pBuffer);
     destbufHeader->pBuffer = (OMX_U8 *)destFrame;
 
-    MagOmxPortVirtual(destPort)->sendOutputBuffer(destPort, destbufHeader);
+    MagOmxPortVirtual(destPort)->SendOutputBufferToAPP(destPort, destbufHeader);
 
 #ifdef CAPTURE_YUV_DATA_TO_FILE
     if (thiz->mfYUVFile){
-        int i;
         for (i = 0; i < decodedFrame->height; i++){
             fwrite(decodedFrame->data[0] + i * decodedFrame->linesize[0], 
                    1, decodedFrame->width, 

@@ -48,7 +48,7 @@ private:
     OmxilBufferMgr *mpBufferMgr;
     
     OmxilBufferMgr *mpDecodedBufferMgr;
-    OmxilBufferMgr *mpFreedBufferMgr;
+    OmxilBufferMgr *mpFeedVrenBufMgr;
 
     MagEventHandle         mVDecStIdleEvent;
     MagEventHandle         mVSchStIdleEvent;

@@ -218,62 +218,62 @@ if not os.path.exists(freetype_link_file):
     os.system("make install")
 
 #######################################################
-# Build External SDL2 library
+# Build External SDL library
 #######################################################
-SDL2_link_file = env.GetBuildPath('#/external/SDL2')
-target_SDL2_mk = env.GetBuildPath('#/build/Targets/'+env['target']+'/configs/SDL2.config')
-SDL2_lib_install_path = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/SDL2')
-SDL2_install_path = env.GetBuildPath('#/external/SDL2/out')
+SDL_link_file = env.GetBuildPath('#/external/SDL')
+target_SDL_mk = env.GetBuildPath('#/build/Targets/'+env['target']+'/configs/SDL.config')
+SDL_lib_install_path = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/SDL')
+SDL_install_path = env.GetBuildPath('#/external/SDL/out')
 
-if not os.path.exists(SDL2_link_file):
-    output = os.popen("ls "+external_path+"/*SDL2-*.tar.gz")
-    SDL2_tarball = output.read()
+if not os.path.exists(SDL_link_file):
+    output = os.popen("ls "+external_path+"/*SDL-*.tar.gz")
+    SDL_tarball = output.read()
     os.chdir(external_path)
-    os.system("tar zxvf "+SDL2_tarball)    
-    output = os.popen("ls -d "+external_path+"/*SDL2*/")
-    SDL2_full_dir = output.read()
-    print "SDL2_full_dir:"+SDL2_full_dir
-    SDL2_dir = SDL2_full_dir.split('/', 100)[-2] 
-    print "SDL2_dir:"+SDL2_dir
-    os.system("ln -s ./"+SDL2_dir+" SDL2")
-    os.system("cp -f "+target_SDL2_mk+" ./SDL2")
-    os.chdir("./SDL2")
-    replaceWordInFile("./SDL2.config", "./SDL2.config", "$INSTALL", SDL2_install_path)
-    os.system("chmod +x ./SDL2.config")
-    os.system("./SDL2.config")
+    os.system("tar zxvf "+SDL_tarball)    
+    output = os.popen("ls -d "+external_path+"/*SDL*/")
+    SDL_full_dir = output.read()
+    print "SDL_full_dir:"+SDL_full_dir
+    SDL_dir = SDL_full_dir.split('/', 100)[-2] 
+    print "SDL_dir:"+SDL_dir
+    os.system("ln -s ./"+SDL_dir+" SDL")
+    os.system("cp -f "+target_SDL_mk+" ./SDL")
+    os.chdir("./SDL")
+    replaceWordInFile("./SDL.config", "./SDL.config", "$INSTALL", SDL_install_path)
+    os.system("chmod +x ./SDL.config")
+    os.system("./SDL.config")
     os.system("make -j8")
-    os.system("mkdir -p "+SDL2_lib_install_path)
-    os.system("cp -Pf build/.libs/*.so* "+SDL2_lib_install_path)
-    os.system("mkdir -p "+SDL2_install_path)
+    os.system("mkdir -p "+SDL_lib_install_path)
+    os.system("cp -Pf build/.libs/*.so* "+SDL_lib_install_path)
+    os.system("mkdir -p "+SDL_install_path)
     os.system("make install")
 
 #######################################################
-# Build External SDL2_ttf library
+# Build External SDL_ttf library
 #######################################################
-SDL2_ttf_link_file = env.GetBuildPath('#/external/SDL2_ttf')
-target_SDL2_ttf_mk = env.GetBuildPath('#/build/Targets/'+env['target']+'/configs/SDL2_ttf.config')
-SDL2_ttf_lib_install_path = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/SDL2_ttf')
+SDL_ttf_link_file = env.GetBuildPath('#/external/SDL_ttf')
+target_SDL_ttf_mk = env.GetBuildPath('#/build/Targets/'+env['target']+'/configs/SDL_ttf.config')
+SDL_ttf_lib_install_path = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/SDL_ttf')
 
-if not os.path.exists(SDL2_ttf_link_file):
-    output = os.popen("ls "+external_path+"/*SDL2_ttf-*.tar.gz")
-    SDL2_ttf_tarball = output.read()
+if not os.path.exists(SDL_ttf_link_file):
+    output = os.popen("ls "+external_path+"/*SDL_ttf-*.tar.gz")
+    SDL_ttf_tarball = output.read()
     os.chdir(external_path)
-    os.system("tar zxvf "+SDL2_ttf_tarball)    
-    output = os.popen("ls -d "+external_path+"/*SDL2_ttf*/")
-    SDL2_ttf_full_dir = output.read()
-    print "SDL2_ttf_full_dir:"+SDL2_ttf_full_dir
-    SDL2_ttf_dir = SDL2_ttf_full_dir.split('/', 100)[-2] 
-    print "SDL2_ttf_dir:"+SDL2_ttf_dir
-    os.system("ln -s ./"+SDL2_ttf_dir+" SDL2_ttf")
-    os.system("cp -f "+target_SDL2_ttf_mk+" ./SDL2_ttf")
-    os.chdir("./SDL2_ttf")
-    replaceWordInFile("./SDL2_ttf.config", "./SDL2_ttf.config", "$SDL_PREFIX", SDL2_install_path)
-    replaceWordInFile("./SDL2_ttf.config", "./SDL2_ttf.config", "$FREETYPE_PREFIX", freetype_install_path)
-    os.system("chmod +x ./SDL2_ttf.config")
-    os.system("./SDL2_ttf.config")
+    os.system("tar zxvf "+SDL_ttf_tarball)    
+    output = os.popen("ls -d "+external_path+"/*SDL_ttf*/")
+    SDL_ttf_full_dir = output.read()
+    print "SDL_ttf_full_dir:"+SDL_ttf_full_dir
+    SDL_ttf_dir = SDL_ttf_full_dir.split('/', 100)[-2] 
+    print "SDL_ttf_dir:"+SDL_ttf_dir
+    os.system("ln -s ./"+SDL_ttf_dir+" SDL_ttf")
+    os.system("cp -f "+target_SDL_ttf_mk+" ./SDL_ttf")
+    os.chdir("./SDL_ttf")
+    replaceWordInFile("./SDL_ttf.config", "./SDL_ttf.config", "$SDL_PREFIX", SDL_install_path)
+    replaceWordInFile("./SDL_ttf.config", "./SDL_ttf.config", "$FREETYPE_PREFIX", freetype_install_path)
+    os.system("chmod +x ./SDL_ttf.config")
+    os.system("./SDL_ttf.config")
     os.system("make -j8")
-    os.system("mkdir -p "+SDL2_ttf_lib_install_path)
-    os.system("cp -Pf .libs/*.so* "+SDL2_ttf_lib_install_path)
+    os.system("mkdir -p "+SDL_ttf_lib_install_path)
+    os.system("cp -Pf .libs/*.so* "+SDL_ttf_lib_install_path)
 
 #######################################################
 # modules
@@ -309,8 +309,8 @@ FFMPEG_LIB_PATH = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_con
 MAGPLAYER_LIB_PATH = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/player')
 
 FREETYPE_LIB_PATH = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/freetype')
-SDL2_LIB_PATH = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/SDL2')
-SDL2_TTF_LIB_PATH = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/SDL2_ttf')
+SDL_LIB_PATH = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/SDL')
+SDL_TTF_LIB_PATH = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/SDL_ttf')
 
 FRAMEWORK_INC_PATH = '../Targets/'+env['target']+'/'+env['build_config']+'/include'
 OMXIL_COMMON_INC_PATH = '../Targets/'+env['target']+'/'+env['build_config']+'/include/omxil_common'
@@ -337,8 +337,8 @@ COMMON_HEADERS_PATH = """inc
                          src/Pipeline/inc/vendor/omxil"""
 
 FFMPEG_HEADERS_PATH = "../external/ffmpeg"
-SDL2_HEADERS_PATH = "../external/SDL2/include"
-SDL2_TTF_HEADERS_PATH = "../external/SDL2_ttf/"
+SDL_HEADERS_PATH = "../external/SDL/include"
+SDL_TTF_HEADERS_PATH = "../external/SDL_ttf/"
 
 if env['OS_TYPE'] == 'ANDROID':
   EXTRA_HEADERS_PATH = 'inc/platform/android'
@@ -400,27 +400,31 @@ Application(name                    = 'mmp_sdl',
                                        'inc/common', 
                                        FRAMEWORK_INC_PATH,
                                        OMXIL_COMMON_INC_PATH,
-                                       SDL2_HEADERS_PATH, 
-                                       SDL2_TTF_HEADERS_PATH,
+                                       SDL_HEADERS_PATH, 
+                                       SDL_TTF_HEADERS_PATH,
                                        FFMPEG_HEADERS_PATH],
             extra_libs              = ['libMagAgilelog.so', 
                                        'libMagFramework.so',
                                        'libMagOmxIL_Core.so',
                                        'libMagOmxIL_Base.so',
-                                       'libavformat.so',
-                                       'libavutil.so',
-                                       'libavcodec.so',
                                        'libmmp.so',
                                        'libMagPlayer.so',
                                        'libpthread.so',
                                        'libMagPipeline.so',
+                                       'libavformat.so',
+                                       'libavutil.so',
+                                       'libavcodec.so',
+                                       'libswscale.so',
                                        'libfreetype.so',
-                                       'libSDL2.so',
-                                       'libSDL2_ttf.so'],
+                                       'libSDL.so',
+                                       'libSDL_ttf.so'],
             extra_lib_path          = Split(MAGPLAYER_LIB_PATH)+
                                       Split(FRAMEWORK_LIB_PATH)+
                                       Split(FFMPEG_LIB_PATH)+
                                       Split(FREETYPE_LIB_PATH)+
-                                      Split(SDL2_LIB_PATH)+
-                                      Split(SDL2_TTF_LIB_PATH),
+                                      Split(SDL_LIB_PATH)+
+                                      Split(SDL_TTF_LIB_PATH),
             install                 = True)
+
+
+            

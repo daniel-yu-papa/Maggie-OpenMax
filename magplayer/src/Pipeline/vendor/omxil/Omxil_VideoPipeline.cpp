@@ -87,6 +87,10 @@ OmxilVideoPipeline::OmxilVideoPipeline():
     mVideoRenCallbacks.EventHandler    = OmxilVideoPipeline::VideoRenderEventHandler;
     mVideoRenCallbacks.EmptyBufferDone = NULL;
     mVideoRenCallbacks.FillBufferDone  = OmxilVideoPipeline::VideoRenderFillBufferDone;
+
+    mpBufferMgr        = NULL;
+    mpDecodedBufferMgr = NULL;
+    mpFeedVrenBufMgr   = NULL;
 }
 
 OmxilVideoPipeline::~OmxilVideoPipeline(){
@@ -332,6 +336,7 @@ OMX_ERRORTYPE OmxilVideoPipeline::VideoRenderFillBufferDone(
 
     pVpipeline = static_cast<OmxilVideoPipeline *>(pAppData);
     pVpipeline->mpDecodedBufferMgr->put(pBuffer);
+    AGILE_LOGI("put buffer: %p", pBuffer);
 
     return OMX_ErrorNone;
 }
@@ -591,9 +596,9 @@ _status_t OmxilVideoPipeline::init(i32 trackID, TrackInfo_t *sInfo){
             mpDecodedBufferMgr->create(NULL, vRenNoneTunnelPortIdx, static_cast<void *>(this));
         }
 
-        if (mpFreedBufferMgr == NULL) {
-            mpFreedBufferMgr = new OmxilBufferMgr(0, VIDEO_PORT_BUFFER_NUMBER, false);
-            mpFreedBufferMgr->create(mhVideoRender, vRenNoneTunnelPortIdx, static_cast<void *>(this));
+        if (mpFeedVrenBufMgr == NULL) {
+            mpFeedVrenBufMgr = new OmxilBufferMgr(0, VIDEO_PORT_BUFFER_NUMBER, false);
+            mpFeedVrenBufMgr->create(mhVideoRender, vRenNoneTunnelPortIdx, static_cast<void *>(this));
         }
     }
 
@@ -735,7 +740,7 @@ void OmxilVideoPipeline::setDisplayRect(i32 x, i32 y, i32 w, i32 h){
 
 _status_t OmxilVideoPipeline::pushEsPackets(MagOmxMediaBuffer_t *buf){
     OMX_BUFFERHEADERTYPE *pBufHeader;
-    OMX_BUFFERHEADERTYPE *pDecodedBufHeader;
+    OMX_BUFFERHEADERTYPE *pFeedVrenBufHeader;
     OMX_ERRORTYPE ret;
     _status_t err = MAG_NO_ERROR;
 
@@ -757,12 +762,16 @@ _status_t OmxilVideoPipeline::pushEsPackets(MagOmxMediaBuffer_t *buf){
             pBufHeader->nTimeStamp  = kInvalidTimeStamp;
         }
 
-        pDecodedBufHeader = mpFreedBufferMgr->get();
-        if (pDecodedBufHeader){
-            ret = OMX_FillThisBuffer(mhVideoRender, pDecodedBufHeader);
+        pFeedVrenBufHeader = mpFeedVrenBufMgr->get();
+        if (pFeedVrenBufHeader){
+            ret = OMX_FillThisBuffer(mhVideoRender, pFeedVrenBufHeader);
             if (ret != OMX_ErrorNone){
                 AGILE_LOGE("Do OMX_FillThisBuffer() - Failed!");
+            }else{
+                AGILE_LOGV("Do OMX_FillThisBuffer() - OK!");
             }
+        }else{
+            AGILE_LOGV("Failed to get the buffer from mpFeedVrenBufMgr!");
         }
 
         AGILE_LOGD("push video buffer header: %p(buf:%p, size:%d, pts:0x%x)[%s]",
@@ -827,13 +836,18 @@ _status_t OmxilVideoPipeline::getClkConnectedComp(i32 *port, void **ppComp){
 
 _status_t OmxilVideoPipeline::getDecodedFrame(void **ppVideoFrame){
     OMX_BUFFERHEADERTYPE* pBuffer;
+    ui64 time;
 
+    Mag_TimeTakenStatistic(MAG_TRUE, __FUNCTION__, NULL);
     pBuffer = mpDecodedBufferMgr->get();
-    if (!pBuffer){
+    if (pBuffer){
+        Mag_TimeTakenStatistic(MAG_FALSE, __FUNCTION__, NULL);
         *ppVideoFrame = static_cast<void *>(pBuffer);
-        return MAG_NAME_NOT_FOUND;
+        return MAG_NO_ERROR;
     }
-    return MAG_NO_ERROR;
+    AGILE_LOGV("Don't get decoded frame!");
+    *ppVideoFrame = NULL;
+    return MAG_NAME_NOT_FOUND;
 }
 
 _status_t OmxilVideoPipeline::putUsedFrame(void *pVideoFrame){
@@ -841,11 +855,12 @@ _status_t OmxilVideoPipeline::putUsedFrame(void *pVideoFrame){
     AVFrame *frame;
 
     pBuffer = static_cast<OMX_BUFFERHEADERTYPE *>(pVideoFrame);
+    AGILE_LOGV("Put used frame %p!", pBuffer);
     if (pBuffer){
         frame = (AVFrame *)pBuffer->pBuffer;
         av_frame_unref(frame);
     }
-    mpFreedBufferMgr->put(pBuffer);
+    mpFeedVrenBufMgr->put(pBuffer);
 
     return MAG_NO_ERROR;
 }

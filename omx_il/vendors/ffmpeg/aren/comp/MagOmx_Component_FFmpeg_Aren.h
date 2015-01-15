@@ -3,7 +3,7 @@
 
 #include "MagOMX_Component_audio.h"
 
-#define CAPTURE_PCM_DATA_TO_FILE
+/*#define CAPTURE_PCM_DATA_TO_FILE*/
 
 DeclareClass(MagOmxComponent_FFmpeg_Aren, MagOmxComponentAudio);
 

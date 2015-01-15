@@ -62,7 +62,7 @@ public:
     virtual int        setVolume(float leftVolume, float rightVolume) = 0;
     virtual int        setParameter(int key, void *request) = 0;
     virtual int        getParameter(int key, void **reply) = 0;
-    virtual int        invoke(const unsigned int methodID, void *request, void *reply) = 0;
+    virtual int        invoke(const unsigned int methodID, void *request, void **reply) = 0;
     virtual int        registerEventCallback(mmp_event_callback_t cb, void *handler) = 0;
 };
 

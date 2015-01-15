@@ -32,7 +32,10 @@ private:
     bool mBlock;
 
     MagEventHandle         mPutBufEvent;
-    MagEventGroupHandle    mWaitBufEventGroup;
+    MagEventGroupHandle    mWaitPutBufEventGroup;
+
+    MagEventHandle         mGetBufEvent;
+    MagEventGroupHandle    mWaitGetBufEventGroup;
 
     OMX_HANDLETYPE mhComponent;
 };

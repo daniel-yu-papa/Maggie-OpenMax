@@ -120,7 +120,7 @@ MagErr_t Mag_CreateEventGroup(MagEventGroupHandle *evtGrphandle);
 void     Mag_DestroyEventGroup(MagEventGroupHandle *pEvtGrphandle);
 MagErr_t Mag_AddEventGroup(MagEventGroupHandle evtGrphandle, MagEventHandle event);
 MagErr_t Mag_RemoveEventGroup(MagEventGroupHandle evtGrphandle, MagEventHandle event);
-MagErr_t Mag_WaitForEventGroup(MagEventGroupHandle evtGrphandle, MAG_EVENT_GROUP_OP_t op, i32 timeoutMsec);
+MagErr_t Mag_WaitForEventGroup(MagEventGroupHandle evtGrphandle, MAG_EVENT_GROUP_OP_t op, i32 timeoutUsec);
 
 MagErr_t Mag_CreateEventScheduler(MagEventSchedulerHandle *evtSched, MagEvtSchedPolicy_t option);
 MagErr_t Mag_DestroyEventScheduler(MagEventSchedulerHandle *pEvtSched);

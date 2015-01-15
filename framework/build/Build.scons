@@ -262,6 +262,10 @@ LibraryModule(name                  = 'MagPlatform_Thread',
               build_source_dirs     = ['platform/thread/src/impl'],
               build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH)+Split(AGILELOG_INC_PATH))
 
+LibraryModule(name                  = 'MagPlatform_Timer',
+              build_source_dirs     = ['platform/timer/src'],
+              build_include_dirs    = Split(FRAMEWORK_COMMON_INC_PATH)+Split(FRAMEWORK_CORE_INC_PATH)+Split(FRAMEWORK_PLATFORM_INC_PATH)+Split(AGILELOG_INC_PATH))
+
 Application(name    = 'MagPlatform_RbTreeTest', 
                 dir     = 'core/base/src/test', 
                 deps    = ['MagCore_Base', 'MagPlatform_Hal'],
@@ -285,7 +289,7 @@ Application(name    = 'MagPlatform_EventTest',
 
 Application(name    = 'MagPlatform_LooperTest', 
                 dir     = 'core/looper/src/test', 
-                deps    = [ 'MagCore_Looper', 'MagPlatform_Thread', 'MagCore_Event', 'MagCore_Base', 'MagPlatform_Hal',],
+                deps    = [ 'MagCore_Looper', 'MagPlatform_Thread', 'MagCore_Event', 'MagCore_Base', 'MagPlatform_Hal', 'MagPlatform_Timer'],
                 extra_libs = ['librt.so', 'libpthread.so', 'libMagAgilelog.so'],
                 extra_lib_path = AGILELOG_LIB_PATH,
                 install = True)
