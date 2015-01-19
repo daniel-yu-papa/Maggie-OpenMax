@@ -24,6 +24,7 @@ const int DEFAULT_SCREEN_HEIGHT = 576;
 static VideoMetaData_t *gpVideoMetaData = NULL;
 static AudioMetaData_t *gpAudioMetaData = NULL;
 
+static bool gStopped = true;
 /*static void *monitorThreadProc(void *arg){
     BufferStatistic_t bufStat;
 
@@ -50,7 +51,7 @@ static void eventCallback(mmp_event_t evt, void *handler, unsigned int param1, u
             break;
 
         case MMP_PLAYER_EVT_PLAYBACK_COMPLETE:
-
+            gStopped = true;
             break;
 
         case MMP_PLAYER_EVT_BUFFER_STATUS:
@@ -129,7 +130,6 @@ int main(int argc, char *argv[]){
 	MagMediaPlayer *player = NULL;
     int ret;
     bool paused = false;
-    bool stopped = true;
     int i;
     int once_seek_time = SEEK_ONCE_TIME;
     int seekTime = 0;
@@ -284,17 +284,17 @@ int main(int argc, char *argv[]){
                     }else if (event.key.keysym.sym == SDLK_s){
                         printf("key down: s\n");
                         /*stop*/
-                        if (!stopped){
+                        if (!gStopped){
                             player->stop();
-                            stopped = !stopped;
+                            gStopped = !gStopped;
                         }
                         break;
                     }else if (event.key.keysym.sym == SDLK_p){
                         printf("key down: p\n");
                         /*play*/
-                        if (stopped){
+                        if (gStopped){
                             player->start();
-                            stopped = !stopped;
+                            gStopped = !gStopped;
                         }
                         break;
                     }else if (event.key.keysym.sym == SDLK_f){
@@ -319,15 +319,20 @@ int main(int argc, char *argv[]){
                     }
 
                 case SDL_QUIT:
+                    printf("kill the window\n");
+                    gStopped = !gStopped;
                     /*quit the playback*/
                     free(url);
+                    printf("kill the window 1111\n");
                     delete player;
+                    printf("kill the window 2222\n");
                     done = true;
+                    printf("kill the window 3333\n");
                     break;
             }
         }
 
-        if (!stopped){
+        if (!gStopped){
             if (player->invoke(INVOKE_ID_GET_DECODED_VIDEO_FRAME, NULL, &pVideoFrame) == MAG_NO_ERROR){
                 OMX_BUFFERHEADERTYPE *buf;
                 AVFrame *frame;
@@ -378,5 +383,5 @@ error:
     TTF_Quit();
     SDL_Quit();
 
-    AGILE_LOGD("exit mmp_sdl ...\n\n");
+    printf("Exit the mmp_sdl!!\n");
 }

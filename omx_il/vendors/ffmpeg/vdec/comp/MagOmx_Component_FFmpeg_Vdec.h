@@ -24,7 +24,9 @@ ClassMembers(MagOmxComponent_FFmpeg_Vdec, MagOmxComponentVideo, \
 	AVFormatContext *mpAVFormat;
 
     OMX_TICKS mPrePTS;
-    
+
+    MagMutexHandle mhFFMpegMutex;
+
 #ifdef CAPTURE_ES_DATA
     FILE *mfEsData;
 #endif

@@ -14,6 +14,35 @@ MagPipelineManager::MagPipelineManager(MagClock *mpClockComp):
 }
 
 MagPipelineManager::~MagPipelineManager(){
+    List_t *next;
+    MAG_PIPELINE_ENTRY_t *item = NULL;
+    MagVideoPipeline *video;
+    MagAudioPipeline *audio;
+    _status_t ret;
+
+    delete mpClockComp;
+
+    next = mVideoPipelineHead.next;
+    while (next != &mVideoPipelineHead){
+        item = (MAG_PIPELINE_ENTRY_t *)list_entry(next, MAG_PIPELINE_ENTRY_t, node);
+        list_del(next);
+        video = (MagVideoPipeline *)item->pPipeline;
+        delete video;
+
+        next = mVideoPipelineHead.next;
+    }
+
+    next = mAudioPipelineHead.next;
+    while (next != &mAudioPipelineHead){
+        item = (MAG_PIPELINE_ENTRY_t *)list_entry(next, MAG_PIPELINE_ENTRY_t, node);
+        list_del(next);
+        audio = (MagAudioPipeline *)item->pPipeline;
+        delete audio;
+
+        next = mAudioPipelineHead.next;
+    }
+
+    OMX_Deinit();
 }
 
 _status_t MagPipelineManager::addVideoPipeline(MagVideoPipeline *pVideoPipeline, boolean connectToClk){
@@ -321,16 +350,18 @@ _status_t MagPipelineManager::reset(){
 	MagAudioPipeline *audio;
 	_status_t ret;
 
+    mpClockComp->reset();
+
     next = mVideoPipelineHead.next;
     while (next != &mVideoPipelineHead){
         item = (MAG_PIPELINE_ENTRY_t *)list_entry(next, MAG_PIPELINE_ENTRY_t, node);
         video = (MagVideoPipeline *)item->pPipeline;
-        mpClockComp->disconnectVideoPipeline(video);
         ret = video->reset();
         if (ret != MAG_NO_ERROR){
         	AGILE_LOGE("failed to reset the video pipeline[%p]", video);
         	return ret;
         }
+        mpClockComp->disconnectVideoPipeline(video);
         next = next->next;
     }
 
@@ -338,16 +369,14 @@ _status_t MagPipelineManager::reset(){
     while (next != &mAudioPipelineHead){
         item = (MAG_PIPELINE_ENTRY_t *)list_entry(next, MAG_PIPELINE_ENTRY_t, node);
         audio = (MagAudioPipeline *)item->pPipeline;
-        mpClockComp->disconnectAudioPipeline(audio);
         ret = audio->reset();
         if (ret != MAG_NO_ERROR){
         	AGILE_LOGE("failed to reset the audio pipeline[%p]", audio);
         	return ret;
         }
+        mpClockComp->disconnectAudioPipeline(audio);
         next = next->next;
     }
-
-    mpClockComp->reset();
 
     return MAG_NO_ERROR;
 }

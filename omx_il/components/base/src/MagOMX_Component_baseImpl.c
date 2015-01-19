@@ -157,7 +157,7 @@ static void onBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
 
     cmd = msg->what(msg);
 
-    COMP_LOGV(root, "get command: %d", cmd);
+    COMP_LOGV(root, "enter command %d", cmd);
     if ((cmd >= MagOmxComponentImpl_PortDataFlowMsg) &&
         (cmd < MagOmxComponentImpl_PortDataFlowMsg + base->mPorts)){
         if (!msg->findPointer(msg, "buffer_header", (void **)&srcBufHeader)){
@@ -174,6 +174,8 @@ static void onBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
             COMP_LOGE(root, "failed to find the source_port! The component might not have the return port");
             return;
         }
+
+        COMP_LOGV(root, "proceed buffer header: %p, buffer: %p", srcBufHeader, srcBufHeader->pBuffer);
 
         if (base->mFlushingPorts != kInvalidPortIndex){
             if (base->mFlushingPorts == OMX_ALL){
@@ -429,7 +431,7 @@ static OMX_ERRORTYPE doStateIdle_Loaded(OMX_IN OMX_HANDLETYPE hComponent){
     base = getBase(hComponent);
 
     for (n = rbtree_first(base->mPortTreeRoot); n; n = rbtree_next(n)) {
-        port = ooc_cast(n->value, MagOmxPort);
+        port     = ooc_cast(n->value, MagOmxPort);
         if (port->isTunneled(port)){
             if (port->getDef_Enabled(port)){
                 err = MagOmxPortVirtual(port)->FreeTunnelBuffer(n->value);
@@ -525,7 +527,7 @@ static OMX_ERRORTYPE doStateExecuting_Idle(OMX_IN OMX_HANDLETYPE hComponent){
         port = ooc_cast(n->value, MagOmxPort);
         if (port->getDef_Enabled(port)){
             err = MagOmxPortVirtual(port)->Flush(n->value);
-            port->setState(port, kPort_State_Stopped);
+            /*port->setState(port, kPort_State_Stopped);*/
             if (err != OMX_ErrorNone){
                 COMP_LOGE(root, "failed to flush the port!");
                 return err;
@@ -590,7 +592,7 @@ static OMX_ERRORTYPE doStatePause_Idle(OMX_IN OMX_HANDLETYPE hComponent){
                     COMP_LOGE(root, "failed to flush the port!");
                     return err;
                 }
-                port->setState(port, kPort_State_Stopped);
+                /*port->setState(port, kPort_State_Stopped);*/
             }
         }
 
@@ -1574,7 +1576,7 @@ static OMX_ERRORTYPE virtual_FreeBuffer(
     /*Mag_AcquireMutex(comp->mhMutex);*/
     if ((comp->mState  == OMX_StateIdle) ||
         ((comp->mState != OMX_StateLoaded) && (comp->mState != OMX_StateWaitForResources) && (!port->getDef_Enabled(port)))){
-        ret = MagOmxPortVirtual(port)->FreeBuffer(hPort, pBuffer);
+        ret = MagOmxPortVirtual(port)->FreeBuffer(hPort, &pBuffer);
     }else{
         COMP_LOGE(getRoot(hComponent), "wrong state: %s or on enabled port!", OmxState2String(comp->mState));
         ret = OMX_ErrorIncorrectStateOperation;
@@ -1621,6 +1623,14 @@ static OMX_ERRORTYPE virtual_EmptyThisBuffer(
                                         OmxState2String(comp->mState),
                                         port->getDef_Enabled(port) ? "Yes" : "No",
                                         port->isInputPort(port) ? "Yes" : "No");
+
+        if (port->isTunneled(port)   &&
+            port->isInputPort(port) && 
+            port->isBufferSupplier(port)){
+            /*it is return buffer action and need to do it anyway*/
+            MagOmxPortVirtual(port)->EmptyThisBuffer(hPort, pBuffer);
+        }
+
         ret = OMX_ErrorIncorrectStateOperation;
     }
 
@@ -1664,6 +1674,12 @@ static OMX_ERRORTYPE virtual_FillThisBuffer(
                                         OmxState2String(comp->mState),
                                         port->getDef_Enabled(port) ? "Yes" : "No",
                                         port->isInputPort(port) ? "Yes" : "No");
+        if (port->isTunneled(port)   &&
+            !port->isInputPort(port) && 
+            port->isBufferSupplier(port)){
+            /*it is return buffer action and need to do it anyway*/
+            MagOmxPortVirtual(port)->FillThisBuffer(hPort, pBuffer);
+        }
         ret = OMX_ErrorIncorrectStateOperation;
     }
     /*Mag_ReleaseMutex(comp->mhMutex);*/
@@ -2783,18 +2799,25 @@ static void MagOmxComponentImpl_destructor(MagOmxComponentImpl thiz, MagOmxCompo
 
     COMP_LOGV(getRoot(thiz), "Enter!");
 
-    thiz->mLooper->clear(thiz->mLooper);
-    thiz->mLooper->waitOnAllDone(thiz->mLooper);
+    if (thiz->mLooper){
+        thiz->mLooper->clear(thiz->mLooper);
+        thiz->mLooper->waitOnAllDone(thiz->mLooper);
+    }
 
-    thiz->mBufferLooper->clear(thiz->mBufferLooper);
-    thiz->mBufferLooper->waitOnAllDone(thiz->mBufferLooper);
+    COMP_LOGV(getRoot(thiz), "1111111!");
 
+    if (thiz->mBufferLooper){
+        thiz->mBufferLooper->clear(thiz->mBufferLooper);
+        thiz->mBufferLooper->waitOnAllDone(thiz->mBufferLooper);
+    }
+
+    COMP_LOGV(getRoot(thiz), "2222222!");
     destroyMagMiniDB(&thiz->mParametersDB);
     Mag_DestroyMutex(&thiz->mhMutex);
-
+    COMP_LOGV(getRoot(thiz), "3333333!");
     Mag_DestroyEvent(&thiz->mClkStartRunningEvt);
     Mag_DestroyEventGroup(&thiz->mClkStChangeEvtGrp);
-
+    COMP_LOGV(getRoot(thiz), "44444444!");
     destroyMagMessage(&thiz->mCmdSetStateMsg);
     destroyMagMessage(&thiz->mCmdPortDisableMsg);
     destroyMagMessage(&thiz->mCmdPortEnableMsg);
@@ -2806,12 +2829,14 @@ static void MagOmxComponentImpl_destructor(MagOmxComponentImpl thiz, MagOmxCompo
         }
         mag_freep((void **)&thiz->mPortDataMsgList);
     }
-
+    COMP_LOGV(getRoot(thiz), "5555555!");
     destroyLooper(&thiz->mLooper);
     destroyHandler(&thiz->mMsgHandler);
-
+    COMP_LOGV(getRoot(thiz), "66666666!");
     destroyLooper(&thiz->mBufferLooper);
     destroyHandler(&thiz->mBufferMsgHandler);
+
+    COMP_LOGV(getRoot(thiz), "exit!");
 }
 
 

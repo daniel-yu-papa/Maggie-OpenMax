@@ -18,6 +18,7 @@ typedef enum agilelog_LogPriority {
 
 void Mag_agilelogPrint(int prio, const char *module, const char *fmt, ...);
 void Mag_agilelogDestroy();
+void Mag_agilelogCreate();
 
 #ifdef __cplusplus
 }

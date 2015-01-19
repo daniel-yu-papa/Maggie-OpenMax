@@ -810,6 +810,7 @@ _status_t MagPlayer::reset(){
     }
 
     if (mResetMsg != NULL){
+        AGILE_LOGD("post the reset message: %p", mResetMsg);
         mResetMsg->postMessage(mResetMsg, 0);
     }else{
         AGILE_LOGE("the mResetMsg is NULL");
@@ -1584,19 +1585,9 @@ MagMessageHandle MagPlayer::createSeekMessage(ui32 what) {
 void MagPlayer::cleanup(){
     AGILE_LOGV("enter!");
 
-    if (mVideoPipeline){
-        delete mVideoPipeline;
-        mVideoPipeline = NULL;
-    }
-
-    if (mAudioPipeline){
-        delete mAudioPipeline;
-        mAudioPipeline = NULL;
-    }
-
-    if (mClock){
-        delete mClock;
-        mClock = NULL;
+    if (mAVPipelineMgr){
+        delete mAVPipelineMgr;
+        mAVPipelineMgr = NULL;
     }
 
     if (mSource){

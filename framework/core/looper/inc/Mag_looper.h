@@ -117,7 +117,6 @@ typedef struct MagHandler{
 
 typedef enum{
     MagLooper_Priority_Normal,
-    MagLooper_Priority_Low,
     MagLooper_Priority_High
 }MagLooperPriority_t;
 
@@ -149,7 +148,8 @@ typedef struct MagLooper{
 
     boolean mForceOut;
     boolean mReportPolicy;
-
+    boolean mRunning;
+    
     MagTimerHandle mTimer;
 
     void      (*registerHandler)(struct MagLooper *self, const MagHandler_t *handler);

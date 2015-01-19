@@ -78,7 +78,7 @@ Virtuals(MagOmxPort, Base)
     /*To release a buffer and buffer header from the port*/
     OMX_ERRORTYPE (*FreeBuffer)(
                   OMX_HANDLETYPE hPort,
-                  OMX_BUFFERHEADERTYPE* pBuffer);
+                  OMX_BUFFERHEADERTYPE **ppBuffer);
 
     /*To release all buffers and buffer headers from the port*/
     OMX_ERRORTYPE (*FreeAllBuffers)(
@@ -157,9 +157,9 @@ Virtuals(MagOmxPort, Base)
                                       OMX_BUFFERHEADERTYPE* pBuffer);
 
     /*directly send out the output buffer to APP*/
-    void (*SendOutputBufferToAPP)(OMX_HANDLETYPE hPort, 
+    void (*sendOutputBufferToAPP)(OMX_HANDLETYPE hPort, 
                                   OMX_BUFFERHEADERTYPE* pBufHeader);
-    
+
 EndOfVirtuals;
 
 

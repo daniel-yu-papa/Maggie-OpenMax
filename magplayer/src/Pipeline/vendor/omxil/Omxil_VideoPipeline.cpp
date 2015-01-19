@@ -12,7 +12,8 @@ OmxilVideoPipeline::OmxilVideoPipeline():
                             mhVideoScheduler(NULL),
                             mhVideoRender(NULL),
                             mpBufferMgr(NULL),
-                            mVSchClockPortIdx(-1){
+                            mVSchClockPortIdx(-1),
+                            mFeedVrenPending(0){
     OMX_ERRORTYPE err;
 
     err = OMX_Init();
@@ -91,9 +92,20 @@ OmxilVideoPipeline::OmxilVideoPipeline():
     mpBufferMgr        = NULL;
     mpDecodedBufferMgr = NULL;
     mpFeedVrenBufMgr   = NULL;
+
+    Mag_CreateMutex(&mhFeedPendingMutex);
 }
 
 OmxilVideoPipeline::~OmxilVideoPipeline(){
+    OMX_FreeHandle(mhVideoRender);
+    mhVideoRender = NULL;
+
+    OMX_FreeHandle(mhVideoScheduler);
+    mhVideoScheduler = NULL;
+
+    OMX_FreeHandle(mhVideoDecoder);
+    mhVideoDecoder = NULL;
+
     Mag_DestroyEvent(&mVDecStIdleEvent);
     Mag_DestroyEvent(&mVSchStIdleEvent);
     Mag_DestroyEvent(&mVRenStIdleEvent);
@@ -119,7 +131,7 @@ OmxilVideoPipeline::~OmxilVideoPipeline(){
     Mag_DestroyEvent(&mVRenFlushDoneEvent);
     Mag_DestroyEventGroup(&mFlushDoneEventGroup);
 
-    OMX_Deinit();
+    Mag_DestroyMutex(&mhFeedPendingMutex);
 }
 
 OMX_ERRORTYPE OmxilVideoPipeline::VideoDecoderEventHandler(
@@ -335,8 +347,15 @@ OMX_ERRORTYPE OmxilVideoPipeline::VideoRenderFillBufferDone(
     OmxilVideoPipeline *pVpipeline;
 
     pVpipeline = static_cast<OmxilVideoPipeline *>(pAppData);
-    pVpipeline->mpDecodedBufferMgr->put(pBuffer);
-    AGILE_LOGI("put buffer: %p", pBuffer);
+
+    if (pBuffer->pBuffer){
+        pVpipeline->mpDecodedBufferMgr->put(pBuffer);
+    }else{
+        /*it is EOS frame, directly put it into the feedVren queue*/
+        pVpipeline->mpFeedVrenBufMgr->put(pBuffer);
+    }
+
+    AGILE_LOGI("put buffer header: %p, buffer: %p", pBuffer, pBuffer->pBuffer);
 
     return OMX_ErrorNone;
 }
@@ -377,11 +396,8 @@ _status_t OmxilVideoPipeline::init(i32 trackID, TrackInfo_t *sInfo){
     OMX_PARAM_PORTDEFINITIONTYPE portDef;
     OMX_CONFIG_FFMPEG_DATA_TYPE ffmpegData;
     OMX_U32 i;
-    OMX_U32 vDecTunnelOutPortIdx;
+    
     OMX_U32 vDecNoneTunnelPortIdx;
-    OMX_U32 vSchTunnelInPortIdx;
-    OMX_U32 vSchTunnelOutPortIdx;
-    OMX_U32 vRenTunnelInPortIdx;
     OMX_U32 vRenNoneTunnelPortIdx;
 
     AGILE_LOGD("Enter!");
@@ -437,8 +453,8 @@ _status_t OmxilVideoPipeline::init(i32 trackID, TrackInfo_t *sInfo){
                 }
 
                 if (portDef.eDir == OMX_DirOutput){
-                    AGILE_LOGD("get vDecTunnelOutPortIdx: %d", i);
-                    vDecTunnelOutPortIdx = i;
+                    AGILE_LOGD("get mVDecTunnelOutPortIdx: %d", i);
+                    mVDecTunnelOutPortIdx = i;
                 }else{
                     AGILE_LOGD("get vDecNoneTunnelPortIdx: %d", i);
                     vDecNoneTunnelPortIdx = i;
@@ -501,9 +517,9 @@ _status_t OmxilVideoPipeline::init(i32 trackID, TrackInfo_t *sInfo){
                     }
 
                     if (portDef.eDir == OMX_DirOutput){
-	                    vSchTunnelOutPortIdx = i;
+	                    mVSchTunnelOutPortIdx = i;
 	                }else{
-	                    vSchTunnelInPortIdx = i;
+	                    mVSchTunnelInPortIdx = i;
 	                }
                 }else if ((OMX_U32)portDef.eDomain == (OMX_U32)OMX_PortDomainOther_Clock){
                     mVSchClockPortIdx = i;
@@ -556,7 +572,7 @@ _status_t OmxilVideoPipeline::init(i32 trackID, TrackInfo_t *sInfo){
                 }
 
                 if (portDef.eDir == OMX_DirInput){
-                    vRenTunnelInPortIdx = i;
+                    mVRenTunnelInPortIdx = i;
                 }else{
                     vRenNoneTunnelPortIdx = i;
                 }
@@ -566,24 +582,24 @@ _status_t OmxilVideoPipeline::init(i32 trackID, TrackInfo_t *sInfo){
             return MAG_NAME_NOT_FOUND;
         }
 
-        err = OMX_SetupTunnel(mhVideoDecoder, vDecTunnelOutPortIdx, mhVideoScheduler, vSchTunnelInPortIdx);
+        err = OMX_SetupTunnel(mhVideoDecoder, mVDecTunnelOutPortIdx, mhVideoScheduler, mVSchTunnelInPortIdx);
         if(err != OMX_ErrorNone){
             AGILE_LOGE("To setup up tunnel between vDec[port: %d] and vSch[port: %d] - FAILURE!",
-                        vDecTunnelOutPortIdx, vSchTunnelInPortIdx);
+                        mVDecTunnelOutPortIdx, mVSchTunnelInPortIdx);
             return MAG_UNKNOWN_ERROR;
         }else{
             AGILE_LOGI("To setup tunnel between vDec[port: %d] and vSch[port: %d] - OK!",
-                        vDecTunnelOutPortIdx, vSchTunnelInPortIdx);
+                        mVDecTunnelOutPortIdx, mVSchTunnelInPortIdx);
         }
 
-        err = OMX_SetupTunnel(mhVideoScheduler, vSchTunnelOutPortIdx, mhVideoRender, vRenTunnelInPortIdx);
+        err = OMX_SetupTunnel(mhVideoScheduler, mVSchTunnelOutPortIdx, mhVideoRender, mVRenTunnelInPortIdx);
         if(err != OMX_ErrorNone){
             AGILE_LOGE("To setup up tunnel between vSch[port: %d] and vRen[port: %d] - FAILURE!",
-                        vSchTunnelOutPortIdx, vRenTunnelInPortIdx);
+                        mVSchTunnelOutPortIdx, mVRenTunnelInPortIdx);
             return MAG_UNKNOWN_ERROR;
         }else{
             AGILE_LOGI("To setup tunnel between vSch[port: %d] and vRen[port: %d] - OK!",
-                        vSchTunnelOutPortIdx, vRenTunnelInPortIdx);
+                        mVSchTunnelOutPortIdx, mVRenTunnelInPortIdx);
         }
 
         if (mpBufferMgr == NULL){
@@ -616,6 +632,8 @@ _status_t OmxilVideoPipeline::setup(){
 _status_t OmxilVideoPipeline::start(){
     _status_t ret;
 
+    mFeedVrenPending = 0;
+
     Mag_ClearEvent(mVDecStExecutingEvent);
     Mag_ClearEvent(mVSchStExecutingEvent);
     Mag_ClearEvent(mVRenStExecutingEvent);
@@ -643,7 +661,7 @@ _status_t OmxilVideoPipeline::stop(){
     OMX_SendCommand(mhVideoDecoder, OMX_CommandStateSet, OMX_StateIdle, NULL);
 
     Mag_WaitForEventGroup(mStIdleEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
-    
+
     return MAG_NO_ERROR;
 }
 
@@ -691,12 +709,15 @@ _status_t OmxilVideoPipeline::flush(){
 
     Mag_WaitForEventGroup(mFlushDoneEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
     mIsFlushed = false;
+    mFeedVrenPending = 0;
     AGILE_LOGI("exit!");
 
     return MAG_NO_ERROR;
 }
 
 _status_t OmxilVideoPipeline::reset(){
+    OMX_ERRORTYPE err;
+
     MagVideoPipelineImpl::reset();
 
     if ( mState == ST_PLAY || mState == ST_PAUSE ){
@@ -708,9 +729,9 @@ _status_t OmxilVideoPipeline::reset(){
         OMX_SendCommand(mhVideoRender, OMX_CommandStateSet, OMX_StateIdle, NULL);
 	    OMX_SendCommand(mhVideoScheduler, OMX_CommandStateSet, OMX_StateIdle, NULL);
 	    OMX_SendCommand(mhVideoDecoder, OMX_CommandStateSet, OMX_StateIdle, NULL);
-    }
 
-    Mag_WaitForEventGroup(mStIdleEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
+        Mag_WaitForEventGroup(mStIdleEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
+    }
 
     Mag_ClearEvent(mVDecStLoadedEvent);
     Mag_ClearEvent(mVSchStLoadedEvent);
@@ -722,15 +743,26 @@ _status_t OmxilVideoPipeline::reset(){
 
     Mag_WaitForEventGroup(mStLoadedEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
 
-    OMX_FreeHandle(mhVideoRender);
-    mhVideoRender = NULL;
+    err = OMX_TeardownTunnel(mhVideoDecoder, mVDecTunnelOutPortIdx, mhVideoScheduler, mVSchTunnelInPortIdx);
+    if(err != OMX_ErrorNone){
+        AGILE_LOGE("To tear down the tunnel between Vdec[port: %d] and Vsch[port: %d] - FAILURE!",
+                    mVDecTunnelOutPortIdx, mVSchTunnelInPortIdx);
+    }else{
+        AGILE_LOGE("To tear down the tunnel between Vdec[port: %d] and Vsch[port: %d] - OK!",
+                    mVDecTunnelOutPortIdx, mVSchTunnelInPortIdx);
+    }
 
-    OMX_FreeHandle(mhVideoScheduler);
-    mhVideoScheduler = NULL;
+    err = OMX_TeardownTunnel(mhVideoScheduler, mVSchTunnelOutPortIdx, mhVideoRender, mVRenTunnelInPortIdx);
+    if(err != OMX_ErrorNone){
+        AGILE_LOGE("To tear down the tunnel between vSch[port: %d] and vRen[port: %d] - FAILURE!",
+                    mVSchTunnelOutPortIdx, mVRenTunnelInPortIdx);
+        return MAG_UNKNOWN_ERROR;
+    }else{
+        AGILE_LOGI("To tear down the tunnel between vSch[port: %d] and vRen[port: %d] - OK!",
+                    mVSchTunnelOutPortIdx, mVRenTunnelInPortIdx);
+    }
 
-    OMX_FreeHandle(mhVideoDecoder);
-    mhVideoDecoder = NULL;
-
+    mFeedVrenPending = 0; 
     return MAG_NO_ERROR;
 }
 
@@ -753,6 +785,21 @@ _status_t OmxilVideoPipeline::pushEsPackets(MagOmxMediaBuffer_t *buf){
             pBufHeader->nFilledLen  = buf->buffer_size;
             pBufHeader->nOffset     = 0;
             pBufHeader->nTimeStamp  = buf->pts;
+
+            pFeedVrenBufHeader = mpFeedVrenBufMgr->get();
+            if (pFeedVrenBufHeader){
+                pFeedVrenBufHeader->pBuffer = NULL;
+                ret = OMX_FillThisBuffer(mhVideoRender, pFeedVrenBufHeader);
+                if (ret != OMX_ErrorNone){
+                    AGILE_LOGE("Do OMX_FillThisBuffer() - Failed!");
+                }else{
+                    AGILE_LOGV("Do OMX_FillThisBuffer() - OK!");
+                }
+            }else{
+                Mag_AcquireMutex(mhFeedPendingMutex);
+                mFeedVrenPending++;
+                Mag_ReleaseMutex(mhFeedPendingMutex);
+            }
         }else{
             pBufHeader->pAppPrivate = static_cast<OMX_PTR>(buf);
             pBufHeader->pBuffer     = NULL;
@@ -760,18 +807,6 @@ _status_t OmxilVideoPipeline::pushEsPackets(MagOmxMediaBuffer_t *buf){
             pBufHeader->nFilledLen  = 0;
             pBufHeader->nOffset     = 0;
             pBufHeader->nTimeStamp  = kInvalidTimeStamp;
-        }
-
-        pFeedVrenBufHeader = mpFeedVrenBufMgr->get();
-        if (pFeedVrenBufHeader){
-            ret = OMX_FillThisBuffer(mhVideoRender, pFeedVrenBufHeader);
-            if (ret != OMX_ErrorNone){
-                AGILE_LOGE("Do OMX_FillThisBuffer() - Failed!");
-            }else{
-                AGILE_LOGV("Do OMX_FillThisBuffer() - OK!");
-            }
-        }else{
-            AGILE_LOGV("Failed to get the buffer from mpFeedVrenBufMgr!");
         }
 
         AGILE_LOGD("push video buffer header: %p(buf:%p, size:%d, pts:0x%x)[%s]",
@@ -853,14 +888,30 @@ _status_t OmxilVideoPipeline::getDecodedFrame(void **ppVideoFrame){
 _status_t OmxilVideoPipeline::putUsedFrame(void *pVideoFrame){
     OMX_BUFFERHEADERTYPE* pBuffer;
     AVFrame *frame;
+    bool postBuf = false;
 
     pBuffer = static_cast<OMX_BUFFERHEADERTYPE *>(pVideoFrame);
     AGILE_LOGV("Put used frame %p!", pBuffer);
-    if (pBuffer){
+    if (pBuffer && pBuffer->pBuffer){
         frame = (AVFrame *)pBuffer->pBuffer;
         av_frame_unref(frame);
     }
-    mpFeedVrenBufMgr->put(pBuffer);
+
+    if (mState == ST_PLAY || mState == ST_PAUSE){
+        Mag_AcquireMutex(mhFeedPendingMutex);
+        if (mFeedVrenPending > 0){
+            postBuf = true;
+            mFeedVrenPending--;
+        }
+        Mag_ReleaseMutex(mhFeedPendingMutex);
+    }
+
+    if (!postBuf){
+        mpFeedVrenBufMgr->put(pBuffer);
+    }else{
+        pBuffer->pBuffer = NULL;
+        OMX_FillThisBuffer(mhVideoRender, pBuffer);
+    }
 
     return MAG_NO_ERROR;
 }

@@ -78,6 +78,11 @@
     Mag_agilelogDestroy()
 #endif
 
+#ifndef AGILE_LOG_CREATE
+#define AGILE_LOG_CREATE() \
+    Mag_agilelogCreate()
+#endif
+
 #if 0
 #define MODULE_TAG_D(tag) \
     "#ifdef MODULE_TAG"  \

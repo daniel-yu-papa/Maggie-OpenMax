@@ -20,8 +20,6 @@ MAG_SINGLETON_STATIC_INSTANCE(MagMediaPlayerImpl)
 
 MagMediaPlayer* GetMediaPlayer()
 {
-    AGILE_LOGD("enter");
-    
     MagMediaPlayerImpl& inst = MagMediaPlayerImpl::getInstance();
     
     return dynamic_cast<MagMediaPlayer *>(&inst);
@@ -89,6 +87,7 @@ MagMediaPlayerImpl::MagMediaPlayerImpl():
           mAppHandler(NULL),
           mbInitialized(false),
           mbError(false){
+    AGILE_LOG_CREATE();
     initialize();
     mpMediaPlayer->getVersion();
 }

@@ -36,6 +36,7 @@ void MagAgileLog::destroy(){
 }
 
 MagAgileLog::MagAgileLog(){
+    printf("Initialize MagAgileLog()\n");
     mConfigFile.exists = 0;
 
     mConfigValue.config_output.type = OUTPUT_INVALID;

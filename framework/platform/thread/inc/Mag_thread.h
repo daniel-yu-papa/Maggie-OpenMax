@@ -8,13 +8,8 @@ extern "C" {
 #endif
 
 typedef enum {
-    MAGTHREAD_PRIORITY_LOWEST         = 19,
-    MAGTHREAD_PRIORITY_LOW            = 10,
-    MAGTHREAD_PRIORITY_NORMAL         = 0,
-    MAGTHREAD_PRIORITY_HIGH           = -16,
-    /* should never be used in practice. regular process might not 
-     * be allowed to use this level */
-    MAGTHREAD_PRIORITY_HIGHEST        = -20
+    MAGTHREAD_PRIORITY_NORMAL,
+    MAGTHREAD_PRIORITY_HIGH
 }MagThread_Priority_t;
 
 typedef boolean (*fnThreadLoop)(void *priv);

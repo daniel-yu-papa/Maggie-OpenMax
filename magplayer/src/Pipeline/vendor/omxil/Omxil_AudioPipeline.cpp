@@ -100,7 +100,11 @@ OmxilAudioPipeline::~OmxilAudioPipeline(){
     Mag_DestroyEvent(&mARenFlushDoneEvent);
     Mag_DestroyEventGroup(&mFlushDoneEventGroup);
 
-    OMX_Deinit();
+    OMX_FreeHandle(mhAudioRender);
+    mhAudioRender = NULL;
+
+    OMX_FreeHandle(mhAudioDecoder);
+    mhAudioDecoder = NULL;
 }
 
 OMX_ERRORTYPE OmxilAudioPipeline::AudioDecoderEventHandler(
@@ -288,9 +292,8 @@ _status_t OmxilAudioPipeline::init(i32 trackID, TrackInfo_t *sInfo){
     OMX_PARAM_PORTDEFINITIONTYPE portDef;
     OMX_CONFIG_FFMPEG_DATA_TYPE ffmpegData;
     OMX_U32 i;
-    OMX_U32 aDecTunnelPortIdx;
+
     OMX_U32 aDecNoneTunnelPortIdx;
-    OMX_U32 aRenTunnelPortIdx;
 
     AGILE_LOGD("Enter!");
     MagAudioPipelineImpl::init(trackID, sInfo);
@@ -345,7 +348,7 @@ _status_t OmxilAudioPipeline::init(i32 trackID, TrackInfo_t *sInfo){
                 }
 
                 if (portDef.eDir == OMX_DirOutput){
-                    aDecTunnelPortIdx = i;
+                    mADecTunnelPortIdx = i;
                 }else{
                     aDecNoneTunnelPortIdx = i;
                 }
@@ -406,7 +409,7 @@ _status_t OmxilAudioPipeline::init(i32 trackID, TrackInfo_t *sInfo){
                         return MAG_BAD_VALUE;
                     }
 
-                    aRenTunnelPortIdx = i;
+                    mARenTunnelPortIdx = i;
                 }else{
                     mARenClockPortIdx = i;
                 }
@@ -416,14 +419,14 @@ _status_t OmxilAudioPipeline::init(i32 trackID, TrackInfo_t *sInfo){
             return MAG_NAME_NOT_FOUND;
         }
 
-        err = OMX_SetupTunnel(mhAudioDecoder, aDecTunnelPortIdx, mhAudioRender, aRenTunnelPortIdx);
+        err = OMX_SetupTunnel(mhAudioDecoder, mADecTunnelPortIdx, mhAudioRender, mARenTunnelPortIdx);
         if(err != OMX_ErrorNone){
             AGILE_LOGE("To setup up tunnel between aDec[port: %d] and aRen[port: %d] - FAILURE!",
-                        aDecTunnelPortIdx, aRenTunnelPortIdx);
+                        mADecTunnelPortIdx, mARenTunnelPortIdx);
             return MAG_UNKNOWN_ERROR;
         }else{
             AGILE_LOGI("To setup tunnel between aDec[port: %d] and aRen[port: %d] - OK!",
-                        aDecTunnelPortIdx, aRenTunnelPortIdx);
+                        mADecTunnelPortIdx, mARenTunnelPortIdx);
         }
 
         if (mpBufferMgr == NULL){
@@ -517,6 +520,8 @@ _status_t OmxilAudioPipeline::flush(){
 }
 
 _status_t OmxilAudioPipeline::reset(){
+    OMX_ERRORTYPE err;
+    
     MagAudioPipelineImpl::reset();
 
     if ( mState == ST_PLAY || mState == ST_PAUSE ){
@@ -526,9 +531,9 @@ _status_t OmxilAudioPipeline::reset(){
 
         OMX_SendCommand(mhAudioRender, OMX_CommandStateSet, OMX_StateIdle, NULL);
         OMX_SendCommand(mhAudioDecoder, OMX_CommandStateSet, OMX_StateIdle, NULL);  
-    }
 
-    Mag_WaitForEventGroup(mStIdleEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
+        Mag_WaitForEventGroup(mStIdleEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
+    }
 
     Mag_ClearEvent(mADecStLoadedEvent);
     Mag_ClearEvent(mARenStLoadedEvent);
@@ -538,11 +543,15 @@ _status_t OmxilAudioPipeline::reset(){
 
     Mag_WaitForEventGroup(mStLoadedEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
 
-    OMX_FreeHandle(mhAudioRender);
-    mhAudioRender = NULL;
-
-    OMX_FreeHandle(mhAudioDecoder);
-    mhAudioDecoder = NULL;
+    err = OMX_TeardownTunnel(mhAudioDecoder, mADecTunnelPortIdx, mhAudioRender, mARenTunnelPortIdx);
+    if(err != OMX_ErrorNone){
+        AGILE_LOGE("To tear down the tunnel between aDec[port: %d] and aRen[port: %d] - FAILURE!",
+                    mADecTunnelPortIdx, mARenTunnelPortIdx);
+        return MAG_UNKNOWN_ERROR;
+    }else{
+        AGILE_LOGI("To tear down the tunnel between aDec[port: %d] and aRen[port: %d] - OK!",
+                    mADecTunnelPortIdx, mARenTunnelPortIdx);
+    }
 
     return MAG_NO_ERROR;
 }

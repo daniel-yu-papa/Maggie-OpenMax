@@ -191,7 +191,10 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_Stop(
 
     AGILE_LOGV("enter!");
     vdecComp = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vdec);
+    
+    Mag_AcquireMutex(vdecComp->mhFFMpegMutex);
     avcodec_close(vdecComp->mpVideoStream->codec);
+    Mag_ReleaseMutex(vdecComp->mhFFMpegMutex);
     
 	return OMX_ErrorNone;
 }
@@ -259,7 +262,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_ProceedBuffer(
 		return OMX_ErrorBadParameter;
 	}
 
-	root = ooc_cast(hComponent, MagOmxComponent);
+	root     = ooc_cast(hComponent, MagOmxComponent);
 	destPort = ooc_cast(hDestPort, MagOmxPort);
     
 	vdecComp     = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vdec);
@@ -310,9 +313,12 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_ProceedBuffer(
 
 decode:
 	decodedFrame = av_frame_alloc();
+
+    Mag_AcquireMutex(vdecComp->mhFFMpegMutex);
 	decodedLen = avcodec_decode_video2(vdecComp->mpVideoStream->codec, 
 		                               decodedFrame, &got_frame, &codedPkt);
-	
+	Mag_ReleaseMutex(vdecComp->mhFFMpegMutex);
+
 	if (got_frame && decodedLen > 0){
 		destbufHeader = MagOmxPortVirtual(destPort)->GetOutputBuffer(destPort);
 
@@ -362,14 +368,16 @@ decode:
             goto decode;
         }
 	}else{
+        av_frame_free(&decodedFrame);
+
         if (codedPkt.data == NULL){
             destbufHeader = MagOmxPortVirtual(destPort)->GetOutputBuffer(destPort);
 
             destbufHeader->pBuffer    = NULL;
             destbufHeader->nFilledLen = 0;
             destbufHeader->nTimeStamp = kInvalidTimeStamp;
+            COMP_LOGV(root, "Send out EOS video buffer: %p!", destbufHeader);
             MagOmxPortVirtual(destPort)->sendOutputBuffer(destPort, destbufHeader);
-            COMP_LOGV(root, "Send out EOS video frame!");
         }
     }
 
@@ -427,7 +435,12 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_Flush(
     MagOmxComponent_FFmpeg_Vdec thiz;
 
     thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vdec);
+
+    AGILE_LOGD("enter!");
+
+    Mag_AcquireMutex(thiz->mhFFMpegMutex);
     avcodec_flush_buffers(thiz->mpVideoStream->codec);
+    Mag_ReleaseMutex(thiz->mhFFMpegMutex);
 
     return OMX_ErrorNone;
 }
@@ -461,6 +474,8 @@ static void MagOmxComponent_FFmpeg_Vdec_constructor(MagOmxComponent_FFmpeg_Vdec 
 	MAG_ASSERT(ooc_isInitialized(MagOmxComponent_FFmpeg_Vdec));
     chain_constructor(MagOmxComponent_FFmpeg_Vdec, thiz, params);
 
+    Mag_CreateMutex(&thiz->mhFFMpegMutex);
+
     thiz->mpVideoCodec  = NULL;
     thiz->mpAVFormat    = NULL;
     thiz->mpVideoStream = NULL;
@@ -469,6 +484,8 @@ static void MagOmxComponent_FFmpeg_Vdec_constructor(MagOmxComponent_FFmpeg_Vdec 
 
 static void MagOmxComponent_FFmpeg_Vdec_destructor(MagOmxComponent_FFmpeg_Vdec thiz, MagOmxComponent_FFmpeg_VdecVtable vtab){
 	AGILE_LOGV("Enter!");
+
+    Mag_DestroyMutex(&thiz->mhFFMpegMutex);
 }
 
 static OMX_ERRORTYPE MagOmxComponent_FFmpeg_Vdec_Init(OMX_OUT OMX_HANDLETYPE *hComponent,  

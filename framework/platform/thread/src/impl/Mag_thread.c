@@ -35,11 +35,11 @@ static _status_t loopEntryWrapper(void *userData){
             user->mExitPending = MAG_TRUE;
             user->mRunning     = MAG_FALSE;
             Mag_SetEvent(user->mExitEvt);
-            AGILE_LOGD("exit thread %s!", user->mName);
+            AGILE_LOGE("exit thread %s!", user->mName);
             break;
         }
     }while(1);
-    AGILE_LOGD("exit thread %s truely!!!", user->mName);
+    AGILE_LOGE("exit thread %s truely!!!", user->mName);
     return 0;
 }
 
@@ -48,7 +48,7 @@ static void *loopEntry(void *priv){
 
     if (priv != NULL){
         userData = (MagThread_t *)priv;
-        /*setpriority(PRIO_PROCESS, 0, userData->mPriority);  */ 
+        /*setpriority(PRIO_PROCESS, 0, userData->mPriority);*/ 
         prctl(PR_SET_NAME, (unsigned long)userData->mName, 0, 0, 0);
         /*mag_free(userData->mName);*/
         loopEntryWrapper(priv);
@@ -72,9 +72,9 @@ static _status_t createThread(MagThread_t *self){
     }
 
     if (self->mPriority == MAGTHREAD_PRIORITY_HIGH){
-        AGILE_LOGD("set the thread %p as the SCHED_RR@50", self);
+        AGILE_LOGD("set the thread %p as the SCHED_FIFO@50", self);
         param.sched_priority = 50;
-        pthread_attr_setschedpolicy(&attr, SCHED_RR);
+        pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
         pthread_attr_setschedparam(&attr, &param);
         pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED) ;
     }

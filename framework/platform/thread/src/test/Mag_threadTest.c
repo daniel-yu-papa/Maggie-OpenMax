@@ -80,11 +80,9 @@ int main(){
 
     gThreads_work = Mag_CreateThread("working", WorkThreadEntry, (void *)&mother);
     gThreads_work->run(gThreads_work);
-    gThreads_work->setParm_Priority(gThreads_work, MAGTHREAD_PRIORITY_LOWEST);
     
     gThreads_sleep = Mag_CreateThread("sleeping", SleepThreadEntry, (void *)&child);
     gThreads_sleep->run(gThreads_sleep);
-    /*gThreads_sleep->setParm_Priority(MAGTHREAD_PRIORITY_LOWEST);*/
     
     sleep(2);
 

@@ -77,6 +77,14 @@ private:
     
     i32 mVSchClockPortIdx;
 
+    i32 mFeedVrenPending;
+    MagMutexHandle mhFeedPendingMutex;
+
+    OMX_U32 mVSchTunnelInPortIdx;
+    OMX_U32 mVSchTunnelOutPortIdx;
+    OMX_U32 mVRenTunnelInPortIdx;
+    OMX_U32 mVDecTunnelOutPortIdx;
+
 #ifdef OMXIL_VIDEO_STREAM_DUMP
     FILE *mDumpVideoFile;
 #endif

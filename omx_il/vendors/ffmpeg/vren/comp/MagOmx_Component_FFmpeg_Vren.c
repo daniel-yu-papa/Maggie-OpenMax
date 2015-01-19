@@ -193,7 +193,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vren_ProceedBuffer(
     ret = av_frame_ref(destFrame, (AVFrame *)srcbufHeader->pBuffer);
     destbufHeader->pBuffer = (OMX_U8 *)destFrame;
 
-    MagOmxPortVirtual(destPort)->SendOutputBufferToAPP(destPort, destbufHeader);
+    MagOmxPortVirtual(destPort)->sendOutputBufferToAPP(destPort, destbufHeader);
 
 #ifdef CAPTURE_YUV_DATA_TO_FILE
     if (thiz->mfYUVFile){

@@ -180,7 +180,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vsch_ProceedBuffer(
     thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vsch);
     destPort = ooc_cast(hDestPort, MagOmxPort);
     
-    AGILE_LOGV("enter!");
+    AGILE_LOGV("proceed buffer header: %p!", srcbufHeader);
 
     destbufHeader = MagOmxPortVirtual(destPort)->GetOutputBuffer(destPort);
 

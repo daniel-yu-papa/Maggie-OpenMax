@@ -220,7 +220,7 @@ static ui32 MagMessage_what(MagMessage_t *msg){
 
 static boolean MagMessage_postMessage(MagMessage_t *msg, i64 delayUs){
     if (msg->mLooper != NULL){
-        AGILE_LOGV("msg(%d) do post(delay: %d) in looper(0x%x)", msg->mWhat, delayUs, msg->mLooper);
+        AGILE_LOGV("msg(%p@%d) do post(delay: %d) in looper(0x%x)", msg, msg->mWhat, delayUs, msg->mLooper);
         msg->mLooper->postMessage(msg->mLooper, msg, delayUs);
         return MAG_TRUE;
     }else{

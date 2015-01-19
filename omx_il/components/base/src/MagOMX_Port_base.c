@@ -309,7 +309,7 @@ static void MagOmxPort_initialize(Class this){
     MagOmxPortVtableInstance.putReturnBuffer       = NULL;
     MagOmxPortVtableInstance.sendReturnBuffer      = NULL;
     MagOmxPortVtableInstance.sendOutputBuffer      = NULL;
-    MagOmxPortVtableInstance.SendOutputBufferToAPP = NULL;
+    MagOmxPortVtableInstance.sendOutputBufferToAPP = NULL;
 }
 
 /*

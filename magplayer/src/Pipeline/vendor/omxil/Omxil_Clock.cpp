@@ -36,7 +36,8 @@ OmxilClock::OmxilClock():
 }
 
 OmxilClock::~OmxilClock(){
-	OMX_FreeHandle(mhClock);
+    if (mhClock)
+	   OMX_FreeHandle(mhClock);
     mhClock = NULL;
 }
 
@@ -303,15 +304,18 @@ _status_t OmxilClock::resume(){
 }
 
 _status_t OmxilClock::reset(){
+    Mag_ClearEvent(mClkStIdleEvent);
     OMX_SendCommand(mhClock, OMX_CommandStateSet, OMX_StateIdle, NULL);
 
-    Mag_ClearEvent(mClkStIdleEvent);
     Mag_WaitForEventGroup(mStIdleEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
-
-    OMX_SendCommand(mhClock, OMX_CommandStateSet, OMX_StateLoaded, NULL);
+    AGILE_LOGV("After OMX_StateIdle");
 
     Mag_ClearEvent(mClkStLoadedEvent);
+    OMX_SendCommand(mhClock, OMX_CommandStateSet, OMX_StateLoaded, NULL);
+
     Mag_WaitForEventGroup(mStLoadedEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
+
+    AGILE_LOGD("exit!");
 
     return MAG_NO_ERROR;
 }
