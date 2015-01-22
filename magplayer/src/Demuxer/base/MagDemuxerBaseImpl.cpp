@@ -243,8 +243,8 @@ _status_t MagDemuxerBaseImpl::flush(){
     return MAG_NO_ERROR;
 }
 
-_status_t MagDemuxerBaseImpl::seekTo(i32 msec){
-    TrackInfoTable_t *tb = NULL;
+_status_t MagDemuxerBaseImpl::seekTo(i32 msec, i64 mediaTime){
+    /*TrackInfoTable_t *tb = NULL;
     ui32 i;
     TrackInfo_t *ti;
 
@@ -272,8 +272,8 @@ _status_t MagDemuxerBaseImpl::seekTo(i32 msec){
             }
         }
     }
-    AGILE_LOGE("no stream track is in playing status. Quit the seek!");
-    return MAG_NO_ERROR;
+    AGILE_LOGE("no stream track is in playing status. Quit the seek!");*/
+    return seekToImpl(msec, mediaTime, NULL);
 }
 
 TrackInfoTable_t *MagDemuxerBaseImpl::getTrackInfoList(){

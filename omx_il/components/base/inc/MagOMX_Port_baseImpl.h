@@ -42,6 +42,7 @@ ClassMembers(MagOmxPortImpl, MagOmxPort, \
     void                  (*resetBuffer)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE* pBuffer); \
 )
     MagMutexHandle         mhMutex;
+    MagMutexHandle         mhTunnelFlushMutex;
 
     /*Link all buffer headers*/
     List_t                 mBufferList;

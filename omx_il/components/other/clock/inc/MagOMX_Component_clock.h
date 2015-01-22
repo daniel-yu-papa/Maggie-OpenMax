@@ -89,7 +89,8 @@ ClassMembers(MagOmxComponentClock, MagOmxComponentImpl, \
     OMX_TICKS               mReferenceTimeBase;   /*in us*/
     OMX_TICKS               mWallTimeBase;        /*in us*/
     OMX_TICKS               mClockOffset;         /*in us*/
-
+    OMX_TICKS               mPlayingStartTime;    /*in us*/
+    
     MagEventHandle          mStateChangeEvt;
     MagEventGroupHandle     mStateChangeEvtGrp;
 

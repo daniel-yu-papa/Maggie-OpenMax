@@ -7,6 +7,8 @@
 #include "libavutil/log.h"
 
 #include <unistd.h>
+#include <stdint.h>
+#include <limits>
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
@@ -577,7 +579,7 @@ _status_t  MagDemuxerFFMPEG::probe_add_streams(){
             track->time_base_num = st->time_base.num;
             track->time_base_den = st->time_base.den;
             track->duration      = (mpAVFormat->duration / 1000);
-            track->start_time    = (mpAVFormat->start_time / 1000);
+            track->start_time    = mpAVFormat->start_time;
 
             track->avformat = mpAVFormat;
             track->avstream = st;
@@ -612,8 +614,8 @@ _status_t  MagDemuxerFFMPEG::probe_add_streams(){
             create_track(track, st->codec);
             mParamDB->setPointer(mParamDB, keyName, static_cast<void *>(track));
 
-            AGILE_LOGV("track %s: duration[%lld], start time[%lld]", 
-                        track->name, track->duration, track->start_time);
+            AGILE_LOGV("track %s: duration[%lld], start time[%lld], time_base[%d:%d]", 
+                        track->name, track->duration, track->start_time, track->time_base_num, track->time_base_den);
         }else{
             AGILE_LOGE("failed to create the stream track!");
         }
@@ -1129,62 +1131,63 @@ _status_t   MagDemuxerFFMPEG::readFrameImpl(Stream_Track *track, ui32 StreamID){
     return readMore(track, StreamID);
 }
 
-_status_t   MagDemuxerFFMPEG::seekToImpl(i32 msec, TrackInfo_t *track){
+_status_t   MagDemuxerFFMPEG::seekToImpl(i32 msec, i64 mediaTime, TrackInfo_t *track){
     i32 seekFlag = 0;
     i64 seektime;
-    i64 seekTarget;
-    AVRational timeBase;
+    i64 seekTarget = 0;
     i32 res = 0;
     _status_t ret = MAG_NO_ERROR;
+    i64 seek_min;
+    i64 seek_max;
 
     AGILE_LOGV("Enter!");
 
-    if (msec < 0){
+    /*if (msec < 0){
         AGILE_LOGE("invalid seek time: %d", msec);
         return MAG_BAD_VALUE;
-    }
+    }*/
 
     Mag_AcquireMutex(mSeekMutex);
     seektime = static_cast<i64>(msec);
 
-    if (seektime > track->duration){
+    /*if (seektime > track->duration){
         AGILE_LOGE("seek time %lld ms > the stream duration %lld ms!", seektime, track->duration);
         seektime = track->duration;
-    }
-
-    if (static_cast<fp64>(seektime) / static_cast<fp64>(track->duration) > 0.98){
-        AGILE_LOGD("seek target: %lld ms VS. duration: %lld ms, near to the end and seek backward!!", 
-                    seektime, track->duration);
-        seekFlag |= AVSEEK_FLAG_BACKWARD;
-    }
+    }else{
+        if (static_cast<fp64>(seektime) / static_cast<fp64>(track->duration) > 0.98){
+            AGILE_LOGD("seek target: %lld ms VS. duration: %lld ms, near to the end and seek backward!!", 
+                        seektime, track->duration);
+            seekFlag |= AVSEEK_FLAG_BACKWARD;
+        }
+    }*/
 
     // else if (seektime < track->start_time){
     //     AGILE_LOGE("seek time %d ms < the stream start time %d ms!", seektime, track->start_time);
     //     seektime = track->start_time;
     // }
 
-    timeBase.num = track->time_base_num;
-    timeBase.den = track->time_base_den;
+    /*A time t in units of a/b(AV_TIME_BASE_Q[us]) can be converted to units c/d(timeBase)*/
+    /*seekTarget = av_rescale_q(seekTimeInStBase + track->start_time, timeBase, AV_TIME_BASE_Q);*/
+    seekTarget = mediaTime + seektime * 1000;
 
-    seekTarget = av_rescale_q((seektime * 1000), AV_TIME_BASE_Q, timeBase);
+    seek_min    = seektime > 0 ? seekTarget - seektime + 2 : std::numeric_limits<int64_t>::min();
+    seek_max    = seektime < 0 ? seekTarget - seektime - 2: std::numeric_limits<int64_t>::max();
 
-    AGILE_LOGV("before av_seek_frame()");
-    res = av_seek_frame(mpAVFormat, track->streamID, seekTarget, seekFlag);
+    AGILE_LOGV("before avformat_seek_file(-1)[seekTarget: %lld, seek_min: %lld, seek_max: %lld][mediaTime: %lld]", 
+                seekTarget, seek_min, seek_max, mediaTime);
+    /*res = av_seek_frame(mpAVFormat, track->streamID, seekTarget, seekFlag);*/
+    res = avformat_seek_file(mpAVFormat, -1, seek_min, seekTarget, seek_max, seekFlag);
     if (res < 0) {
-        AGILE_LOGE("seek %s to %lld ms[ffmpeg seek target %lld (timebase: %d-%d)] failed, err code = %d", 
+        AGILE_LOGE("seek %s to %lld ms[ffmpeg seek target %lld] failed, err code = %d", 
                     seekFlag ? "backward" : "forward",
-                    seektime, seekTarget, 
-                    timeBase.num,
-                    timeBase.den,
+                    seektime, seekTarget,
                     res);
 
         ret = MAG_UNKNOWN_ERROR;
     }else{
-        AGILE_LOGD("seek %s to %lld ms[ffmpeg seek target %lld (timebase: %d-%d)] -- OK!", 
+        AGILE_LOGD("seek %s to %lld ms[ffmpeg seek target %lld] -- OK!", 
                     seekFlag ? "backward" : "forward",
-                    seektime, seekTarget,
-                    timeBase.num,
-                    timeBase.den);
+                    seektime, seekTarget);
     }
     Mag_ReleaseMutex(mSeekMutex);
 

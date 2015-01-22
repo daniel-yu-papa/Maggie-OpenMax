@@ -56,6 +56,9 @@ void MagMediaPlayerImpl::eventNotify(void* cookie, int msg, int ext1, int ext2){
     }else if(msg == MEDIA_PREPARED){
         AGILE_LOGI("send out prepare_complete event!");
         pObject->mAppEventCallback(MMP_PLAYER_EVT_PREPARE_COMPLETE, pObject->mAppHandler, 0, 0);
+    }else if(msg == MEDIA_FLUSH_COMPLETE){
+        AGILE_LOGI("send out flush_done event!");
+        pObject->mAppEventCallback(MMP_PLAYER_EVT_FLUSH_DONE, pObject->mAppHandler, 0, 0);
     }
 }
 

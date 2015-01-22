@@ -14,34 +14,6 @@ MagPipelineManager::MagPipelineManager(MagClock *mpClockComp):
 }
 
 MagPipelineManager::~MagPipelineManager(){
-    List_t *next;
-    MAG_PIPELINE_ENTRY_t *item = NULL;
-    MagVideoPipeline *video;
-    MagAudioPipeline *audio;
-    _status_t ret;
-
-    delete mpClockComp;
-
-    next = mVideoPipelineHead.next;
-    while (next != &mVideoPipelineHead){
-        item = (MAG_PIPELINE_ENTRY_t *)list_entry(next, MAG_PIPELINE_ENTRY_t, node);
-        list_del(next);
-        video = (MagVideoPipeline *)item->pPipeline;
-        delete video;
-
-        next = mVideoPipelineHead.next;
-    }
-
-    next = mAudioPipelineHead.next;
-    while (next != &mAudioPipelineHead){
-        item = (MAG_PIPELINE_ENTRY_t *)list_entry(next, MAG_PIPELINE_ENTRY_t, node);
-        list_del(next);
-        audio = (MagAudioPipeline *)item->pPipeline;
-        delete audio;
-
-        next = mAudioPipelineHead.next;
-    }
-
     OMX_Deinit();
 }
 
@@ -361,8 +333,8 @@ _status_t MagPipelineManager::reset(){
         	AGILE_LOGE("failed to reset the video pipeline[%p]", video);
         	return ret;
         }
-        mpClockComp->disconnectVideoPipeline(video);
-        next = next->next;
+        removeVideoPipeline(video);
+        next = mVideoPipelineHead.next;
     }
 
     next = mAudioPipelineHead.next;
@@ -374,8 +346,8 @@ _status_t MagPipelineManager::reset(){
         	AGILE_LOGE("failed to reset the audio pipeline[%p]", audio);
         	return ret;
         }
-        mpClockComp->disconnectAudioPipeline(audio);
-        next = next->next;
+        removeAudioPipeline(audio);
+        next = mAudioPipelineHead.next;
     }
 
     return MAG_NO_ERROR;
@@ -419,4 +391,12 @@ _status_t MagPipelineManager::putUsedFrame(MAG_PIPELINE_TYPE_t type, void *pPipe
     }
 
     return MAG_NO_ERROR;
+}
+
+i64 MagPipelineManager::getMediaTime(){
+    return mpClockComp->getMediaTime();
+}
+
+i64 MagPipelineManager::getPlayingPosition(){
+    return mpClockComp->getPlayingTime();
 }

@@ -24,14 +24,18 @@ static OMX_ERRORTYPE virtual_MagOmxComponentAudio_GetParameter(
     root = ooc_cast(hComponent, MagOmxComponent);
     base = ooc_cast(hComponent, MagOmxComponentImpl);
     thiz = ooc_cast(hComponent, MagOmxComponentAudio);
-        
+    
+    Mag_AcquireMutex(thiz->mhMutex);
+
     if (MagOmxComponentAudioVirtual(thiz)->MagOmx_Audio_GetParameter){
         ret = MagOmxComponentAudioVirtual(thiz)->MagOmx_Audio_GetParameter(hComponent, nParamIndex, pComponentParameterStructure);
     }else{
         COMP_LOGE(root, "The pure virtual function MagOmx_Audio_GetParameter() is not overrided!");
         ret = OMX_ErrorUnsupportedIndex;
     }
-        
+    
+    Mag_ReleaseMutex(thiz->mhMutex);
+     
     return ret;
 }
                 
@@ -78,7 +82,7 @@ static OMX_ERRORTYPE virtual_MagOmxComponentAudio_SetParameter(
                 ret = OMX_ErrorUnsupportedIndex;
             }
         }
-            return ret;
+            break;
     }
 
     Mag_ReleaseMutex(thiz->mhMutex);

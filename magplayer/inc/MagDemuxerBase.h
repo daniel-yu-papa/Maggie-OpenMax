@@ -52,7 +52,7 @@ public:
     virtual _status_t   resume()  = 0;
     virtual _status_t   flush()  = 0;
     virtual void        readyToFlush() = 0;
-    virtual _status_t   seekTo(i32 msec) = 0;
+    virtual _status_t   seekTo(i32 msec, i64 mediaTime) = 0;
     virtual _status_t   dettachBufferObserver(MagBufferObserver *pObserver) = 0;
 
     virtual TrackInfoTable_t *getTrackInfoList() = 0;

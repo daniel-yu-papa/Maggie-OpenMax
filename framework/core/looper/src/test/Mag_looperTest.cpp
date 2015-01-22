@@ -13,7 +13,8 @@
 #define MSG_2_DELAY 1100
 #define MSG_3_DELAY 6200
 #define MSG_4_DELAY 11300
-#define MSG_5_DELAY 16400
+/*#define MSG_5_DELAY 16400*/
+#define MSG_5_DELAY 9912115
 
 class Comp_A{
 public:
@@ -454,6 +455,7 @@ int main(){
     MagMessageHandle reply;
     
     MagTimerHandle   hTimer;
+    AGILE_LOG_CREATE();
 
     AGILE_LOGE("enter test_looper app");
     
@@ -485,7 +487,7 @@ int main(){
     usleep(100);
     char buf[64];
     
-    for (i = 0; i < 1000; i++){
+    for (i = 0; i < 1; i++){
         sprintf(buf, "num%d", i);
         msg1->setString(msg1, "num", buf);
         msg1->setInt64(msg1, "tpost", hTimer->get(hTimer));
@@ -529,6 +531,7 @@ int main(){
     // delete obj;
     // delete replyObj;
     AGILE_LOGD("exit!");
+    AGILE_LOG_DESTROY();
     return 0;
 }
 

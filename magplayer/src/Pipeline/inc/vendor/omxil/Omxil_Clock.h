@@ -22,7 +22,8 @@ public:
     virtual _status_t flush();
     virtual _status_t reset();
     virtual i64       getPlayingTime();
-
+    virtual i64       getMediaTime();
+    
 private:
 	OMX_HANDLETYPE   mhClock;
 
@@ -30,6 +31,8 @@ private:
 
     OMX_U32          mPortIdxToARen;
     OMX_U32          mPortIdxToVSch;
+
+    OMX_TICKS        mStartTime;
 
     MagEventHandle         mClkStIdleEvent;
     MagEventGroupHandle    mStIdleEventGroup;

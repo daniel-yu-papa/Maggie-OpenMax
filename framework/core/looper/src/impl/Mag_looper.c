@@ -229,8 +229,9 @@ retry:
         if (!looper->mForceOut){
             if (looper->mDelayEvtWhenUS != MAG_MAX_INTEGER){
                 nowUS = getNowUS(looper);
-                /*AGILE_LOGV("min value: %lld", looper->mDelayEvtWhenUS);*/
                 tdiff = (i32)(looper->mDelayEvtWhenUS - nowUS);
+                /*AGILE_LOGD("[%s]: min value: %lld, tdiff: %d", 
+                            looper->mpName, looper->mDelayEvtWhenUS, tdiff);*/
             }else{
                 AGILE_LOGD("[%s] get the message with delay of MAG_MAX_INTEGER", looper->mpName);
                 tdiff = 0;

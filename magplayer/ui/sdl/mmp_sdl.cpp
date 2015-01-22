@@ -15,7 +15,7 @@ extern "C" {
 #include "MagInvokeDef.h"
 #include "OMX_Core.h"
 
-#define SEEK_ONCE_TIME (20 * 1000) /*in ms*/
+#define SEEK_ONCE_TIME (10 * 1000) /*in ms*/
 
 //Screen dimension constants
 const int DEFAULT_SCREEN_WIDTH  = 544;
@@ -25,6 +25,16 @@ static VideoMetaData_t *gpVideoMetaData = NULL;
 static AudioMetaData_t *gpAudioMetaData = NULL;
 
 static bool gStopped = true;
+
+MagEventHandle         gPrepareCompleteEvent;
+MagEventGroupHandle    gPrepareEventGroup;
+
+MagEventHandle         gFlushDoneEvent;
+MagEventGroupHandle    gFlushEventGroup;
+
+MagEventHandle         gSeekCompleteEvent;
+MagEventGroupHandle    gSeekEventGroup;
+
 /*static void *monitorThreadProc(void *arg){
     BufferStatistic_t bufStat;
 
@@ -59,7 +69,11 @@ static void eventCallback(mmp_event_t evt, void *handler, unsigned int param1, u
             break;
 
         case MMP_PLAYER_EVT_SEEK_COMPLETE:
+            Mag_SetEvent(gSeekCompleteEvent);
+            break;
 
+        case MMP_PLAYER_EVT_FLUSH_DONE:
+            Mag_SetEvent(gFlushDoneEvent);
             break;
 
         case MMP_PLAYER_EVT_PREPARE_COMPLETE:
@@ -91,6 +105,8 @@ static void eventCallback(mmp_event_t evt, void *handler, unsigned int param1, u
                         gpAudioMetaData->hz,
                         gpAudioMetaData->bps,
                         gpAudioMetaData->codec);
+
+            Mag_SetEvent(gPrepareCompleteEvent);
         }
 
             break;
@@ -172,6 +188,21 @@ int main(int argc, char *argv[]){
     if (is_full_screen) flags |= SDL_FULLSCREEN;
     else                flags |= SDL_RESIZABLE;
 
+    Mag_CreateEventGroup(&gPrepareEventGroup);
+    if (MAG_ErrNone == Mag_CreateEvent(&gPrepareCompleteEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(gPrepareEventGroup, gPrepareCompleteEvent);
+    }
+    
+    Mag_CreateEventGroup(&gFlushEventGroup);
+    if (MAG_ErrNone == Mag_CreateEvent(&gFlushDoneEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(gFlushEventGroup, gFlushDoneEvent);
+    }
+
+    Mag_CreateEventGroup(&gSeekEventGroup);
+    if (MAG_ErrNone == Mag_CreateEvent(&gSeekCompleteEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(gSeekEventGroup, gSeekCompleteEvent);
+    }
+
     printf("mmp_sdl plays url: %s, seek time: %d, full screen: %s\n\n\n", url, once_seek_time, is_full_screen ? "Y" : "N");
     
     player = GetMediaPlayer();
@@ -186,12 +217,6 @@ int main(int argc, char *argv[]){
     if (ret != MMP_OK){
     	AGILE_LOGE("failed to do setDataSource(%s)\n", url);
     	return -1;
-    }else{
-    	ret = player->prepareAsync();
-    	if (ret != MMP_OK){
-    		AGILE_LOGE("failed to do prepareAsync()\n");
-    		return -1;
-    	}
     }
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
@@ -253,17 +278,21 @@ int main(int argc, char *argv[]){
                         break;
                     }else if (event.key.keysym.sym == SDLK_RIGHT){
                         printf("key down: right arrow\n");
+                        Mag_ClearEvent(gSeekCompleteEvent);
                         /*seek forward*/
-                        seekTime += once_seek_time;
+                        seekTime = once_seek_time;
                         player->seekTo(seekTime);
+
+                        Mag_WaitForEventGroup(gSeekEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
                         break;
                     }else if (event.key.keysym.sym == SDLK_LEFT){
                         printf("key down: left arrow\n");
+                        Mag_ClearEvent(gSeekCompleteEvent);
                         /*seek backward*/
-                        seekTime -= once_seek_time;
-                        if (seekTime < 0)
-                            seekTime = 0;
+                        seekTime =(0 - once_seek_time);
                         player->seekTo(seekTime);
+
+                        Mag_WaitForEventGroup(gSeekEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
                         break;
                     }else if (event.key.keysym.sym == SDLK_UP){
                         printf("key down: up arrow\n");
@@ -293,26 +322,38 @@ int main(int argc, char *argv[]){
                         printf("key down: p\n");
                         /*play*/
                         if (gStopped){
+                            ret = player->prepareAsync();
+                            if (ret != MMP_OK){
+                                AGILE_LOGE("failed to do prepareAsync()\n");
+                                return -1;
+                            }
                             player->start();
                             gStopped = !gStopped;
                         }
                         break;
                     }else if (event.key.keysym.sym == SDLK_f){
                         printf("key down: f\n");
+                        Mag_ClearEvent(gFlushDoneEvent);
                         /*flush*/
                         /*if the initial state is playing, do flush() and then resume(), the playing continues
                         * if the initial state is pause, do flush() and then resume(), keep pause state
                         */
                         player->flush();
+
+                        Mag_WaitForEventGroup(gFlushEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
                         break;
                     }else if (event.key.keysym.sym == SDLK_r){
                         printf("key down: r\n");
+
+                        Mag_ClearEvent(gPrepareCompleteEvent);
                         /*reset and play*/
                         player->reset();
 
                         player->setDataSource(url);
                         player->prepareAsync();
                         player->start();
+
+                        Mag_WaitForEventGroup(gPrepareEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
                         break;
                     }else if (event.key.keysym.sym != SDLK_ESCAPE) {
                         break;
@@ -323,16 +364,15 @@ int main(int argc, char *argv[]){
                     gStopped = !gStopped;
                     /*quit the playback*/
                     free(url);
-                    printf("kill the window 1111\n");
+                    printf("before killing the player\n");
                     delete player;
-                    printf("kill the window 2222\n");
                     done = true;
-                    printf("kill the window 3333\n");
-                    break;
+                    printf("after killing the player\n");
+                    goto error;
             }
         }
 
-        if (!gStopped){
+        if (!gStopped && !paused){
             if (player->invoke(INVOKE_ID_GET_DECODED_VIDEO_FRAME, NULL, &pVideoFrame) == MAG_NO_ERROR){
                 OMX_BUFFERHEADERTYPE *buf;
                 AVFrame *frame;
@@ -377,8 +417,16 @@ int main(int argc, char *argv[]){
     }
 
 error:
-    TTF_CloseFont( pFont );
+    Mag_DestroyEvent(&gPrepareCompleteEvent);
+    Mag_DestroyEventGroup(&gPrepareEventGroup);
 
+    Mag_DestroyEvent(&gFlushDoneEvent);
+    Mag_DestroyEventGroup(&gFlushEventGroup);
+
+    Mag_DestroyEvent(&gSeekCompleteEvent);
+    Mag_DestroyEventGroup(&gSeekEventGroup);
+
+    TTF_CloseFont( pFont );
     //Quit SDL subsystems
     TTF_Quit();
     SDL_Quit();

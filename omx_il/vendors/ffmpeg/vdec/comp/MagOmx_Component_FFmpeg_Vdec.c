@@ -191,9 +191,11 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_Stop(
 
     AGILE_LOGV("enter!");
     vdecComp = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vdec);
-    
+
     Mag_AcquireMutex(vdecComp->mhFFMpegMutex);
     avcodec_close(vdecComp->mpVideoStream->codec);
+    vdecComp->mpVideoCodec  = NULL;
+    vdecComp->mpVideoStream = NULL;
     Mag_ReleaseMutex(vdecComp->mhFFMpegMutex);
     
 	return OMX_ErrorNone;
@@ -441,7 +443,8 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_Flush(
     Mag_AcquireMutex(thiz->mhFFMpegMutex);
     avcodec_flush_buffers(thiz->mpVideoStream->codec);
     Mag_ReleaseMutex(thiz->mhFFMpegMutex);
-
+    thiz->mPrePTS = 0;
+    
     return OMX_ErrorNone;
 }
 
@@ -518,7 +521,7 @@ static OMX_ERRORTYPE MagOmxComponent_FFmpeg_Vdec_DeInit(OMX_IN OMX_HANDLETYPE hC
 	OMX_COMPONENTTYPE *compType = (OMX_COMPONENTTYPE *)hComponent;
 	MagOmxComponent_FFmpeg_Vdec hVdecComp;
 
-	AGILE_LOGV("MagOmxComponent_FFmpeg_Vdec_DeInit enter!");
+	AGILE_LOGD("enter!");
 	hVdecComp = (MagOmxComponent_FFmpeg_Vdec)compType->pComponentPrivate;
 #ifdef CAPTURE_ES_DATA
     fclose(hVdecComp->mfEsData);
@@ -528,6 +531,7 @@ static OMX_ERRORTYPE MagOmxComponent_FFmpeg_Vdec_DeInit(OMX_IN OMX_HANDLETYPE hC
     fclose(hVdecComp->mfDecodedYUV);
 #endif
 	ooc_delete((Object)hVdecComp);
+    AGILE_LOGD("exit!");
 
 	return OMX_ErrorNone;
 }

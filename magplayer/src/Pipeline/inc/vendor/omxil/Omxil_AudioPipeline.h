@@ -69,7 +69,7 @@ private:
     
     OMX_U32 mADecTunnelPortIdx;
     OMX_U32 mARenTunnelPortIdx;
-    
+
 #ifdef AMP_AUDIO_STREAM_DUMP
     FILE *mDumpAudioFile;
 #endif

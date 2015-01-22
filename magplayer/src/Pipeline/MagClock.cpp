@@ -82,6 +82,11 @@ i64       MagClock::getPlayingTime(){
 	return clk->getPlayingTime();
 }
 
+i64       MagClock::getMediaTime(){
+	MagClockImplBase *clk = getClockImpl();
+	return clk->getMediaTime();
+}
+
 MagClockImplBase *MagClock::getClockImpl(){
 	if (mClock)
 		return mClock;

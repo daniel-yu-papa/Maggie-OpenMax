@@ -13,6 +13,7 @@ typedef struct {
     OMX_HANDLETYPE    compHandle;
     MagOMX_Component_Registration_t *regInfo;
     comp_dereg_func_t deregFunc;
+    OMX_BOOL          initialized;
 }Component_Entry_t;
 
 typedef struct{

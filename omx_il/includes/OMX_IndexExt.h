@@ -48,7 +48,8 @@ typedef enum OMX_INDEXTYPE_EXT {
 	* GetConfig: add the port
 	*/
 	OMX_IndexConfigExtAddPort, 	    /**< reference: OMX_CONFIG_UI32TYPE */
-	OMX_IndexConfigExtFFMpegData 	/**< reference: OMX_CONFIG_FFMPEG_DATA_TYPE */
+	OMX_IndexConfigExtFFMpegData, 	/**< reference: OMX_CONFIG_FFMPEG_DATA_TYPE */
+    OMX_IndexConfigExtStartTime     /**< reference: OMX_CONFIG_START_TIME_TYPE */
 } OMX_INDEXTYPE_EXT;
 
 #ifdef __cplusplus

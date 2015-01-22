@@ -31,7 +31,6 @@ typedef enum{
 
 typedef enum{
   kPort_State_Stopped,
-  kPort_State_Paused,
   kPort_State_Running,
   kPort_State_Flushing,
   kPort_State_Flushed

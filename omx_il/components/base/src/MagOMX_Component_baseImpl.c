@@ -137,14 +137,15 @@ static void onBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
     MagOmxComponentImpl base;
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     OMX_U32 cmd;
-    MagOmxPort port;
     OMX_BUFFERHEADERTYPE *srcBufHeader = NULL;
     OMX_BUFFERHEADERTYPE *destBufHeader = NULL;
     MagMessageHandle returnBufMsg = NULL;
-    OMX_BOOL isFlushing = OMX_FALSE;
+    /*OMX_BOOL isFlushing = OMX_FALSE;*/
 
     OMX_HANDLETYPE hDestPort = NULL;
+    MagOmxPort destPort;
     OMX_HANDLETYPE hSrcPort  = NULL;
+    MagOmxPort srcPort;
     MagMessageHandle outputBufMsg = NULL;
     
     base = getBase(priv);
@@ -177,18 +178,23 @@ static void onBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
 
         COMP_LOGV(root, "proceed buffer header: %p, buffer: %p", srcBufHeader, srcBufHeader->pBuffer);
 
-        if (base->mFlushingPorts != kInvalidPortIndex){
+        /*if (base->mFlushingPorts != kInvalidPortIndex){
             if (base->mFlushingPorts == OMX_ALL){
                 isFlushing = OMX_TRUE;
             }else if ((base->mFlushingPorts == srcBufHeader->nOutputPortIndex) ||
                       (base->mFlushingPorts == srcBufHeader->nInputPortIndex)){
                 isFlushing = OMX_TRUE;
             }
-        }
+        }*/
+
+        srcPort  = ooc_cast(hSrcPort, MagOmxPort);
+        destPort = ooc_cast(hDestPort, MagOmxPort);
 
         if ( base->mTransitionState == OMX_TransitionStateToIdle ||
              base->mState == OMX_StateIdle ||
-             isFlushing ){
+             (destPort != NULL && (destPort->getState(destPort) == kPort_State_Flushing || destPort->getState(destPort) == kPort_State_Stopped)) ||
+             (srcPort  != NULL && (srcPort->getState(srcPort)   == kPort_State_Flushing || srcPort->getState(srcPort)   == kPort_State_Stopped)) 
+           ){
             COMP_LOGD(root, "directly return the buffer!");
             /*return back the buffer immediately*/
             if (msg->findMessage(msg, "return_buf_msg", &returnBufMsg)){
@@ -199,6 +205,11 @@ static void onBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
                 COMP_LOGE(root, "failed to find the return_buf_msg!");
             }
             return;
+        }
+
+        /*check if the dest port is in flushed state. if it is, turn it into running state*/
+        if (destPort != NULL && destPort->getState(destPort) == kPort_State_Flushed){
+            destPort->setState(destPort, kPort_State_Running);
         }
 
         if (MagOmxComponentImplVirtual(base)->MagOMX_ProceedBuffer){
@@ -932,9 +943,9 @@ static OMX_ERRORTYPE MagOMX_SetParameter_internal(
             }else{
                 /*pass the parameter/config to the sub-component for processing no matter what state the component is in. 
                  The sub-component decides how to handle them*/
-                if (MagOmxComponentImplVirtual(base)->MagOMX_SetParameter)   
+                if (MagOmxComponentImplVirtual(base)->MagOMX_SetParameter){
                     return MagOmxComponentImplVirtual(base)->MagOMX_SetParameter(hComponent, nIndex, pComponentParameterStructure);
-                else{
+                }else{
                     COMP_LOGE(root, "pure virtual func: MagOMX_SetParameter() is not overrided!!");
                     return OMX_ErrorNotImplemented;
                 } 
@@ -2021,7 +2032,7 @@ static OMX_ERRORTYPE MagOmxComponentImpl_flushPort(OMX_HANDLETYPE hComponent, OM
 
     if (NULL != hComponent){
         comp = getBase(hComponent);
-        comp->mFlushingPorts = port_index;
+        /*comp->mFlushingPorts = port_index;*/
 
         if (port_index == OMX_ALL){
             for (n = rbtree_first(comp->mPortTreeRoot); n; n = rbtree_next(n)) {
@@ -2055,7 +2066,7 @@ static OMX_ERRORTYPE MagOmxComponentImpl_flushPort(OMX_HANDLETYPE hComponent, OM
         ret = OMX_ErrorBadParameter;
     }
 
-    comp->mFlushingPorts = kInvalidPortIndex;
+    /*comp->mFlushingPorts = kInvalidPortIndex;*/
     comp->sendEvents(hComponent, OMX_EventCmdComplete, OMX_CommandFlush, port_index, &ret);
     return ret;;
 }
@@ -2779,7 +2790,7 @@ static void MagOmxComponentImpl_constructor(MagOmxComponentImpl thiz, const void
     thiz->mStartPortNumber         = *((OMX_U32 *)params + 0);
     thiz->mPorts                   = *((OMX_U32 *)params + 1);
 
-    thiz->mFlushingPorts           = kInvalidPortIndex;
+    /*thiz->mFlushingPorts           = kInvalidPortIndex;*/
 
     INIT_LIST(&thiz->mAVSyncBusyBufLH);
     INIT_LIST(&thiz->mAVSyncFreeBufLH);

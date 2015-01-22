@@ -486,9 +486,10 @@ static OMX_ERRORTYPE MagOmxComponent_FFmpeg_Adec_DeInit(OMX_IN OMX_HANDLETYPE hC
 	OMX_COMPONENTTYPE *compType = (OMX_COMPONENTTYPE *)hComponent;
 	MagOmxComponent_FFmpeg_Adec hAdecComp;
 
-	AGILE_LOGV("MagOmxComponent_FFmpeg_Adec_DeInit enter!");
+	AGILE_LOGD("enter!");
 	hAdecComp = (MagOmxComponent_FFmpeg_Adec)compType->pComponentPrivate;
 	ooc_delete((Object)hAdecComp);
+    AGILE_LOGD("exit!");
 
 	return OMX_ErrorNone;
 }

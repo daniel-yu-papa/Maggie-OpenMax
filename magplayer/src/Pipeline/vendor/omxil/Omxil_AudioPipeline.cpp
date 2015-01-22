@@ -295,6 +295,8 @@ _status_t OmxilAudioPipeline::init(i32 trackID, TrackInfo_t *sInfo){
 
     OMX_U32 aDecNoneTunnelPortIdx;
 
+    bool bGetAdecHandler = false;
+
     AGILE_LOGD("Enter!");
     MagAudioPipelineImpl::init(trackID, sInfo);
 
@@ -312,6 +314,7 @@ _status_t OmxilAudioPipeline::init(i32 trackID, TrackInfo_t *sInfo){
         if (err == OMX_ErrorNone){
             AGILE_LOGV("get the component name[%s] that has the role[%s]",
                         compName, role);
+
             err = OMX_GetHandle(&mhAudioDecoder, compName, static_cast<OMX_PTR>(this), &mAudioDecCallbacks);
             if(err != OMX_ErrorNone) {
                 AGILE_LOGE("OMX_GetHandle(%s) gets failure", compName);
@@ -521,7 +524,7 @@ _status_t OmxilAudioPipeline::flush(){
 
 _status_t OmxilAudioPipeline::reset(){
     OMX_ERRORTYPE err;
-    
+
     MagAudioPipelineImpl::reset();
 
     if ( mState == ST_PLAY || mState == ST_PAUSE ){
@@ -553,6 +556,11 @@ _status_t OmxilAudioPipeline::reset(){
                     mADecTunnelPortIdx, mARenTunnelPortIdx);
     }
 
+    if (mpBufferMgr){
+        delete mpBufferMgr;
+        mpBufferMgr = NULL;
+    }
+    
     return MAG_NO_ERROR;
 }
 

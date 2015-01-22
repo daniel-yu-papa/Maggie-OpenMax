@@ -25,7 +25,7 @@ public:
     virtual _status_t   resume();
     virtual _status_t   flush();
     virtual void        readyToFlush();
-    virtual _status_t   seekTo(i32 msec);
+    virtual _status_t   seekTo(i32 msec, i64 mediaTime);
     virtual _status_t   dettachBufferObserver(MagBufferObserver *pObserver);
     virtual TrackInfoTable_t *getTrackInfoList();
     virtual void getAVBufferStatus(ui32 *videoBuf, ui32 *audioBuf, ui32 *loadingSpeed);
@@ -35,7 +35,7 @@ public:
 
     virtual _status_t   stopImpl() = 0;
     virtual _status_t   flushImpl() = 0;
-    virtual _status_t   seekToImpl(i32 msec, TrackInfo_t *track) = 0;
+    virtual _status_t   seekToImpl(i32 msec, i64 mediaTime, TrackInfo_t *track) = 0;
     virtual _status_t   readFrameImpl(Stream_Track *track, ui32 StreamID) = 0;
     
 protected:

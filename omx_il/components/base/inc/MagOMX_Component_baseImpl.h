@@ -277,7 +277,7 @@ ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
     OMX_PTR          mpAppData;
 
     MagMessageHandle *mPortDataMsgList;
-    OMX_U32          mFlushingPorts;
+    /*OMX_U32          mFlushingPorts;*/
 
     List_t           mAVSyncBusyBufLH;
     List_t           mAVSyncFreeBufLH;

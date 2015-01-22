@@ -9,7 +9,8 @@
 #define MODULE_TAG "Magply_Pipeline_OMX"
 
 OmxilClock::OmxilClock():
-				mhClock(NULL){
+				mhClock(NULL),
+                mStartTime(kInvalidTimeStamp){
 	Mag_CreateEventGroup(&mStIdleEventGroup);
     if (MAG_ErrNone == Mag_CreateEvent(&mClkStIdleEvent, MAG_EVT_PRIO_DEFAULT)){
         Mag_AddEventGroup(mStIdleEventGroup, mClkStIdleEvent);
@@ -36,6 +37,18 @@ OmxilClock::OmxilClock():
 }
 
 OmxilClock::~OmxilClock(){
+    Mag_DestroyEvent(&mClkStIdleEvent);
+    Mag_DestroyEventGroup(&mStIdleEventGroup);
+
+    Mag_DestroyEvent(&mClkStLoadedEvent);
+    Mag_DestroyEventGroup(&mStLoadedEventGroup);
+
+    Mag_DestroyEvent(&mClkStExecutingEvent);
+    Mag_DestroyEventGroup(&mStExecutingEventGroup);
+
+    Mag_DestroyEvent(&mClkStPauseEvent);
+    Mag_DestroyEventGroup(&mStIdleEventGroup);
+
     if (mhClock)
 	   OMX_FreeHandle(mhClock);
     mhClock = NULL;
@@ -266,6 +279,7 @@ _status_t OmxilClock::init(){
 
 _status_t OmxilClock::setup(){
 	OMX_SendCommand(mhClock, OMX_CommandStateSet, OMX_StateIdle, NULL);
+
     return MAG_NO_ERROR;
 }
 
@@ -321,5 +335,28 @@ _status_t OmxilClock::reset(){
 }
 
 i64       OmxilClock::getPlayingTime(){
-    return 0;
+    OMX_CONFIG_START_TIME_TYPE startTime;
+    i64 pos;
+
+    if (mStartTime == kInvalidTimeStamp){
+        initHeader(&startTime, sizeof(OMX_CONFIG_START_TIME_TYPE));
+        OMX_GetConfig(mhClock, (OMX_INDEXTYPE)OMX_IndexConfigExtStartTime, &startTime);
+        mStartTime = startTime.start_time;
+    }
+
+    pos = getMediaTime() - mStartTime;
+
+    return pos;
+}
+
+i64       OmxilClock::getMediaTime(){
+    OMX_TIME_CONFIG_TIMESTAMPTYPE mediaTime;
+
+    initHeader(&mediaTime, sizeof(OMX_TIME_CONFIG_TIMESTAMPTYPE));
+    mediaTime.nPortIndex = mPortIdxToARen;
+    OMX_GetConfig(mhClock, OMX_IndexConfigTimeCurrentMediaTime, &mediaTime);
+
+    AGILE_LOGD("media time: %lld", mediaTime.nTimestamp);
+
+    return (i64)(mediaTime.nTimestamp);
 }

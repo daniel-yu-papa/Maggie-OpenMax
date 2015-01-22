@@ -339,11 +339,11 @@ static OMX_ERRORTYPE MagOmxComponent_FFmpeg_Vsch_Init(OMX_OUT OMX_HANDLETYPE *hC
 
     hVschComp = (MagOmxComponent_FFmpeg_Vsch) ooc_new( MagOmxComponent_FFmpeg_Vsch, (void *)param);
     MAG_ASSERT(hVschComp);
+    AGILE_LOGV("hVschComp=%p!", hVschComp);
 
     parent = ooc_cast(hVschComp, MagOmxComponentImpl);
-    AGILE_LOGV("before Create()!");
     *hComponent = MagOmxComponentImplVirtual(parent)->Create(hVschComp, pAppData, pCallBacks);
-    AGILE_LOGV("after Create(), *hComponent=%p!", *hComponent);
+    
     if (*hComponent){
     	return localSetupComponent(hVschComp);
     }else{
@@ -355,11 +355,12 @@ static OMX_ERRORTYPE MagOmxComponent_FFmpeg_Vsch_DeInit(OMX_IN OMX_HANDLETYPE hC
 	OMX_COMPONENTTYPE *compType = (OMX_COMPONENTTYPE *)hComponent;
 	MagOmxComponent_FFmpeg_Vsch hVschComp;
 
-	AGILE_LOGV("Enter!");
+	AGILE_LOGD("enter!");
 	hVschComp = (MagOmxComponent_FFmpeg_Vsch)compType->pComponentPrivate;
 
 	ooc_delete((Object)hVschComp);
-
+    AGILE_LOGD("exit!");
+    
 	return OMX_ErrorNone;
 }
 

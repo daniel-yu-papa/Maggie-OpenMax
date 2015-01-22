@@ -56,3 +56,7 @@ _status_t MagClockImpl::reset(){
 i64       MagClockImpl::getPlayingTime(){
 	return 0;
 }
+
+i64       MagClockImpl::getMediaTime(){
+	return 0;
+}

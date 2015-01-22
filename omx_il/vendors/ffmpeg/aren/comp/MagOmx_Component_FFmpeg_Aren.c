@@ -310,7 +310,7 @@ static OMX_ERRORTYPE MagOmxComponent_FFmpeg_Aren_DeInit(OMX_IN OMX_HANDLETYPE hC
 	OMX_COMPONENTTYPE *compType = (OMX_COMPONENTTYPE *)hComponent;
 	MagOmxComponent_FFmpeg_Aren hArenComp;
 
-	AGILE_LOGV("Enter!");
+	AGILE_LOGD("enter!");
 	hArenComp = (MagOmxComponent_FFmpeg_Aren)compType->pComponentPrivate;
 
 #ifdef CAPTURE_PCM_DATA_TO_FILE
@@ -318,6 +318,7 @@ static OMX_ERRORTYPE MagOmxComponent_FFmpeg_Aren_DeInit(OMX_IN OMX_HANDLETYPE hC
 #endif
 
 	ooc_delete((Object)hArenComp);
+    AGILE_LOGD("exit!");
 
 	return OMX_ErrorNone;
 }

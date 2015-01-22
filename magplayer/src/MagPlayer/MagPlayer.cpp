@@ -271,6 +271,7 @@ void MagPlayer::onPrepared(MagMessageHandle msg){
                     msg = mAudioPipeline->getMagPlayerNotifier();
                     msg->setInt32(msg, "track-idx", mTrackTable->videoTrackNum);
                 }
+
                 mAudioPipeline->init(mTrackTable->videoTrackNum, 
                                       mTrackTable->trackTableList[mTrackTable->videoTrackNum]);
             }
@@ -655,6 +656,10 @@ void MagPlayer::onFlush(MagMessageHandle msg){
             AGILE_LOGV("see if the seeking is complete or not?");
             Mag_WaitForEventGroup(mSeekEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
             AGILE_LOGV("seeking completes");
+
+            /*send out the seek complete event to APP*/
+            if (mNotifySeekCompleteFn != NULL && mSeekCompletePriv != NULL)
+                mNotifySeekCompleteFn(mSeekCompletePriv);
         }else{
             Mag_SetEvent(mCompleteFlushEvt);
         }
@@ -719,7 +724,7 @@ void MagPlayer::onSeek(MagMessageHandle msg){
 
         if (mDemuxer){
             AGILE_LOGV("Before mDemuxer->seekTo(%d)", seekTarget);
-            if (mDemuxer->seekTo(seekTarget) == MAG_NO_ERROR){
+            if (mDemuxer->seekTo(seekTarget, mAVPipelineMgr->getMediaTime()) == MAG_NO_ERROR){
                 AGILE_LOGI("seek to %d ms -- OK!", seekTarget);
             }else{
                 AGILE_LOGE("Failed to do seekTo %d, ret = 0x%x. playtime(%d) back to %d",
@@ -1527,7 +1532,7 @@ void MagPlayer::initialize(){
     Mag_CreateEventScheduler(&mEventScheduler, MAG_EVT_SCHED_NORMAL);
     
     Mag_RegisterEventCallback(mEventScheduler, mCompletePrepareEvt, onCompletePrepareEvtCB, (void *)this);
-    Mag_RegisterEventCallback(mEventScheduler, mCompleteSeekEvt, onCompleteSeekEvtCB, (void *)this);
+    /*Mag_RegisterEventCallback(mEventScheduler, mCompleteSeekEvt, onCompleteSeekEvtCB, (void *)this);*/
     Mag_RegisterEventCallback(mEventScheduler, mCompleteFlushEvt, onCompleteFlushEvtCB, (void *)this);
     Mag_RegisterEventCallback(mEventScheduler, mErrorEvt, onErrorEvtCB, (void *)this);
 
@@ -1584,6 +1589,21 @@ MagMessageHandle MagPlayer::createSeekMessage(ui32 what) {
 
 void MagPlayer::cleanup(){
     AGILE_LOGV("enter!");
+
+    if (mClock){
+        delete mClock;
+        mClock = NULL;
+    }
+
+    if (mVideoPipeline){
+        delete mVideoPipeline;
+        mVideoPipeline = NULL;
+    }
+
+    if (mAudioPipeline){
+        delete mAudioPipeline;
+        mAudioPipeline = NULL;
+    }
 
     if (mAVPipelineMgr){
         delete mAVPipelineMgr;

@@ -47,7 +47,7 @@ typedef struct{
     i32 time_base_num;
     i32 time_base_den;
     i64 duration;                 /*stream duration in ms*/
-    i64 start_time;               /*stream start time in ms*/
+    i64 start_time;               /*stream start time in us*/
 
     void *avformat;               /*from ffmpeg lib*/
     void *avstream;               /*from ffmpeg lib*/

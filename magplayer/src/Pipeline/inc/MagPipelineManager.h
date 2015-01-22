@@ -44,6 +44,8 @@ public:
     _status_t reset();
 
     _status_t setVolume(fp32 leftVolume, fp32 rightVolume);
+    i64       getMediaTime();
+    i64       getPlayingPosition();
 
 private:
 	List_t mVideoPipelineHead;

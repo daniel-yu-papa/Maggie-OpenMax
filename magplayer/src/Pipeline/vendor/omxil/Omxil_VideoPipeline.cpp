@@ -97,14 +97,16 @@ OmxilVideoPipeline::OmxilVideoPipeline():
 }
 
 OmxilVideoPipeline::~OmxilVideoPipeline(){
+    AGILE_LOGD("enter!");
+
     OMX_FreeHandle(mhVideoRender);
     mhVideoRender = NULL;
 
-    OMX_FreeHandle(mhVideoScheduler);
-    mhVideoScheduler = NULL;
-
     OMX_FreeHandle(mhVideoDecoder);
     mhVideoDecoder = NULL;
+
+    OMX_FreeHandle(mhVideoScheduler);
+    mhVideoScheduler = NULL;
 
     Mag_DestroyEvent(&mVDecStIdleEvent);
     Mag_DestroyEvent(&mVSchStIdleEvent);
@@ -417,6 +419,7 @@ _status_t OmxilVideoPipeline::init(i32 trackID, TrackInfo_t *sInfo){
         if (err == OMX_ErrorNone){
             AGILE_LOGV("get the component name[%s] that has the role[%s]",
                         compName, role);
+
             err = OMX_GetHandle(&mhVideoDecoder, compName, static_cast<OMX_PTR>(this), &mVideoDecCallbacks);
             if(err != OMX_ErrorNone) {
                 AGILE_LOGE("OMX_GetHandle(%s) gets failure", compName);
@@ -760,6 +763,21 @@ _status_t OmxilVideoPipeline::reset(){
     }else{
         AGILE_LOGI("To tear down the tunnel between vSch[port: %d] and vRen[port: %d] - OK!",
                     mVSchTunnelOutPortIdx, mVRenTunnelInPortIdx);
+    }
+
+    if (mpBufferMgr){
+        delete mpBufferMgr;
+        mpBufferMgr = NULL;
+    }
+
+    if (mpDecodedBufferMgr){
+        delete mpDecodedBufferMgr;
+        mpDecodedBufferMgr = NULL;
+    }
+
+    if (mpFeedVrenBufMgr){
+        delete mpFeedVrenBufMgr;
+        mpFeedVrenBufMgr = NULL;
     }
 
     mFeedVrenPending = 0; 

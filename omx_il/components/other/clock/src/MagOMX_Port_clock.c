@@ -1,6 +1,7 @@
 #include "MagOMX_Port_clock.h"
 #include "MagOMX_Component_base.h"
 #include "MagOMX_Component_baseImpl.h"
+#include "MagOMX_Component_clock.h"
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
@@ -105,11 +106,14 @@ static OMX_ERRORTYPE virtual_MagOmxPortClock_GetParameter(OMX_HANDLETYPE hPort, 
 	MagOmxPortImpl portImpl;
 	MagOmxComponent compRoot;
 	MagOmxComponentImpl hComp;
+	MagOmxComponentClock hCompClk;
 	OMX_ERRORTYPE ret = OMX_ErrorNone;
 
 	root = ooc_cast(hPort, MagOmxPort);
 	portImpl = ooc_cast(hPort, MagOmxPortImpl);
-	hComp = (MagOmxComponentImpl)(root->getAttachedComponent(root));
+
+	hComp    = ooc_cast(root->getAttachedComponent(root), MagOmxComponentImpl);
+	hCompClk = ooc_cast(root->getAttachedComponent(root), MagOmxComponentClock);
 	switch (nIndex){
 		case OMX_IndexConfigTimeRenderingDelay:
 		{	
@@ -128,6 +132,14 @@ static OMX_ERRORTYPE virtual_MagOmxPortClock_GetParameter(OMX_HANDLETYPE hPort, 
 			}
 		}
 			break;
+
+		case OMX_IndexConfigTimeCurrentMediaTime:
+        {
+            /*it is port configuration but the port id is OMX_ALL, so directly goes to component parameter setting*/
+            OMX_TIME_CONFIG_TIMESTAMPTYPE *output = (OMX_TIME_CONFIG_TIMESTAMPTYPE *)pPortParam;
+            output->nTimestamp = hCompClk->getMediaTimeNow(hCompClk);
+        }
+            break;
 
 		default:
 			return OMX_ErrorUnsupportedIndex;

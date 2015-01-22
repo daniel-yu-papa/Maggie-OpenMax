@@ -95,9 +95,12 @@ static OMX_ERRORTYPE virtual_Clock_DecideStartTime(
 	do{
 		if ( (startTimeMap & (1 << i)) ){
             /*get the smallest time value as the playback kick-off time*/
-			if ((startTime == -1) || (startTime > pStartTimeList[i])){
+			/*if ((startTime == -1) || (startTime > pStartTimeList[i])){
 				startTime = pStartTimeList[i];
-			}
+			}*/
+            if ((startTime == -1) || (startTime < pStartTimeList[i])){
+                startTime = pStartTimeList[i];
+            }
             startTimeMap &= ~(1 << i);
 		}
 		i++;
@@ -219,9 +222,10 @@ static OMX_ERRORTYPE MagOmxComponent_FFmpeg_Clk_DeInit(OMX_IN OMX_HANDLETYPE hCo
 	OMX_COMPONENTTYPE *compType = (OMX_COMPONENTTYPE *)hComponent;
 	MagOmxComponent_FFmpeg_Clk hClkComp;
 
-	AGILE_LOGV("MagOmxComponent_FFmpeg_Clk_DeInit enter!");
+	AGILE_LOGD("enter!");
 	hClkComp = (MagOmxComponent_FFmpeg_Clk)compType->pComponentPrivate;
 	ooc_delete((Object)hClkComp);
+    AGILE_LOGD("exit!");
 
 	return OMX_ErrorNone;
 }

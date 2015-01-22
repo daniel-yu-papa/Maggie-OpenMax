@@ -368,8 +368,14 @@ err_mutex:
 
 void Mag_DestroyEventGroup(MagEventGroupHandle *pEvtGrphandle){
     MagEventGroupHandle evtGrphandle = *pEvtGrphandle;
-    List_t *tmpNode = evtGrphandle->EventGroupHead.next;
+    List_t *tmpNode = NULL;
     MagEventHandle pEvent;
+
+    if (NULL == evtGrphandle){
+        return;
+    }
+    
+    tmpNode = evtGrphandle->EventGroupHead.next;
 
     while (tmpNode != &evtGrphandle->EventGroupHead){
         pEvent = (MagEventHandle)tmpNode->next; /*//list_entry(tmpNode, Mag_EventCommon_t, entry);*/

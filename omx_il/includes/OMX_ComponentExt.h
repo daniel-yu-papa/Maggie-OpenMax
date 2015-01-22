@@ -31,6 +31,12 @@ typedef struct OMX_CONFIG_FFMPEG_DATA_TYPE{
 	OMX_PTR avstream;
 }OMX_CONFIG_FFMPEG_DATA_TYPE;
 
+typedef struct OMX_CONFIG_START_TIME_TYPE{
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_TICKS start_time;  /*in us*/
+}OMX_CONFIG_START_TIME_TYPE;
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

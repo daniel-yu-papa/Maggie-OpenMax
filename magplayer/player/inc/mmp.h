@@ -35,6 +35,7 @@ typedef enum
     MMP_PLAYER_EVT_SEEK_COMPLETE,        //seek completes
     MMP_PLAYER_EVT_PREPARE_COMPLETE,     //prepare completes
     MMP_PLAYER_EVT_BUFFER_STATUS,        //buffer status report. event+parameter: 0 - playing stop, (10-90) - buffer percentage, 100 - playing resume
+    MMP_PLAYER_EVT_FLUSH_DONE,           //flush video/audio pipeline is complete
     MMP_PLAYER_EVT_MAX
 }mmp_event_t;
 

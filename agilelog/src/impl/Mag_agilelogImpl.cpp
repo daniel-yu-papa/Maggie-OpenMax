@@ -36,7 +36,6 @@ void MagAgileLog::destroy(){
 }
 
 MagAgileLog::MagAgileLog(){
-    printf("Initialize MagAgileLog()\n");
     mConfigFile.exists = 0;
 
     mConfigValue.config_output.type = OUTPUT_INVALID;
@@ -58,6 +57,8 @@ MagAgileLog::MagAgileLog(){
 }
 
 MagAgileLog::~MagAgileLog(){
+    printf("~MagAgileLog: enter!\n");
+    pthread_mutex_lock(&mLogMutex);
     if (mLogFile1 > 0){
         printf("~MagAgileLog: close log file 1\n");
         close(mLogFile1);
@@ -67,9 +68,10 @@ MagAgileLog::~MagAgileLog(){
         printf("~MagAgileLog: close log file 2\n");
         close(mLogFile2);
     }
-    
+
     pthread_mutex_destroy(&mLogMutex);
     destroyMagStrHashTable(&mpModuleHashT);
+    printf("~MagAgileLog: exit!\n");
 }
 
 Error_t MagAgileLog::parseGlobalConfigElement(XMLElement *ele){ 

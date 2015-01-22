@@ -22,6 +22,7 @@ public:
     virtual _status_t flush();
     virtual _status_t reset();
     virtual i64       getPlayingTime();
+    virtual i64       getMediaTime();
 };
 
 #endif

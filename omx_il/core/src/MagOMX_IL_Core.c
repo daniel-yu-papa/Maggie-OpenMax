@@ -40,10 +40,11 @@ static OMX_S32 addComponentList(OMX_PTR           hLib,
         MAG_ASSERT(entry != NULL);
         
         INIT_LIST(&entry->node);
-        entry->regInfo   = regInfo;
-        entry->deregFunc = deregFunc;
-        entry->libHandle = hLib;
-        
+        entry->regInfo     = regInfo;
+        entry->deregFunc   = deregFunc;
+        entry->libHandle   = hLib;
+        entry->initialized = OMX_FALSE;
+
         AGILE_LOGD("add the component name = %s", regInfo->name);
         list_add_tail(&entry->node, &gOmxCore->LoadedCompListHead);
 
@@ -184,11 +185,14 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_Deinit(void){
 
     while (tmpNode != &gOmxCore->LoadedCompListHead){
         comp = (Component_Entry_t *)list_entry(tmpNode, Component_Entry_t, node);
-        ((OMX_COMPONENTTYPE *)comp->compHandle)->ComponentDeInit(comp->compHandle);
         list_del(tmpNode);
-        if (NULL != comp->deregFunc){
-            comp->deregFunc(comp);
+        if (comp->initialized){
+            ((OMX_COMPONENTTYPE *)comp->compHandle)->ComponentDeInit(comp->compHandle);
+            if (NULL != comp->deregFunc){
+                comp->deregFunc(comp->compHandle);
+            }
         }
+        
         dlclose(comp->libHandle);
         mag_freep((void **)&comp);
         
@@ -238,7 +242,7 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_GetHandle(
 
     List_t *tmpNode;
     Component_Entry_t *comp;
-    OMX_ERRORTYPE ret;
+    OMX_ERRORTYPE ret = OMX_ErrorNone;
 
     if (!gOmxCore){
         AGILE_LOGE("the OMX_Init() is not done yet! quit...");
@@ -253,23 +257,31 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_GetHandle(
         comp = (Component_Entry_t *)list_entry(tmpNode, Component_Entry_t, node);
 
         if (!strcmp(comp->regInfo->name, cComponentName)){
-            if (comp->regInfo->init){
-                ret = comp->regInfo->init(pHandle, pAppData, pCallBacks);
-
-                if (ret == OMX_ErrorNone){
-                    comp->compHandle = *pHandle;
-                    ret = OMX_SendCommand(*pHandle, OMX_CommandStateSet, OMX_StateLoaded, NULL);
-                    if (ret == OMX_ErrorNone){
-                        AGILE_LOGI("Get component handle: %s successfully!", cComponentName);
-                    }else{
-                        AGILE_LOGE("Failed to set the state to OMX_StateLoaded, ret = 0x%x", ret);
-                    }
-                }else{
-                    AGILE_LOGE("Failed to initialize the component(%s)", cComponentName);
-                }
-
+            if (comp->initialized){
+                *pHandle = comp->compHandle;
                 Mag_ReleaseMutex(gOmxCore->lock);
+                AGILE_LOGI("Get component handle: %s [initialized] successfully!", cComponentName);
                 return ret;
+            }else{
+                if (comp->regInfo->init){
+                    ret = comp->regInfo->init(pHandle, pAppData, pCallBacks);
+
+                    if (ret == OMX_ErrorNone){
+                        comp->initialized = OMX_TRUE;
+                        comp->compHandle  = *pHandle;
+                        ret = OMX_SendCommand(*pHandle, OMX_CommandStateSet, OMX_StateLoaded, NULL);
+                        if (ret == OMX_ErrorNone){
+                            AGILE_LOGI("Get component handle: %s successfully!", cComponentName);
+                        }else{
+                            AGILE_LOGE("Failed to set the state to OMX_StateLoaded, ret = 0x%x", ret);
+                        }
+                    }else{
+                        AGILE_LOGE("Failed to initialize the component(%s)", cComponentName);
+                    }
+
+                    Mag_ReleaseMutex(gOmxCore->lock);
+                    return ret;
+                }
             }
         }
         tmpNode = tmpNode->next;
@@ -308,12 +320,14 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_FreeHandle(
                 goto out;
             }
 
-            list_del(tmpNode);
+            /*list_del(tmpNode);*/
             if (NULL != comp->deregFunc){
                 comp->deregFunc(hComponent);
             }
-            dlclose(comp->libHandle);
-            mag_freep((void **)&comp);
+
+            comp->initialized = OMX_FALSE;
+            /*dlclose(comp->libHandle);
+            mag_freep((void **)&comp);*/
             goto out;
         }
         tmpNode = tmpNode->next;
@@ -323,6 +337,7 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_FreeHandle(
 
 out:
     Mag_ReleaseMutex(gOmxCore->lock);
+    AGILE_LOGV("exit!");
     return ret;
 }
 

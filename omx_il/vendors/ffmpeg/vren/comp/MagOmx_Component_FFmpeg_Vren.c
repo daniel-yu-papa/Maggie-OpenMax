@@ -310,12 +310,15 @@ static OMX_ERRORTYPE MagOmxComponent_FFmpeg_Vren_DeInit(OMX_IN OMX_HANDLETYPE hC
 	OMX_COMPONENTTYPE *compType = (OMX_COMPONENTTYPE *)hComponent;
 	MagOmxComponent_FFmpeg_Vren hVrenComp;
 
-	AGILE_LOGV("MagOmxComponent_FFmpeg_Vren_DeInit enter!");
+	AGILE_LOGD("enter!");
 	hVrenComp = (MagOmxComponent_FFmpeg_Vren)compType->pComponentPrivate;
-	ooc_delete((Object)hVrenComp);
+	
 #ifdef CAPTURE_YUV_DATA_TO_FILE
     fclose(hVrenComp->mfYUVFile);
 #endif
+    ooc_delete((Object)hVrenComp);
+    AGILE_LOGD("exit!");
+
 	return OMX_ErrorNone;
 }
 

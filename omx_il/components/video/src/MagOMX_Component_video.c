@@ -25,13 +25,17 @@ static OMX_ERRORTYPE virtual_MagOmxComponentVideo_GetParameter(
     base = ooc_cast(hComponent, MagOmxComponentImpl);
     thiz = ooc_cast(hComponent, MagOmxComponentVideo);
 
+    Mag_AcquireMutex(thiz->mhMutex);
+
     if (MagOmxComponentVideoVirtual(thiz)->MagOmx_Video_GetParameter){
         ret = MagOmxComponentVideoVirtual(thiz)->MagOmx_Video_GetParameter(hComponent, nParamIndex, pComponentParameterStructure);
     }else{
         COMP_LOGE(root, "The pure virtual function MagOmx_Video_GetParameter() is not overrided!");
         ret = OMX_ErrorUnsupportedIndex;
     }
-        
+    
+    Mag_ReleaseMutex(thiz->mhMutex);
+      
     return ret;
 }
                 

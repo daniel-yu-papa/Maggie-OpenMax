@@ -34,7 +34,7 @@ public:
     
     virtual _status_t   stopImpl();
     virtual _status_t   flushImpl();
-    virtual _status_t   seekToImpl(i32 msec, TrackInfo_t *track);
+    virtual _status_t   seekToImpl(i32 msec, i64 mediaTime, TrackInfo_t *track);
     virtual _status_t   readFrameImpl(Stream_Track *track, ui32 StreamID);
     
 private:
