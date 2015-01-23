@@ -20,6 +20,8 @@ ClassMembers(MagOmxComponent_FFmpeg_Adec, MagOmxComponentAudio, \
 	AVStream *mpAudioStream;
 	AVFormatContext *mpAVFormat;
 
+    MagMutexHandle mhFFMpegMutex;
+    
 EndOfClassMembers;
 
 #endif

@@ -165,7 +165,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Aren_ProceedBuffer(
                     OMX_IN  OMX_HANDLETYPE hComponent, 
                     OMX_IN  OMX_BUFFERHEADERTYPE *srcbufHeader,
                     OMX_IN  OMX_HANDLETYPE hDestPort){
-	MagOmxComponentImpl         arenCompImpl;
+	MagOmxComponentImpl arenCompImpl;
 
 	arenCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
 

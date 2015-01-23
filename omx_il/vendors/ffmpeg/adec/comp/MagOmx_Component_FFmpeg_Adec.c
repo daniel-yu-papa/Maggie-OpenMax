@@ -175,10 +175,12 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_Stop(
     MagOmxComponent_FFmpeg_Adec adecComp;
 
     AGILE_LOGV("enter!");
-
     adecComp = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Adec);
+
+    Mag_AcquireMutex(adecComp->mhFFMpegMutex);
     avcodec_close(adecComp->mpAudioStream->codec);
-    
+    Mag_ReleaseMutex(adecComp->mhFFMpegMutex);
+
 	return OMX_ErrorNone;
 }
 
@@ -292,8 +294,11 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_ProceedBuffer(
 
 	do {
 		decodedFrame = av_frame_alloc();
+
+        Mag_AcquireMutex(adecComp->mhFFMpegMutex);
 		decodedLen = avcodec_decode_audio4(adecComp->mpAudioStream->codec, 
 			                               decodedFrame, &got_frame, &codedPkt);
+        Mag_ReleaseMutex(adecComp->mhFFMpegMutex);
 
 		if (decodedLen <= 0){
             if (codedPkt.data){
@@ -351,12 +356,14 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_ProceedBuffer(
 				AGILE_LOGE("audio decoded frame pts(0x%x) error", decodedFrame->pts);
             }
 
-			destbufHeader->pBuffer = (OMX_U8 *)decodedFrame;
+			destbufHeader->pBuffer = (OMX_U8 *)av_frame_clone(decodedFrame);
 			destbufHeader->nFilledLen = decodedLen;
 			destbufHeader->nTimeStamp = decodedFrame->pts;
 			MagOmxPortVirtual(port)->sendOutputBuffer(port, destbufHeader);
 			COMP_LOGV(root, "Succeed to decode the audio frame (len: %d, pts: 0x%x)! Send to output buffer: 0x%x", 
 			                 decodedLen, decodedFrame->pts, destbufHeader);
+
+            av_frame_free(&decodedFrame);
 		}
 	}while(continueDec);
 
@@ -414,7 +421,10 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_Flush(
     MagOmxComponent_FFmpeg_Adec thiz;
 
     thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Adec);
+
+    Mag_AcquireMutex(thiz->mhFFMpegMutex);
     avcodec_flush_buffers(thiz->mpAudioStream->codec);
+    Mag_ReleaseMutex(thiz->mhFFMpegMutex);
 
     return OMX_ErrorNone;
 }
@@ -449,11 +459,15 @@ static void MagOmxComponent_FFmpeg_Adec_constructor(MagOmxComponent_FFmpeg_Adec 
 	MAG_ASSERT(ooc_isInitialized(MagOmxComponent_FFmpeg_Adec));
     chain_constructor(MagOmxComponent_FFmpeg_Adec, thiz, params);
 
+    Mag_CreateMutex(&thiz->mhFFMpegMutex);
+
     thiz->mpAudioCodec = NULL;
 }
 
 static void MagOmxComponent_FFmpeg_Adec_destructor(MagOmxComponent_FFmpeg_Adec thiz, MagOmxComponent_FFmpeg_AdecVtable vtab){
 	AGILE_LOGV("Enter!");
+
+    Mag_DestroyMutex(&thiz->mhFFMpegMutex);
 }
 
 static OMX_ERRORTYPE MagOmxComponent_FFmpeg_Adec_Init(OMX_OUT OMX_HANDLETYPE *hComponent,  

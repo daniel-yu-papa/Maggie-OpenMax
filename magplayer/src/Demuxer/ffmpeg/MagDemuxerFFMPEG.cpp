@@ -388,6 +388,7 @@ ui32 MagDemuxerFFMPEG::convertCodec_FFMPEGToOMX(enum AVCodecID ffmpegCodec, Trac
 }
 
 bool MagDemuxerFFMPEG::checkSupportedStreams(AVStream *st){
+#if 0
     bool supported = true;
 
     if (st->codec->codec_type == AVMEDIA_TYPE_VIDEO){
@@ -427,6 +428,7 @@ bool MagDemuxerFFMPEG::checkSupportedStreams(AVStream *st){
     if (!supported){
         return false;
     }
+#endif
     return true;
 }
 
@@ -1148,7 +1150,7 @@ _status_t   MagDemuxerFFMPEG::seekToImpl(i32 msec, i64 mediaTime, TrackInfo_t *t
     }*/
 
     Mag_AcquireMutex(mSeekMutex);
-    seektime = static_cast<i64>(msec);
+    seektime = static_cast<i64>(msec * 1000);
 
     /*if (seektime > track->duration){
         AGILE_LOGE("seek time %lld ms > the stream duration %lld ms!", seektime, track->duration);
@@ -1168,10 +1170,10 @@ _status_t   MagDemuxerFFMPEG::seekToImpl(i32 msec, i64 mediaTime, TrackInfo_t *t
 
     /*A time t in units of a/b(AV_TIME_BASE_Q[us]) can be converted to units c/d(timeBase)*/
     /*seekTarget = av_rescale_q(seekTimeInStBase + track->start_time, timeBase, AV_TIME_BASE_Q);*/
-    seekTarget = mediaTime + seektime * 1000;
+    seekTarget = mediaTime + seektime;
 
     seek_min    = seektime > 0 ? seekTarget - seektime + 2 : std::numeric_limits<int64_t>::min();
-    seek_max    = seektime < 0 ? seekTarget - seektime - 2: std::numeric_limits<int64_t>::max();
+    seek_max    = seektime < 0 ? seekTarget - seektime - 2 : std::numeric_limits<int64_t>::max();
 
     AGILE_LOGV("before avformat_seek_file(-1)[seekTarget: %lld, seek_min: %lld, seek_max: %lld][mediaTime: %lld]", 
                 seekTarget, seek_min, seek_max, mediaTime);

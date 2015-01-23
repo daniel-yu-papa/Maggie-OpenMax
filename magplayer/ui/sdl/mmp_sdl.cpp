@@ -18,13 +18,16 @@ extern "C" {
 #define SEEK_ONCE_TIME (10 * 1000) /*in ms*/
 
 //Screen dimension constants
-const int DEFAULT_SCREEN_WIDTH  = 544;
-const int DEFAULT_SCREEN_HEIGHT = 576;
+const int DEFAULT_SCREEN_WIDTH  = 640;
+const int DEFAULT_SCREEN_HEIGHT = 480;
 
 static VideoMetaData_t *gpVideoMetaData = NULL;
 static AudioMetaData_t *gpAudioMetaData = NULL;
 
 static bool gStopped = true;
+
+static int gSet_win_width = 0;
+static int gSet_win_height = 0;
 
 MagEventHandle         gPrepareCompleteEvent;
 MagEventGroupHandle    gPrepareEventGroup;
@@ -106,6 +109,9 @@ static void eventCallback(mmp_event_t evt, void *handler, unsigned int param1, u
                         gpAudioMetaData->bps,
                         gpAudioMetaData->codec);
 
+            gSet_win_width  = gpVideoMetaData->width;
+            gSet_win_height = gpVideoMetaData->height;
+
             Mag_SetEvent(gPrepareCompleteEvent);
         }
 
@@ -150,8 +156,9 @@ int main(int argc, char *argv[]){
     int once_seek_time = SEEK_ONCE_TIME;
     int seekTime = 0;
     float volume = 0.1;
-    int win_width;
-    int win_height;
+    
+    int display_win_width;
+    int display_win_height;
 
     bool done = false;
 
@@ -238,18 +245,13 @@ int main(int argc, char *argv[]){
         return -1;
     }
     
-    if (gpVideoMetaData){
-        win_width  = gpVideoMetaData->width;
-        win_height = gpVideoMetaData->height;
-    }else{
-        win_width  = DEFAULT_SCREEN_WIDTH;
-        win_height = DEFAULT_SCREEN_HEIGHT;
-    }
+    gSet_win_width      = DEFAULT_SCREEN_WIDTH;
+    gSet_win_height     = DEFAULT_SCREEN_HEIGHT;
+    display_win_width   = gSet_win_width;
+    display_win_height  = gSet_win_height;
 
-    AGILE_LOGD("create the window: w:%d -- h:%d", win_width, win_height);
-
-    //Create window
-    pWindow = SDL_SetVideoMode(win_width, win_height, 0, flags);
+    //Create default window
+    pWindow = SDL_SetVideoMode(display_win_width, display_win_height, 0, flags);
     if( pWindow == NULL ){
         AGILE_LOGE( "Window could not be created! SDL Error: %s\n", SDL_GetError() );
         return -1;
@@ -262,7 +264,9 @@ int main(int argc, char *argv[]){
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
                 case SDL_VIDEORESIZE:
-                    
+                    gSet_win_width  = event.resize.w;
+                    gSet_win_height = event.resize.h;
+                    printf("resize the window(w: %d, h:%d)\n", gSet_win_width, gSet_win_height);
                     break;
                 
                 case SDL_KEYDOWN:
@@ -380,7 +384,21 @@ int main(int argc, char *argv[]){
                 buf = static_cast<OMX_BUFFERHEADERTYPE *>(pVideoFrame);
                 frame = (AVFrame *)buf->pBuffer;
 
-                if (pVideoOverlay == NULL){
+                if (gSet_win_width != display_win_width || gSet_win_height != display_win_height){
+                    pWindow = SDL_SetVideoMode(gSet_win_width, gSet_win_width, 0, flags);
+                    if( pWindow == NULL ){
+                        AGILE_LOGE( "New Window could not be created! SDL Error: %s\n", SDL_GetError() );
+                    }                    
+                }
+
+                if (pVideoOverlay == NULL ||
+                    gSet_win_width != display_win_width || 
+                    gSet_win_height != display_win_height){
+
+                    if (pVideoOverlay){
+                        SDL_FreeYUVOverlay(pVideoOverlay);
+                    }
+
                     /* Create the overlay */
                     pVideoOverlay = SDL_CreateYUVOverlay(gpVideoMetaData->width, gpVideoMetaData->height, SDL_YV12_OVERLAY, pWindow);
                     if ( pVideoOverlay == NULL ) {
@@ -406,6 +424,9 @@ int main(int argc, char *argv[]){
                     VideoDestRect.x = 0;
                     VideoDestRect.y = 0;
                 }
+
+                display_win_width = gSet_win_width;
+                display_win_height = gSet_win_height;
 
                 UpdateVideoOverlay(pVideoOverlay, frame);
                 player->invoke(INVOKE_ID_PUT_USED_VIDEO_FRAME, pVideoFrame, NULL);

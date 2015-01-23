@@ -194,8 +194,6 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_Stop(
 
     Mag_AcquireMutex(vdecComp->mhFFMpegMutex);
     avcodec_close(vdecComp->mpVideoStream->codec);
-    vdecComp->mpVideoCodec  = NULL;
-    vdecComp->mpVideoStream = NULL;
     Mag_ReleaseMutex(vdecComp->mhFFMpegMutex);
     
 	return OMX_ErrorNone;
@@ -444,7 +442,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_Flush(
     avcodec_flush_buffers(thiz->mpVideoStream->codec);
     Mag_ReleaseMutex(thiz->mhFFMpegMutex);
     thiz->mPrePTS = 0;
-    
+
     return OMX_ErrorNone;
 }
 

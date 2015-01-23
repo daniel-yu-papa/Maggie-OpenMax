@@ -719,6 +719,14 @@ void MagPlayer::onSeek(MagMessageHandle msg){
 
         if (do_flush){
             mFlushMsg->setInt32(mFlushMsg, "seek_flush", 1);
+
+            /*need to clear all messages before doing flushing action*/
+            /*Issue: some buffer-pause, buffer-play etc messages before flush 
+            message would disorder the correct execution flow. 
+            so discard all those messges instead*/
+            mLooper->clear(mLooper);
+            mLooper->waitOnAllDone(mLooper);
+
             mFlushMsg->postMessage(mFlushMsg, 0);
         }
 
@@ -1326,9 +1334,11 @@ void MagPlayer::onMessageReceived(const MagMessageHandle msg, void *priv){
             thiz->onFlush(msg);
             break;
 
-        case MagMsg_SeekTo:
+        /*
+         * move to the seek looper 
+         case MagMsg_SeekTo:
             thiz->onSeek(msg);
-            break;
+            break;*/
             
         case MagMsg_Fast:
             thiz->onFast(msg);

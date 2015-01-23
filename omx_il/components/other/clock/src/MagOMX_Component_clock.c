@@ -744,7 +744,7 @@ static OMX_TICKS     MagOmxComponentClock_getMediaTimeNow(MagOmxComponentClock c
     if (compClock->mState.eState == OMX_TIME_ClockStateRunning){
         Mag_AcquireMutex(compClock->mhRefTimeUpdateMutex);
         tnow = compClock->mReferenceTimeBase + (compClock->mxScale * 
-               (compClock->getTimeNow(compClock) - compClock->mWallTimeBase) / 10.0);
+               (compClock->getTimeNow(compClock) - compClock->mWallTimeBase) / 10);
         Mag_ReleaseMutex(compClock->mhRefTimeUpdateMutex);
     }else{
         tnow = 0;
