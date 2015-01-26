@@ -213,7 +213,7 @@ ClassMembers(MagOmxPort, Base, \
     OMX_HANDLETYPE               mAttachedComponent;
 
     OMX_U8                       mPortName[32];
-
+    
 EndOfClassMembers;
 
 typedef struct{

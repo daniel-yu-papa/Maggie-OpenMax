@@ -1623,11 +1623,14 @@ static OMX_ERRORTYPE virtual_EmptyThisBuffer(
          comp->mState == OMX_StatePause)     &&
          port->getDef_Enabled(port)          &&
          port->isInputPort(port) ){
-        if (comp->mTransitionState == OMX_TransitionStateNone || port->isTunneled(port)){
+        if (comp->mTransitionState == OMX_TransitionStateNone || 
+            comp->mTransitionState == OMX_TransitionStateToPause ||
+            port->isTunneled(port)){
             ret = MagOmxPortVirtual(port)->EmptyThisBuffer(hPort, pBuffer);
         }else{
-            COMP_LOGD(getRoot(hComponent), "ignore the command(transition state: %s)", 
+            COMP_LOGE(getRoot(hComponent), "ignore the command(transition state: %s)", 
                                             OmxTransState2String(comp->mTransitionState));
+            ret = OMX_ErrorIncorrectStateOperation;
         }
     }else{
         COMP_LOGE(getRoot(hComponent), "Error condition to do: state[%s], port enabled[%s], input port[%s]", 
@@ -1640,9 +1643,9 @@ static OMX_ERRORTYPE virtual_EmptyThisBuffer(
             port->isBufferSupplier(port)){
             /*it is return buffer action and need to do it anyway*/
             MagOmxPortVirtual(port)->EmptyThisBuffer(hPort, pBuffer);
+        }else{
+            ret = OMX_ErrorIncorrectStateOperation;
         }
-
-        ret = OMX_ErrorIncorrectStateOperation;
     }
 
     return ret;
@@ -1674,11 +1677,14 @@ static OMX_ERRORTYPE virtual_FillThisBuffer(
          comp->mState == OMX_StatePause)     &&
          port->getDef_Enabled(port)          &&
          !port->isInputPort(port) ){
-        if (comp->mTransitionState == OMX_TransitionStateNone || port->isTunneled(port)){
+        if (comp->mTransitionState == OMX_TransitionStateNone || 
+            comp->mTransitionState == OMX_TransitionStateToPause ||
+            port->isTunneled(port)){
             ret = MagOmxPortVirtual(port)->FillThisBuffer(hPort, pBuffer);
         }else{
-            COMP_LOGD(getRoot(hComponent), "ignore the command(transition state: %s)", 
+            COMP_LOGE(getRoot(hComponent), "ignore the command(transition state: %s)", 
                                             OmxTransState2String(comp->mTransitionState));
+            ret = OMX_ErrorIncorrectStateOperation;
         }
     }else{
         COMP_LOGE(getRoot(hComponent), "Error condition to do: state[%s], port enabled[%s], input port[%s]", 
@@ -1690,8 +1696,9 @@ static OMX_ERRORTYPE virtual_FillThisBuffer(
             port->isBufferSupplier(port)){
             /*it is return buffer action and need to do it anyway*/
             MagOmxPortVirtual(port)->FillThisBuffer(hPort, pBuffer);
+        }else{
+            ret = OMX_ErrorIncorrectStateOperation;
         }
-        ret = OMX_ErrorIncorrectStateOperation;
     }
     /*Mag_ReleaseMutex(comp->mhMutex);*/
 
@@ -2027,6 +2034,7 @@ static OMX_ERRORTYPE MagOmxComponentImpl_setState(OMX_HANDLETYPE hComponent, OMX
 static OMX_ERRORTYPE MagOmxComponentImpl_flushPort(OMX_HANDLETYPE hComponent, OMX_U32 port_index){
     RBTreeNodeHandle n;
     MagOmxPort port;
+    MagOmxPort clockPort;
     MagOmxComponentImpl comp;
     OMX_ERRORTYPE ret = OMX_ErrorNone;
 
@@ -2066,6 +2074,12 @@ static OMX_ERRORTYPE MagOmxComponentImpl_flushPort(OMX_HANDLETYPE hComponent, OM
         ret = OMX_ErrorBadParameter;
     }
 
+    if (comp->mhClockPort){
+        clockPort = ooc_cast(comp->mhClockPort, MagOmxPort);
+        clockPort->setState(clockPort, kPort_State_Running);
+        COMP_LOGD(getRoot(hComponent), "set clock port[%d] to running!!!", clockPort->getPortIndex(clockPort));
+    }
+    
     /*comp->mFlushingPorts = kInvalidPortIndex;*/
     comp->sendEvents(hComponent, OMX_EventCmdComplete, OMX_CommandFlush, port_index, &ret);
     return ret;;
@@ -2365,6 +2379,11 @@ static OMX_ERRORTYPE MagOmxComponentImpl_syncDisplay(
         MagOmxPort portRoot = NULL;
 
         portRoot = ooc_cast(hComponent->mhClockPort, MagOmxPort);
+
+        if (kPort_State_Running != portRoot->getState(portRoot)){
+            COMP_LOGD(getRoot(hComponent), "The corresponding clock port is flushed/stopped. return now!");
+            return OMX_ErrorNotReady;
+        }
 
         if (!hComponent->mbGetStartTime){
             initHeader(&startTime, sizeof(OMX_TIME_CONFIG_TIMESTAMPTYPE));

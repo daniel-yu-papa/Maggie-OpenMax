@@ -175,6 +175,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vsch_ProceedBuffer(
     AVFrame *destFrame = NULL;
     AVFrame *srcFrame = NULL;
     int i;
+    OMX_ERRORTYPE ret;
 
 	vschCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
     thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vsch);
@@ -235,7 +236,10 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vsch_ProceedBuffer(
 #endif
 
     vschCompImpl->putOutputBuffer(vschCompImpl, destPort, destbufHeader);
-	vschCompImpl->syncDisplay(vschCompImpl, destbufHeader);
+	ret = vschCompImpl->syncDisplay(vschCompImpl, destbufHeader);
+    if (ret == OMX_ErrorNotReady){
+        vschCompImpl->discardOutputBuffer(vschCompImpl, destbufHeader);
+    }
 
 	return OMX_ErrorNone;
 }

@@ -718,8 +718,6 @@ void MagPlayer::onSeek(MagMessageHandle msg){
         }
 
         if (do_flush){
-            mFlushMsg->setInt32(mFlushMsg, "seek_flush", 1);
-
             /*need to clear all messages before doing flushing action*/
             /*Issue: some buffer-pause, buffer-play etc messages before flush 
             message would disorder the correct execution flow. 
@@ -727,6 +725,7 @@ void MagPlayer::onSeek(MagMessageHandle msg){
             mLooper->clear(mLooper);
             mLooper->waitOnAllDone(mLooper);
 
+            mFlushMsg->setInt32(mFlushMsg, "seek_flush", 1);
             mFlushMsg->postMessage(mFlushMsg, 0);
         }
 
@@ -743,8 +742,6 @@ void MagPlayer::onSeek(MagMessageHandle msg){
         }else{
             AGILE_LOGE("no demuxer is found, quit the seekTo(%d)", seekTarget);
         }
-
-        Mag_SetEvent(mCompleteSeekEvt);
     }else{
         if ((ST_FLUSHING == mState) || (ST_BUFFERING == mState)){
             AGILE_LOGW("in state: %s. ignore the seek action!", state2String(mState));
@@ -753,7 +750,9 @@ void MagPlayer::onSeek(MagMessageHandle msg){
             // mState = ST_ERROR;
             // sendErrorEvent(E_WHAT_COMMAND, MagMsg_SeekTo);
         }
+
     }
+    Mag_SetEvent(mCompleteSeekEvt);
 }
 
 _status_t MagPlayer::seekTo(i32 msec){

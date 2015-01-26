@@ -306,7 +306,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_ProceedBuffer(
                              codedPkt.size, codedPkt.pts);
             }else{
                 COMP_LOGD(root, "Audio decoder finished the full stream playback!!!");
-                av_frame_unref(decodedFrame);
+                av_frame_free(&decodedFrame);
                 destbufHeader = MagOmxPortVirtual(port)->GetOutputBuffer(port);
                 destbufHeader->pBuffer    = NULL;
                 destbufHeader->nFilledLen = 0;
