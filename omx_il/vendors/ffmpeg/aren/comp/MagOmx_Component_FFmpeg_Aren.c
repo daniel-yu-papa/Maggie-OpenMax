@@ -1,9 +1,12 @@
 #include "libavutil/frame.h"
+#include "libswresample/swresample.h"
 
 #include "MagOmx_Component_FFmpeg_Aren.h"
 #include "MagOmx_Port_FFmpeg_Aren.h"
 #include "MagOmx_Port_FFmpeg_Clk.h"
 #include "MagOMX_IL.h"
+
+#include "SDL.h"
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
@@ -26,40 +29,58 @@ static void sdl_audio_callback(void *opaque, Uint8 *stream, int len)
 {
     MagOmxComponent_FFmpeg_Aren thiz; 
     MagOmxComponentImpl  arenCompImpl;
-    OMX_BUFFERHEADERTYPE *bufHeader;
+    MagOmx_Aren_Buffer_t *arenBuf;
+    MagOmx_Aren_BufferNode_t *bufNode;
     int len1;
-    AVFrame *decodedFrame;
-    uint8_t *pAudioData;
+    ui8 *pAudioData;
 
     thiz = ooc_cast(opaque, MagOmxComponent_FFmpeg_Aren);
     arenCompImpl = ooc_cast(opaque, MagOmxComponentImpl);
 
+    AGILE_LOGD("sdl_audio_callback(%d)", len);
+
     len1 = len;
     while(len1){
-        bufHeader = thiz->getBuffer(thiz);
+        bufNode = thiz->getBuffer(thiz);
 
-        decodedFrame = (AVFrame *)getBuffer->pBuffer;
-        pAudioData = decodedFrame->data[0];
+        if (bufNode == NULL)
+            break;
 
-        if (bufHeader->nFilledLen - bufHeader->nOffset > len1){
-            memcpy(stream, (uint8_t *)pAudioData + bufHeader->nOffset, len1);
-            bufHeader->nOffset += len1;
+        arenBuf = bufNode->pBuf;
+
+        pAudioData = arenBuf->buf;
+
+        if (arenBuf->nFilledLen - arenBuf->nOffset > len1){
+            memcpy(stream, (uint8_t *)pAudioData + arenBuf->nOffset, len1);
+            arenBuf->nOffset += len1;
             Mag_AcquireMutex(thiz->mListMutex);
-            list_add(&bufHeader->Node, &thiz->mBufBusyListHead);
+            /*add it back to the list head*/
+            list_add(&bufNode->Node, &thiz->mBufBusyListHead);
             Mag_ReleaseMutex(thiz->mListMutex);
             len1 = 0;
         }else{
             memcpy( stream, 
-                    (uint8_t *)pAudioData + bufHeader->nOffset, 
-                    bufHeader->nFilledLen - bufHeader->nOffset);
-            len1 = len1 - (bufHeader->nFilledLen - bufHeader->nOffset);
-            list_add_tail(&bufHeader->Node, &thiz->mBufFreeListHead);
-            arenCompImpl->sendReturnBuffer(arenCompImpl, bufHeader);
+                    (uint8_t *)pAudioData + arenBuf->nOffset, 
+                    arenBuf->nFilledLen - arenBuf->nOffset);
+            len1 = len1 - (arenBuf->nFilledLen - arenBuf->nOffset);
+            mag_freep((void **)&arenBuf->buf);
+            arenCompImpl->sendReturnBuffer(arenCompImpl, arenBuf->pOmxBufHeader);
+            Mag_AcquireMutex(thiz->mListMutex);
+            list_add_tail(&bufNode->Node, &thiz->mBufFreeListHead);
+            Mag_ReleaseMutex(thiz->mListMutex);
         }
-    }   
+    } 
+
+#ifdef CAPTURE_PCM_DATA_TO_SDL
+    if (thiz->mfPCMSdl){
+        fwrite(stream, 1, len, thiz->mfPCMSdl);
+        fflush(thiz->mfPCMSdl);
+    }
+#endif 
+    AGILE_LOGD("sdl_audio_callback(exit)");
 }
 
-static int FFmpeg_Aren_OpenAudio(MagOmxComponent_FFmpeg_Aren thiz){
+static int FFmpeg_Aren_openAudio(MagOmxComponent_FFmpeg_Aren thiz){
     int sample_rate;
     int nb_channels;
     i64 channel_layout;
@@ -86,89 +107,125 @@ static int FFmpeg_Aren_OpenAudio(MagOmxComponent_FFmpeg_Aren thiz){
             AGILE_LOGE("Invalid sample rate or channel count!");
             return -1;
         }
-        wanted_spec.format = AUDIO_S16SYS;
-        wanted_spec.silence = 0;
-        wanted_spec.samples = SDL_AUDIO_BUFFER_SIZE;
+        AGILE_LOGD("[wanted_spec] channels: %d, freq: %d", wanted_spec.channels, wanted_spec.freq);
+
+        wanted_spec.format   = AUDIO_S16SYS;
+        wanted_spec.silence  = 0;
+        wanted_spec.samples  = SDL_AUDIO_BUFFER_SIZE;
         wanted_spec.callback = sdl_audio_callback;
         wanted_spec.userdata = thiz;
 
         while (SDL_OpenAudio(&wanted_spec, &spec) < 0) {
-            AGILE_LOGW("SDL_OpenAudio (%d channels): %s\n", wanted_spec.channels, SDL_GetError());
+            AGILE_LOGW("SDL_OpenAudio (%d channels): %s", wanted_spec.channels, SDL_GetError());
             wanted_spec.channels = next_nb_channels[FFMIN(7, wanted_spec.channels)];
             if (!wanted_spec.channels) {
-                AGILE_LOGE("No more channel combinations to try, audio open failed\n");
+                AGILE_LOGE("No more channel combinations to try, audio open failed");
                 return -1;
             }
             channel_layout = av_get_default_channel_layout(wanted_spec.channels);
         }
 
         if (spec.format != AUDIO_S16SYS) {
-            AGILE_LOGE("SDL advised audio format %d is not supported!\n", spec.format);
+            AGILE_LOGE("SDL advised audio format %d is not supported!", spec.format);
             return -1;
         }
 
         if (spec.channels != wanted_spec.channels) {
             channel_layout = av_get_default_channel_layout(spec.channels);
             if (!channel_layout) {
-                AGILE_LOGE("SDL advised channel count %d is not supported!\n", spec.channels);
+                AGILE_LOGE("SDL advised channel count %d is not supported!", spec.channels);
                 return -1;
             }
         }
-    }
-    
 
+        thiz->mAudioParameters.fmt  = AV_SAMPLE_FMT_S16;
+        thiz->mAudioParameters.freq = spec.freq;
+        thiz->mAudioParameters.channel_layout = channel_layout;
+        thiz->mAudioParameters.channels = spec.channels;
+        thiz->mAudioParameters.frame_size = av_samples_get_buffer_size(NULL, spec.channels, 1, thiz->mAudioParameters.fmt, 1);
+        thiz->mAudioParameters.bytes_per_sec = av_samples_get_buffer_size(NULL, spec.channels, spec.freq, thiz->mAudioParameters.fmt, 1);
+        if (thiz->mAudioParameters.frame_size <= 0 || thiz->mAudioParameters.bytes_per_sec <= 0) {
+            AGILE_LOGE("av_samples_get_buffer_size failed");
+        }
+
+        /*start audio playing*/
+        SDL_PauseAudio(0);
+
+        AGILE_LOGD("SDL_OpenAudio() succeed!!!");
+    }
 }
 
-static OMX_BUFFERHEADERTYPE *FFmpeg_Aren_getBuffer(MagOmxComponent_FFmpeg_Aren thiz){
+static void FFmpeg_Aren_resetBuf(MagOmxComponent_FFmpeg_Aren thiz){
+    MagOmx_Aren_Buffer_t *arenBuf;
+    MagOmx_Aren_BufferNode_t *bufNode;
+    MagOmxComponentImpl  arenCompImpl;
+
+    arenCompImpl = ooc_cast(thiz, MagOmxComponentImpl);
+
+    while((bufNode = thiz->getBuffer(thiz)) != NULL){
+        arenBuf = bufNode->pBuf;
+
+        mag_freep((void **)&arenBuf->buf);
+        arenCompImpl->sendReturnBuffer(arenCompImpl, arenBuf->pOmxBufHeader);
+        Mag_AcquireMutex(thiz->mListMutex);
+        list_add_tail(&bufNode->Node, &thiz->mBufFreeListHead);
+        Mag_ReleaseMutex(thiz->mListMutex);
+    }
+}
+
+static MagOmx_Aren_BufferNode_t *FFmpeg_Aren_getBuffer(MagOmxComponent_FFmpeg_Aren thiz){
     List_t *next = NULL;
-    MagOmx_Aren_BufferNode_t *bufHeader = NULL;
-    bool empty = false;
+    MagOmx_Aren_BufferNode_t *bufNode = NULL;
+    MagOmxComponentImpl         arenCompImpl;
+
+    arenCompImpl = ooc_cast(thiz, MagOmxComponentImpl);
 
 get_again:
     Mag_AcquireMutex(thiz->mListMutex);
 
     next = thiz->mBufBusyListHead.next;
-    if (next != &mBufBusyListHead){
+    if (next != &thiz->mBufBusyListHead){
         list_del(next);
-        bufHeader = (MagOmx_Aren_BufferNode_t *)list_entry(next, MagOmx_Aren_BufferNode_t, Node);
-        Mag_ReleaseMutex(mListMutex);
-    }else{
-        Mag_ClearEvent(thiz->mNewBufEvent);
+        bufNode = (MagOmx_Aren_BufferNode_t *)list_entry(next, MagOmx_Aren_BufferNode_t, Node);
         Mag_ReleaseMutex(thiz->mListMutex);
-
-        AGILE_LOGD("Wait on getting the buffer!");
-        Mag_WaitForEventGroup(thiz->mWaitBufEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
-        AGILE_LOGD("get buffer!");
-        goto get_again;
-    }
-
-    if (bufHeader){
-        return bufHeader->pBufHeader;
     }else{
-        return NULL;
+        if (arenCompImpl->mTransitionState != OMX_TransitionStateToIdle){
+            Mag_ClearEvent(thiz->mNewBufEvent);
+            Mag_ReleaseMutex(thiz->mListMutex);
+
+            AGILE_LOGD("Wait on getting the buffer!");
+            Mag_WaitForEventGroup(thiz->mWaitBufEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
+            AGILE_LOGD("get buffer!");
+            goto get_again;
+        }else{
+            Mag_ReleaseMutex(thiz->mListMutex);
+        }
     }
+
+    return bufNode;
 }
 
-static void FFmpeg_Aren_putBuffer(MagOmxComponent_FFmpeg_Aren thiz, OMX_BUFFERHEADERTYPE *bufHeader){
+static void FFmpeg_Aren_putBuffer(MagOmxComponent_FFmpeg_Aren thiz, OMX_BUFFERHEADERTYPE *pOmxBufHeader, ui8 *buf){
     List_t *next = NULL;
-    MagOmx_Aren_BufferNode_t *bufHeader = NULL;
-    bool empty = false;
+    MagOmx_Aren_BufferNode_t *bufNode = NULL;
 
     Mag_AcquireMutex(thiz->mListMutex);
 
     next = thiz->mBufFreeListHead.next;
     if (next != &thiz->mBufFreeListHead){
         list_del(next);
-        bufHeader = (MagOmx_Aren_BufferNode_t *)list_entry(next, MagOmx_Aren_BufferNode_t, Node);
-        bufHeader->pBufHeader = bufHeader;
-        list_add_tail(&bufHeader->Node, &thiz->mBufBusyListHead);
+        bufNode = (MagOmx_Aren_BufferNode_t *)list_entry(next, MagOmx_Aren_BufferNode_t, Node);
     }else{
-        bufHeader = (MagOmx_Aren_BufferNode_t *)mag_mallocz(sizeof(MagOmx_Aren_BufferNode_t));
-
-        INIT_LIST(&bufHeader->Node);
-        bufHeader->pBufHeader = bufHeader;
-        list_add_tail(&bufHeader->Node, &thiz->mBufBusyListHead);
+        bufNode       = (MagOmx_Aren_BufferNode_t *)mag_mallocz(sizeof(MagOmx_Aren_BufferNode_t));
+        bufNode->pBuf = (MagOmx_Aren_Buffer_t *)mag_mallocz(sizeof(MagOmx_Aren_Buffer_t));
+        INIT_LIST(&bufNode->Node);
     }
+
+    bufNode->pBuf->pOmxBufHeader = pOmxBufHeader;
+    bufNode->pBuf->buf           = buf;
+    bufNode->pBuf->nFilledLen    = pOmxBufHeader->nFilledLen;
+    bufNode->pBuf->nOffset       = pOmxBufHeader->nOffset;
+    list_add_tail(&bufNode->Node, &thiz->mBufBusyListHead);
 
     Mag_ReleaseMutex(thiz->mListMutex);
 
@@ -216,13 +273,7 @@ static OMX_ERRORTYPE localSetupComponent(
 	arenCompImpl->addPort(arenCompImpl, START_PORT_INDEX + 1, clkInPort);
 
 	arenCompImpl->setupPortDataFlow(arenCompImpl, arenInPort, NULL);
-
-#ifdef CAPTURE_PCM_DATA_TO_FILE
-    thiz->mfPCMFile = fopen("./audio.pcm","wb+");
-    if (thiz->mfPCMFile == NULL){
-        AGILE_LOGE("Failed to open the file: ./audio.pcm");
-    }
-#endif
+    
 	return OMX_ErrorNone;
 }
 
@@ -249,11 +300,22 @@ static OMX_ERRORTYPE virtual_FFmpeg_Aren_Start(
     AGILE_LOGV("enter!");
     thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Aren);
 
+    thiz->openAudio(thiz);
+
 #ifdef CAPTURE_PCM_DATA_TO_FILE
     if (!thiz->mfPCMFile){
         thiz->mfPCMFile = fopen("./audio.pcm","wb+");
         if (thiz->mfPCMFile == NULL){
             AGILE_LOGE("Failed to open the file: ./audio.pcm");
+        }
+    }
+#endif
+
+#ifdef CAPTURE_PCM_DATA_TO_SDL
+    if (!thiz->mfPCMSdl){
+        thiz->mfPCMSdl = fopen("./audio_sdl.pcm","wb+");
+        if (thiz->mfPCMSdl == NULL){
+            AGILE_LOGE("Failed to open the file: ./audio_sdl.pcm");
         }
     }
 #endif
@@ -267,10 +329,21 @@ static OMX_ERRORTYPE virtual_FFmpeg_Aren_Stop(
 	AGILE_LOGV("enter!");
     thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Aren);
 
+    SDL_CloseAudio();
+
+    thiz->resetBuf(thiz);
+
 #ifdef CAPTURE_PCM_DATA_TO_FILE
     if (thiz->mfPCMFile){
         fclose(thiz->mfPCMFile);
         thiz->mfPCMFile = NULL;
+    }
+#endif
+
+#ifdef CAPTURE_PCM_DATA_TO_SDL
+    if (!thiz->mfPCMSdl){
+        fclose(thiz->mfPCMSdl);
+        thiz->mfPCMSdl = NULL;
     }
 #endif
 	return OMX_ErrorNone;
@@ -293,14 +366,33 @@ static OMX_ERRORTYPE virtual_FFmpeg_Aren_Deinit(
 	OMX_HANDLETYPE arenInPort;
 	OMX_HANDLETYPE clkInPort;
 	MagOmxComponentImpl arenCompImpl;
+    List_t *next = NULL;
+    MagOmxComponent_FFmpeg_Aren thiz;
+    MagOmx_Aren_BufferNode_t *bufNode = NULL;
 
-	AGILE_LOGV("Enter!");
-	arenCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
+	thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Aren);
+    arenCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
+    
+    next = thiz->mBufFreeListHead.next;
+    while (next != &thiz->mBufFreeListHead){
+        list_del(next);
+        bufNode = (MagOmx_Aren_BufferNode_t *)list_entry(next, MagOmx_Aren_BufferNode_t, Node);
+        mag_freep((void **)&bufNode->pBuf);
+        mag_freep((void **)&bufNode);
+        next = thiz->mBufFreeListHead.next;
+    }
+    Mag_DestroyMutex(&thiz->mListMutex);
+
+    if (thiz->mpSwrCtx){
+        swr_free(&thiz->mpSwrCtx);
+    }
+
 	arenInPort  = arenCompImpl->getPort(arenCompImpl, START_PORT_INDEX + 0);
 	clkInPort   = arenCompImpl->getPort(arenCompImpl, START_PORT_INDEX + 1);
 
 	ooc_delete((Object)arenInPort);
 	ooc_delete((Object)clkInPort);
+    AGILE_LOGV("exit!");
 
 	return OMX_ErrorNone;
 }
@@ -351,7 +443,10 @@ static OMX_ERRORTYPE  virtual_FFmpeg_Aren_DoAVSync(
 	AVFrame                     *decodedFrame;
 	OMX_TICKS                   timeStamp;
 	int                         data_size;
+    int                         resampled_data_size;
     MagOMX_AVSync_Action_t      action;
+    i64                         dec_channel_layout;
+    ui8                         *outBuf = NULL;
 
 	thiz         = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Aren);
 	arenCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
@@ -371,6 +466,13 @@ static OMX_ERRORTYPE  virtual_FFmpeg_Aren_DoAVSync(
         return OMX_ErrorNone;
     }
 
+    if (arenCompImpl->mTransitionState == OMX_TransitionStateToIdle){
+        /*in stop transition, directly return the buffers*/
+        AGILE_LOGV("in stop transition, directly return the buffers");
+        arenCompImpl->sendReturnBuffer(arenCompImpl, getBuffer);
+        return OMX_ErrorNone;
+    }
+
 	decodedFrame = (AVFrame *)getBuffer->pBuffer;
     action       = (MagOMX_AVSync_Action_t)mediaTime->nClientPrivate;
 	timeStamp    = getBuffer->nTimeStamp;
@@ -378,8 +480,77 @@ static OMX_ERRORTYPE  virtual_FFmpeg_Aren_DoAVSync(
 	data_size = av_samples_get_buffer_size(NULL, av_frame_get_channels(decodedFrame),
                                                    decodedFrame->nb_samples,
                                                    decodedFrame->format, 1);
-	AGILE_LOGV("Release decoded Audio Frame: %p[size: %d], time stamp: 0x%llx to playback[%s]", 
-		        decodedFrame, data_size, timeStamp, action == AVSYNC_PLAY ? "play" : "drop");
+    
+    dec_channel_layout =
+                (decodedFrame->channel_layout && av_frame_get_channels(decodedFrame) == av_get_channel_layout_nb_channels(decodedFrame->channel_layout)) ?
+                decodedFrame->channel_layout : av_get_default_channel_layout(av_frame_get_channels(decodedFrame));
+
+    if ( !thiz->mpSwrCtx &&
+         (decodedFrame->format      != thiz->mAudioParameters.fmt            ||
+          dec_channel_layout        != thiz->mAudioParameters.channel_layout ||
+          decodedFrame->sample_rate != thiz->mAudioParameters.freq) ) {
+        thiz->mpSwrCtx = swr_alloc_set_opts(NULL,
+                                            thiz->mAudioParameters.channel_layout, 
+                                            thiz->mAudioParameters.fmt, 
+                                            thiz->mAudioParameters.freq,
+                                            dec_channel_layout,           
+                                            decodedFrame->format, 
+                                            decodedFrame->sample_rate,
+                                            0, NULL);
+
+        if (!thiz->mpSwrCtx || swr_init(thiz->mpSwrCtx) < 0) {
+            AGILE_LOGE("Cannot create sample rate converter for conversion of %d Hz %s %d channels to %d Hz %s %d channels!\n",
+                        decodedFrame->sample_rate, av_get_sample_fmt_name(decodedFrame->format), 
+                        av_frame_get_channels(decodedFrame),
+                        thiz->mAudioParameters.freq, 
+                        av_get_sample_fmt_name(thiz->mAudioParameters.fmt), 
+                        thiz->mAudioParameters.channels);
+            thiz->mpSwrCtx = NULL;
+        }
+    }
+
+    if (thiz->mpSwrCtx) {
+        const ui8 **in = (const ui8 **)decodedFrame->extended_data;
+        int out_count  = decodedFrame->nb_samples * thiz->mAudioParameters.freq / decodedFrame->sample_rate + 256;
+        int out_size   = av_samples_get_buffer_size(NULL, thiz->mAudioParameters.channels, out_count, thiz->mAudioParameters.fmt, 0);
+        int malloc_out_size = 0;
+        int len2;
+        
+        if (out_size < 0) {
+            AGILE_LOGE("av_samples_get_buffer_size() failed\n");
+            outBuf = decodedFrame->data[0];
+            resampled_data_size = data_size;
+        }else{
+            malloc_out_size = FFMAX(17 * out_size / 16 + 32, out_size);
+            outBuf = (ui8 *)mag_malloc(malloc_out_size);
+
+            if (!outBuf)
+                return OMX_ErrorDynamicResourcesUnavailable;
+            /*AGILE_LOGV("out_count: %d, out_size: %d, malloc_out_size: %d, nb_samples: %d!", 
+                        out_count, out_size, malloc_out_size, decodedFrame->nb_samples);*/
+            len2 = swr_convert(thiz->mpSwrCtx, &outBuf, out_count, in, decodedFrame->nb_samples);
+
+            if (len2 < 0) {
+                AGILE_LOGE("swr_convert() failed\n");
+                outBuf = decodedFrame->data[0];
+                resampled_data_size = data_size;
+            }else{
+                if (len2 == out_count) {
+                    AGILE_LOGW("audio buffer is probably too small\n");
+                    swr_init(thiz->mpSwrCtx);
+                }
+
+                resampled_data_size = len2 * thiz->mAudioParameters.channels * 
+                                      av_get_bytes_per_sample(thiz->mAudioParameters.fmt);
+            }
+        }
+    } else {
+        outBuf = decodedFrame->data[0];
+        resampled_data_size = data_size;
+    }
+
+	AGILE_LOGV("Release decoded Audio Frame: %p[size: %d-%d], time stamp: 0x%llx to playback[%s]", 
+		        decodedFrame, data_size, resampled_data_size, timeStamp, action == AVSYNC_PLAY ? "play" : "drop");
 
 #ifdef CAPTURE_PCM_DATA_TO_FILE
     if (thiz->mfPCMFile){
@@ -388,9 +559,9 @@ static OMX_ERRORTYPE  virtual_FFmpeg_Aren_DoAVSync(
     }
 #endif
 
-    getBuffer->nFilledLen = data_size;
+    getBuffer->nFilledLen = resampled_data_size;
     getBuffer->nOffset    = 0;
-    thiz->putBuffer(thiz, getBuffer);
+    thiz->putBuffer(thiz, getBuffer, outBuf);
 	/*arenCompImpl->sendReturnBuffer(arenCompImpl, getBuffer);*/
 
 	return OMX_ErrorNone;
@@ -477,17 +648,28 @@ static void MagOmxComponent_FFmpeg_Aren_constructor(MagOmxComponent_FFmpeg_Aren 
 
     thiz->getBuffer        = FFmpeg_Aren_getBuffer;
     thiz->putBuffer        = FFmpeg_Aren_putBuffer;
+    thiz->openAudio        = FFmpeg_Aren_openAudio;
+    thiz->resetBuf         = FFmpeg_Aren_resetBuf;
 
     thiz->mpAudioStream = NULL;
     thiz->mpAVFormat    = NULL;
+    thiz->mpSwrCtx      = NULL;
+
+#ifdef CAPTURE_PCM_DATA_TO_SDL
+    thiz->mfPCMSdl      = NULL;
+#endif
+
+#ifdef CAPTURE_PCM_DATA_TO_FILE
+    thiz->mfPCMFile     = NULL;
+#endif
 
     Mag_CreateMutex(&thiz->mListMutex);
     INIT_LIST(&thiz->mBufFreeListHead);
     INIT_LIST(&thiz->mBufBusyListHead);
 
-    Mag_CreateEventGroup(&mWaitBufEventGroup);
-    if (MAG_ErrNone == Mag_CreateEvent(&mNewBufEvent, MAG_EVT_PRIO_DEFAULT)){
-        Mag_AddEventGroup(mWaitBufEventGroup, mNewBufEvent);
+    Mag_CreateEventGroup(&thiz->mWaitBufEventGroup);
+    if (MAG_ErrNone == Mag_CreateEvent(&thiz->mNewBufEvent, MAG_EVT_PRIO_DEFAULT)){
+        Mag_AddEventGroup(thiz->mWaitBufEventGroup, thiz->mNewBufEvent);
     }
 }
 

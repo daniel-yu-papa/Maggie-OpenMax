@@ -197,6 +197,7 @@ if not os.path.exists(ffmpeg_link_file):
     os.system("cp -Pf libavcodec/*.so* "+ffmpeg_lib_install_path)
     os.system("cp -Pf libavutil/*.so* "+ffmpeg_lib_install_path)
     os.system("cp -Pf libswscale/*.so* "+ffmpeg_lib_install_path)
+    os.system("cp -Pf libswresample/*.so* "+ffmpeg_lib_install_path)
 
 
 #######################################################
@@ -231,10 +232,14 @@ if not os.path.exists(ffmpeg_link_file):
 FRAMEWORK_LIB_PATH = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib')
 FFMPEG_LIB_PATH = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/ffmpeg')
 
+SDL_LIB_PATH = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/SDL')
+
 FRAMEWORK_INC_PATH = '../../../Targets/'+env['target']+'/'+env['build_config']+'/include'
 OMXIL_INC_PATH     = '../../../Targets/'+env['target']+'/'+env['build_config']+'/include/omxil'
 OMXIL_COMMON_INC_PATH = '../../../Targets/'+env['target']+'/'+env['build_config']+'/include/omxil_common'
-FFMPEG_INC_PATH = '../../../external/ffmpeg'
+
+FFMPEG_INC_PATH  = "../../../external/ffmpeg"
+SDL_HEADERS_PATH = "../../../external/SDL/include"
 
 MAG_OMX_VENDOR_INC_PATH = """adec/comp 
                              adec/port 
@@ -265,7 +270,8 @@ LibraryModule(name                  = 'MagOmxIL_ffmpeg_adec',
                                        'libavformat.so',
                                        'libavutil.so',
                                        'libavcodec.so'],
-              extra_lib_path        = Split(FRAMEWORK_LIB_PATH) + Split(FFMPEG_LIB_PATH),
+              extra_lib_path        = Split(FRAMEWORK_LIB_PATH) + 
+                                      Split(FFMPEG_LIB_PATH),
               shared                =  True,
               install               =  True)
 
@@ -277,14 +283,19 @@ LibraryModule(name                  = 'MagOmxIL_ffmpeg_aren',
                                       Split(OMXIL_INC_PATH)+
                                       Split(OMXIL_COMMON_INC_PATH)+
                                       Split(MAG_OMX_VENDOR_INC_PATH)+
-                                      Split(FFMPEG_INC_PATH),
+                                      Split(FFMPEG_INC_PATH)+
+                                      Split(SDL_HEADERS_PATH),
               extra_libs            = ['libMagAgilelog.so', 
                                        'libMagFramework.so',
                                        'libMagOmxIL_Base.so',
                                        'libavformat.so',
                                        'libavutil.so',
-                                       'libavcodec.so'],
-              extra_lib_path        = Split(FRAMEWORK_LIB_PATH) + Split(FFMPEG_LIB_PATH),
+                                       'libavcodec.so',
+                                       'libswresample.so',
+                                       'libSDL.so'],
+              extra_lib_path        = Split(FRAMEWORK_LIB_PATH) + 
+                                      Split(FFMPEG_LIB_PATH) +
+                                      Split(SDL_LIB_PATH),
               shared                =  True,
               install               =  True)
 

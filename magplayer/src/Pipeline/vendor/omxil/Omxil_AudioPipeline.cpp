@@ -417,6 +417,15 @@ _status_t OmxilAudioPipeline::init(i32 trackID, TrackInfo_t *sInfo){
                     mARenClockPortIdx = i;
                 }
             }
+
+            initHeader(&ffmpegData, sizeof(OMX_CONFIG_FFMPEG_DATA_TYPE));
+            ffmpegData.avformat = sInfo->avformat;
+            ffmpegData.avstream = sInfo->avstream;
+            err = OMX_SetParameter(mhAudioRender, (OMX_INDEXTYPE)OMX_IndexConfigExtFFMpegData, &ffmpegData);
+            if(err != OMX_ErrorNone){
+                AGILE_LOGE("Error in setting audioRen component OMX_CONFIG_FFMPEG_DATA_TYPE parameter");
+                return MAG_BAD_VALUE;
+            }
         }else{
             AGILE_LOGE("Failed to get component name with role name %s", OMX_ROLE_AUDIO_RENDERER_PCM);
             return MAG_NAME_NOT_FOUND;
