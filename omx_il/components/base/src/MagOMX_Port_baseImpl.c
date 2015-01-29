@@ -369,7 +369,6 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
                 }
             }
 
-
             printBufSequence(base, bufHeader, __FUNCTION__, __LINE__);
             base->dispatchBuffers(priv, bufHeader);
             break;
@@ -503,7 +502,7 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
             break;
 
         case MagOmxPortImpl_OutputBufferMsg:
-            PORT_LOGV(root, "MagOmxPortImpl_OutputBufferMsg: buffer[%p]", bufHeader);
+            PORT_LOGV(root, "MagOmxPortImpl_OutputBufferMsg: buffer header %p[%p]", bufHeader, bufHeader->pBuffer);
             if (bufHeader){
                 if (root->isTunneled(root)){
                     if (root->isBufferSupplier(root)){
@@ -1517,8 +1516,9 @@ static OMX_ERRORTYPE virtual_sendOutputBuffer(OMX_HANDLETYPE hPort,
     }
 
     portImpl->mOutputBufferMsg->setPointer(portImpl->mOutputBufferMsg, "buffer_header", (void *)pBuffer, MAG_FALSE);
+
+    PORT_LOGV(getRoot(portImpl), "send output buffer: %p[%p]", pBuffer, pBuffer->pBuffer);
     portImpl->mOutputBufferMsg->postMessage(portImpl->mOutputBufferMsg, 0);
-    PORT_LOGV(getRoot(portImpl), "send out put buffer: %p", pBuffer);
 
     return OMX_ErrorNone;
 }
@@ -1634,9 +1634,9 @@ static void MagOmxPortImpl_dispatchBuffers(OMX_HANDLETYPE hPort, OMX_BUFFERHEADE
 
         hMsg->setMessage(hMsg, "return_buf_msg", port->mReturnThisBufferMsg, MAG_FALSE);
         hMsg->setPointer(hMsg, "buffer_header", bufHeader, MAG_FALSE);
-        hMsg->postMessage(hMsg, 0);
         PORT_LOGD(portRoot, "dispatch buffer header: %p, buffer: %p with msg: %p", 
                              bufHeader, bufHeader->pBuffer, hMsg);
+        hMsg->postMessage(hMsg, 0);
         pNode = pNode->next;
     }
 }

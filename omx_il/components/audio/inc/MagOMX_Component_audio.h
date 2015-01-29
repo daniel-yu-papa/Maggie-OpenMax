@@ -19,9 +19,13 @@ Virtuals(MagOmxComponentAudio, MagOmxComponentImpl)
 EndOfVirtuals;
 
 ClassMembers(MagOmxComponentAudio, MagOmxComponentImpl, \
-	void (*self)(void); \
+	void (*updateRefTime)(MagOmxComponentAudio thiz, OMX_TICKS timeStamp, OMX_U32 frame_duration); \
 )
     MagMutexHandle         mhMutex;
+
+    OMX_BOOL mEnableRefClockUpdate;
+    OMX_U32  mRefTimeUpdateInterval; 
+    OMX_U32  mAllFrameDuration;
 
 EndOfClassMembers;
 

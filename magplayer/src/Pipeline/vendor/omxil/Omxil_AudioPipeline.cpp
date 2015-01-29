@@ -294,8 +294,8 @@ _status_t OmxilAudioPipeline::init(i32 trackID, TrackInfo_t *sInfo){
     OMX_U32 i;
 
     OMX_U32 aDecNoneTunnelPortIdx;
-
     bool bGetAdecHandler = false;
+    OMX_TIME_CONFIG_ACTIVEREFCLOCKUPDATETYPE refTimeUpdate;
 
     AGILE_LOGD("Enter!");
     MagAudioPipelineImpl::init(trackID, sInfo);
@@ -426,6 +426,16 @@ _status_t OmxilAudioPipeline::init(i32 trackID, TrackInfo_t *sInfo){
                 AGILE_LOGE("Error in setting audioRen component OMX_CONFIG_FFMPEG_DATA_TYPE parameter");
                 return MAG_BAD_VALUE;
             }
+
+            /*sync to audio*/
+            /*initHeader(&refTimeUpdate, sizeof(OMX_TIME_CONFIG_ACTIVEREFCLOCKUPDATETYPE));
+            refTimeUpdate.bEnableRefClockUpdates = OMX_TRUE;
+            refTimeUpdate.nRefTimeUpdateInterval = 1000000;
+            err = OMX_SetParameter(mhAudioRender, OMX_IndexConfigTimeActiveRefClockUpdate, &refTimeUpdate);
+            if(err != OMX_ErrorNone){
+                AGILE_LOGE("Error in setting audioRen component OMX_TIME_CONFIG_ACTIVEREFCLOCKUPDATETYPE parameter");
+                return MAG_BAD_VALUE;
+            }*/
         }else{
             AGILE_LOGE("Failed to get component name with role name %s", OMX_ROLE_AUDIO_RENDERER_PCM);
             return MAG_NAME_NOT_FOUND;

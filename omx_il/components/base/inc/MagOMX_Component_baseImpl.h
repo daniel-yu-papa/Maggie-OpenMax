@@ -279,8 +279,7 @@ ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
     MagMessageHandle *mPortDataMsgList;
     /*OMX_U32          mFlushingPorts;*/
 
-    List_t           mAVSyncBusyBufLH;
-    List_t           mAVSyncFreeBufLH;
+    RBTreeNodeHandle  mAVSyncBufRBTree;
 
     OMX_HANDLETYPE   mhClockPort;
 

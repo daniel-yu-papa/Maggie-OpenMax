@@ -158,7 +158,6 @@ static void onBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
 
     cmd = msg->what(msg);
 
-    COMP_LOGV(root, "enter command %d", cmd);
     if ((cmd >= MagOmxComponentImpl_PortDataFlowMsg) &&
         (cmd < MagOmxComponentImpl_PortDataFlowMsg + base->mPorts)){
         if (!msg->findPointer(msg, "buffer_header", (void **)&srcBufHeader)){
@@ -2366,8 +2365,7 @@ static OMX_ERRORTYPE MagOmxComponentImpl_query(
 static OMX_ERRORTYPE MagOmxComponentImpl_syncDisplay(
                         OMX_IN MagOmxComponentImpl hComponent,
                         OMX_IN OMX_BUFFERHEADERTYPE *bufHeader){
-    List_t *freeList;
-    List_t *busyList;
+
     MagOMX_Component_Buffer_List_t *node;
     List_t *tmp;
     OMX_ERRORTYPE ret = OMX_ErrorNone;
@@ -2401,10 +2399,8 @@ static OMX_ERRORTYPE MagOmxComponentImpl_syncDisplay(
             COMP_LOGD(getRoot(hComponent), "clock component state is Running now!");
         }
 
-        freeList = &hComponent->mAVSyncFreeBufLH;
-        busyList = &hComponent->mAVSyncBusyBufLH;
-
         Mag_AcquireMutex(hComponent->mhAVSyncMutex);
+#if 0
         if (freeList->next == freeList){
             /*free list is empty*/
             node = (MagOMX_Component_Buffer_List_t *)mag_mallocz(sizeof(MagOMX_Component_Buffer_List_t));
@@ -2415,7 +2411,7 @@ static OMX_ERRORTYPE MagOmxComponentImpl_syncDisplay(
         }
         node->buffer = bufHeader;
         list_add_tail(&node->node, busyList);
-#if 0
+
         COMP_LOGD(getRoot(hComponent), "add pts 0x%llx into the busylist!", node->buffer->nTimeStamp);
         {
             List_t *tmp;
@@ -2427,6 +2423,9 @@ static OMX_ERRORTYPE MagOmxComponentImpl_syncDisplay(
                 tmp = tmp->next;
             }
         }
+#else
+        hComponent->mAVSyncBufRBTree = rbtree_insert(hComponent->mAVSyncBufRBTree, 
+                                                     bufHeader->nTimeStamp, (void *)bufHeader);
 #endif
         Mag_ReleaseMutex(hComponent->mhAVSyncMutex);
 
@@ -2456,14 +2455,15 @@ static OMX_ERRORTYPE MagOmxComponentImpl_releaseDisplay(
                         OMX_IN MagOmxComponentImpl hComponent,
                         OMX_IN OMX_TICKS mediaTimestamp,
                         OMX_IN OMX_BUFFERHEADERTYPE **ppBufHeader){
-
+    OMX_ERRORTYPE ret = OMX_ErrorNone;
+#if 0
     List_t *freeList;
     List_t *busyList;
     List_t *expected;
     List_t *tmp;
     MagOMX_Component_Buffer_List_t *node;
     OMX_U32 i = 1;
-    OMX_ERRORTYPE ret = OMX_ErrorNone;
+    
 
     freeList = &hComponent->mAVSyncFreeBufLH;
     busyList = &hComponent->mAVSyncBusyBufLH;
@@ -2485,8 +2485,8 @@ static OMX_ERRORTYPE MagOmxComponentImpl_releaseDisplay(
             while (tmp != busyList){
                 i++;
                 node = (MagOMX_Component_Buffer_List_t *)list_entry(tmp, MagOMX_Component_Buffer_List_t, node);
-                COMP_LOGD(getRoot(hComponent), "Traverse busylist node:%d[0x%llx], expected pts: 0x%llx",
-                                                i, node->buffer->nTimeStamp, mediaTimestamp);
+                /*COMP_LOGD(getRoot(hComponent), "Traverse busylist node:%d[0x%llx], expected pts: 0x%llx",
+                                                i, node->buffer->nTimeStamp, mediaTimestamp);*/
                 if (node->buffer->nTimeStamp == mediaTimestamp){
                     list_del(&node->node);
                     *ppBufHeader = node->buffer;
@@ -2520,7 +2520,22 @@ static OMX_ERRORTYPE MagOmxComponentImpl_releaseDisplay(
         }
         COMP_LOGD(getRoot(hComponent), "The remaining unreleased frames: %d!", j);
     }
+#else
+    Mag_AcquireMutex(hComponent->mhAVSyncMutex);
+    *ppBufHeader = (OMX_BUFFERHEADERTYPE *)rbtree_get(hComponent->mAVSyncBufRBTree, mediaTimestamp);
 
+    if (*ppBufHeader == NULL){
+        COMP_LOGE(getRoot(hComponent), "Failed to delete the timestamp[0x%llx] from mAVSyncBufRBTree!",
+                                        mediaTimestamp);
+        ret = OMX_ErrorNoMore;
+    }else{
+        if (rbtree_delete(&hComponent->mAVSyncBufRBTree, mediaTimestamp) != 0){
+            COMP_LOGE(getRoot(hComponent), "Failed to delete the timestamp[0x%llx] from mAVSyncBufRBTree!",
+                                        mediaTimestamp);
+            ret = OMX_ErrorUndefined;
+        }
+    }
+#endif
     Mag_ReleaseMutex(hComponent->mhAVSyncMutex);
     return ret;
 }
@@ -2811,8 +2826,7 @@ static void MagOmxComponentImpl_constructor(MagOmxComponentImpl thiz, const void
 
     /*thiz->mFlushingPorts           = kInvalidPortIndex;*/
 
-    INIT_LIST(&thiz->mAVSyncBusyBufLH);
-    INIT_LIST(&thiz->mAVSyncFreeBufLH);
+    thiz->mAVSyncBufRBTree         = NULL;
 
     thiz->mhClockPort              = NULL;
 
@@ -2865,6 +2879,10 @@ static void MagOmxComponentImpl_destructor(MagOmxComponentImpl thiz, MagOmxCompo
     COMP_LOGV(getRoot(thiz), "66666666!");
     destroyLooper(&thiz->mBufferLooper);
     destroyHandler(&thiz->mBufferMsgHandler);
+
+    if (thiz->mAVSyncBufRBTree != NULL){
+        COMP_LOGE(getRoot(thiz), "Still has buffer header in the avsync tree!!!");
+    }
 
     COMP_LOGV(getRoot(thiz), "exit!");
 }

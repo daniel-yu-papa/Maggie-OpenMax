@@ -90,6 +90,43 @@ static OMX_ERRORTYPE virtual_MagOmxComponentAudio_SetParameter(
 	return ret;
 }
 
+static OMX_ERRORTYPE  virtual_MagOmxComponentAudio_SetRefClock(
+                    OMX_IN  OMX_HANDLETYPE hComponent,
+                    OMX_IN  OMX_TIME_CONFIG_ACTIVEREFCLOCKUPDATETYPE *rc){
+
+    MagOmxComponentAudio thiz;
+
+    thiz = ooc_cast(hComponent, MagOmxComponentAudio);
+
+    thiz->mEnableRefClockUpdate  = rc->bEnableRefClockUpdates;
+    thiz->mRefTimeUpdateInterval = rc->nRefTimeUpdateInterval / 1000;  /*in ms*/
+    thiz->mAllFrameDuration      = 0;
+    COMP_LOGD(ooc_cast(hComponent, MagOmxComponent), "mRefTimeUpdateInterval: %d ms", thiz->mRefTimeUpdateInterval);
+}
+
+static void MagOmxComponentAudio_updateRefTime(MagOmxComponentAudio thiz, OMX_TICKS timeStamp, OMX_U32 frame_duration){
+    MagOmxComponentImpl audioCompImpl;
+    MagOmxPort clockPort;
+    OMX_TIME_CONFIG_TIMESTAMPTYPE refTime;
+
+    audioCompImpl = ooc_cast(thiz, MagOmxComponentImpl);
+
+    COMP_LOGD(ooc_cast(thiz, MagOmxComponent), "mAllFrameDuration: %d, frame_duration: %d", thiz->mAllFrameDuration, frame_duration);
+
+    thiz->mAllFrameDuration += frame_duration;
+    if (thiz->mEnableRefClockUpdate && thiz->mAllFrameDuration >= thiz->mRefTimeUpdateInterval){
+        clockPort = ooc_cast(audioCompImpl->mhClockPort, MagOmxPort);
+
+        initHeader(&refTime, sizeof(OMX_TIME_CONFIG_TIMESTAMPTYPE));
+        refTime.nTimestamp = timeStamp;
+        MagOmxPortVirtual(clockPort)->SetParameter(clockPort, 
+                                                   OMX_IndexConfigTimeCurrentReference, 
+                                                   &refTime);
+        thiz->mAllFrameDuration = 0;
+    }
+}
+
+
 /*Class Constructor/Destructor*/
 static void MagOmxComponentAudio_initialize(Class this){
 	AGILE_LOGV("Enter!");
@@ -98,6 +135,7 @@ static void MagOmxComponentAudio_initialize(Class this){
     MagOmxComponentAudioVtableInstance.MagOmxComponentImpl.MagOMX_getType      = virtual_MagOmxComponentAudio_getType;
     MagOmxComponentAudioVtableInstance.MagOmxComponentImpl.MagOMX_GetParameter = virtual_MagOmxComponentAudio_GetParameter;
     MagOmxComponentAudioVtableInstance.MagOmxComponentImpl.MagOMX_SetParameter = virtual_MagOmxComponentAudio_SetParameter;
+    MagOmxComponentAudioVtableInstance.MagOmxComponentImpl.MagOMX_SetRefClock  = virtual_MagOmxComponentAudio_SetRefClock;
 
     MagOmxComponentAudioVtableInstance.MagOmx_Audio_GetParameter = NULL;
     MagOmxComponentAudioVtableInstance.MagOmx_Audio_SetParameter = NULL;
@@ -109,7 +147,13 @@ static void MagOmxComponentAudio_constructor(MagOmxComponentAudio thiz, const vo
 	MAG_ASSERT(ooc_isInitialized(MagOmxComponentAudio));
     chain_constructor(MagOmxComponentAudio, thiz, params);
 
+    thiz->updateRefTime = MagOmxComponentAudio_updateRefTime;
+
     Mag_CreateMutex(&thiz->mhMutex);
+
+    thiz->mEnableRefClockUpdate  = OMX_FALSE;
+    thiz->mRefTimeUpdateInterval = 0;
+    thiz->mAllFrameDuration      = 0;
 }
 
 static void MagOmxComponentAudio_destructor(MagOmxComponentAudio thiz, MagOmxComponentAudioVtable vtab){

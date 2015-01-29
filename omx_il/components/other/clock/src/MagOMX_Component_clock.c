@@ -402,6 +402,8 @@ static OMX_ERRORTYPE  virtual_MagOmxComponentClock_Notify(
         case MagOMX_Component_Notify_ReferenceTimeUpdate:
         {
             OMX_TIME_CONFIG_TIMESTAMPTYPE *data = (OMX_TIME_CONFIG_TIMESTAMPTYPE *)pNotifyData;
+            COMP_LOGD(rootComp, "update the reference time: 0x%llx", data->nTimestamp);
+            
             Mag_AcquireMutex(hCompClock->mhRefTimeUpdateMutex);
             hCompClock->mReferenceTimeBase = CONVERT_TO_MICROSECONDS(data->nTimestamp);
             hCompClock->mWallTimeBase      = hCompClock->getTimeNow(hCompClock) + hCompClock->mClockOffset;

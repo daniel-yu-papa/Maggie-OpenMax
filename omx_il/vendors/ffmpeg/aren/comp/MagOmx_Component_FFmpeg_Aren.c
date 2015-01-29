@@ -37,7 +37,7 @@ static void sdl_audio_callback(void *opaque, Uint8 *stream, int len)
     thiz = ooc_cast(opaque, MagOmxComponent_FFmpeg_Aren);
     arenCompImpl = ooc_cast(opaque, MagOmxComponentImpl);
 
-    AGILE_LOGD("sdl_audio_callback(%d)", len);
+    /*AGILE_LOGD("sdl_audio_callback(%d)", len);*/
 
     len1 = len;
     while(len1){
@@ -47,7 +47,6 @@ static void sdl_audio_callback(void *opaque, Uint8 *stream, int len)
             break;
 
         arenBuf = bufNode->pBuf;
-
         pAudioData = arenBuf->buf;
 
         if (arenBuf->nFilledLen - arenBuf->nOffset > len1){
@@ -62,7 +61,10 @@ static void sdl_audio_callback(void *opaque, Uint8 *stream, int len)
             memcpy( stream, 
                     (uint8_t *)pAudioData + arenBuf->nOffset, 
                     arenBuf->nFilledLen - arenBuf->nOffset);
-            len1 = len1 - (arenBuf->nFilledLen - arenBuf->nOffset);
+
+            len1   -= (arenBuf->nFilledLen - arenBuf->nOffset);
+            stream += (arenBuf->nFilledLen - arenBuf->nOffset);
+            
             mag_freep((void **)&arenBuf->buf);
             arenCompImpl->sendReturnBuffer(arenCompImpl, arenBuf->pOmxBufHeader);
             Mag_AcquireMutex(thiz->mListMutex);
@@ -77,7 +79,6 @@ static void sdl_audio_callback(void *opaque, Uint8 *stream, int len)
         fflush(thiz->mfPCMSdl);
     }
 #endif 
-    AGILE_LOGD("sdl_audio_callback(exit)");
 }
 
 static int FFmpeg_Aren_openAudio(MagOmxComponent_FFmpeg_Aren thiz){
@@ -142,11 +143,8 @@ static int FFmpeg_Aren_openAudio(MagOmxComponent_FFmpeg_Aren thiz){
         thiz->mAudioParameters.freq = spec.freq;
         thiz->mAudioParameters.channel_layout = channel_layout;
         thiz->mAudioParameters.channels = spec.channels;
-        thiz->mAudioParameters.frame_size = av_samples_get_buffer_size(NULL, spec.channels, 1, thiz->mAudioParameters.fmt, 1);
-        thiz->mAudioParameters.bytes_per_sec = av_samples_get_buffer_size(NULL, spec.channels, spec.freq, thiz->mAudioParameters.fmt, 1);
-        if (thiz->mAudioParameters.frame_size <= 0 || thiz->mAudioParameters.bytes_per_sec <= 0) {
-            AGILE_LOGE("av_samples_get_buffer_size failed");
-        }
+
+        thiz->mStopped = OMX_FALSE;
 
         /*start audio playing*/
         SDL_PauseAudio(0);
@@ -189,7 +187,7 @@ get_again:
         bufNode = (MagOmx_Aren_BufferNode_t *)list_entry(next, MagOmx_Aren_BufferNode_t, Node);
         Mag_ReleaseMutex(thiz->mListMutex);
     }else{
-        if (arenCompImpl->mTransitionState != OMX_TransitionStateToIdle){
+        if (!thiz->mStopped){
             Mag_ClearEvent(thiz->mNewBufEvent);
             Mag_ReleaseMutex(thiz->mListMutex);
 
@@ -329,8 +327,9 @@ static OMX_ERRORTYPE virtual_FFmpeg_Aren_Stop(
 	AGILE_LOGV("enter!");
     thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Aren);
 
+    thiz->mStopped = OMX_TRUE;
+    Mag_SetEvent(thiz->mNewBufEvent);
     SDL_CloseAudio();
-
     thiz->resetBuf(thiz);
 
 #ifdef CAPTURE_PCM_DATA_TO_FILE
@@ -346,6 +345,8 @@ static OMX_ERRORTYPE virtual_FFmpeg_Aren_Stop(
         thiz->mfPCMSdl = NULL;
     }
 #endif
+    AGILE_LOGV("exit!");
+
 	return OMX_ErrorNone;
 }
 
@@ -372,7 +373,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Aren_Deinit(
 
 	thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Aren);
     arenCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
-    
+
     next = thiz->mBufFreeListHead.next;
     while (next != &thiz->mBufFreeListHead){
         list_del(next);
@@ -437,6 +438,7 @@ static OMX_ERRORTYPE  virtual_FFmpeg_Aren_DoAVSync(
                     OMX_IN  OMX_TIME_MEDIATIMETYPE *mediaTime){
 	MagOmxComponent_FFmpeg_Aren thiz;
 	MagOmxComponentImpl         arenCompImpl;
+    MagOmxComponentAudio        audioComp;
 	OMX_BUFFERHEADERTYPE        *getBuffer;
 	OMX_ERRORTYPE               ret;
 	/*MagOmxPort                  hPort;*/
@@ -450,6 +452,7 @@ static OMX_ERRORTYPE  virtual_FFmpeg_Aren_DoAVSync(
 
 	thiz         = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Aren);
 	arenCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
+    audioComp    = ooc_cast(hComponent, MagOmxComponentAudio);
 
 	ret = arenCompImpl->releaseDisplay(arenCompImpl, mediaTime->nMediaTimestamp, &getBuffer);
 	if (ret != OMX_ErrorNone){
@@ -461,21 +464,25 @@ static OMX_ERRORTYPE  virtual_FFmpeg_Aren_DoAVSync(
         getBuffer->nFilledLen == 0    && 
         getBuffer->nTimeStamp == kInvalidTimeStamp){
         AGILE_LOGV("get the EOS frame and send out the eos event to application");
+        thiz->mStopped = OMX_TRUE;
         arenCompImpl->sendReturnBuffer(arenCompImpl, getBuffer);
         arenCompImpl->sendEvents(hComponent, OMX_EventBufferFlag, 0, 0, NULL);
-        return OMX_ErrorNone;
-    }
-
-    if (arenCompImpl->mTransitionState == OMX_TransitionStateToIdle){
-        /*in stop transition, directly return the buffers*/
-        AGILE_LOGV("in stop transition, directly return the buffers");
-        arenCompImpl->sendReturnBuffer(arenCompImpl, getBuffer);
+        Mag_SetEvent(thiz->mNewBufEvent);
         return OMX_ErrorNone;
     }
 
 	decodedFrame = (AVFrame *)getBuffer->pBuffer;
     action       = (MagOMX_AVSync_Action_t)mediaTime->nClientPrivate;
 	timeStamp    = getBuffer->nTimeStamp;
+
+    if (thiz->mStopped || action == AVSYNC_DROP){
+        /*in stop transition, directly return the buffers*/
+        AGILE_LOGV("%s , directly return the buffers", thiz->mStopped ? "stop" : "drop audio");
+        arenCompImpl->sendReturnBuffer(arenCompImpl, getBuffer);
+        return OMX_ErrorNone;
+    }
+
+    audioComp->updateRefTime(audioComp, timeStamp, av_frame_get_pkt_duration(decodedFrame));
 
 	data_size = av_samples_get_buffer_size(NULL, av_frame_get_channels(decodedFrame),
                                                    decodedFrame->nb_samples,
@@ -489,6 +496,10 @@ static OMX_ERRORTYPE  virtual_FFmpeg_Aren_DoAVSync(
          (decodedFrame->format      != thiz->mAudioParameters.fmt            ||
           dec_channel_layout        != thiz->mAudioParameters.channel_layout ||
           decodedFrame->sample_rate != thiz->mAudioParameters.freq) ) {
+        AGILE_LOGD("Reconfig the audio output. format[%d-%d], channel_layout[%d-%d], sample_rate[%d-%d]",
+                    decodedFrame->format, thiz->mAudioParameters.fmt,
+                    dec_channel_layout, thiz->mAudioParameters.channel_layout,
+                    decodedFrame->sample_rate, thiz->mAudioParameters.freq);
         thiz->mpSwrCtx = swr_alloc_set_opts(NULL,
                                             thiz->mAudioParameters.channel_layout, 
                                             thiz->mAudioParameters.fmt, 
@@ -526,8 +537,8 @@ static OMX_ERRORTYPE  virtual_FFmpeg_Aren_DoAVSync(
 
             if (!outBuf)
                 return OMX_ErrorDynamicResourcesUnavailable;
-            /*AGILE_LOGV("out_count: %d, out_size: %d, malloc_out_size: %d, nb_samples: %d!", 
-                        out_count, out_size, malloc_out_size, decodedFrame->nb_samples);*/
+            AGILE_LOGV("out_count: %d, out_size: %d, malloc_out_size: %d, nb_samples: %d!", 
+                        out_count, out_size, malloc_out_size, decodedFrame->nb_samples);
             len2 = swr_convert(thiz->mpSwrCtx, &outBuf, out_count, in, decodedFrame->nb_samples);
 
             if (len2 < 0) {
@@ -580,7 +591,7 @@ static OMX_ERRORTYPE  virtual_FFmpeg_Aren_GetRenderDelay(
                     OMX_IN OMX_HANDLETYPE hComponent,
                     OMX_OUT OMX_TICKS *pRenderDelay){
     /*in us*/
-    *pRenderDelay = 3000;
+    *pRenderDelay = 1000;
 
     return OMX_ErrorNone;
 }
@@ -622,20 +633,20 @@ static void MagOmxComponent_FFmpeg_Aren_initialize(Class this){
 	AGILE_LOGV("Enter!");
 	
 	/*Override the base component pure virtual functions*/
-    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_GetComponentUUID  = virtual_FFmpeg_Aren_GetComponentUUID;
-    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_Prepare           = virtual_FFmpeg_Aren_Prepare;
-    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_Preroll           = virtual_FFmpeg_Aren_Preroll;
-    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_Start             = virtual_FFmpeg_Aren_Start;
-    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_Stop              = virtual_FFmpeg_Aren_Stop;
-    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_Pause             = virtual_FFmpeg_Aren_Pause;
-    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_Resume            = virtual_FFmpeg_Aren_Resume;
-    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_Deinit            = virtual_FFmpeg_Aren_Deinit;
-    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_Reset             = virtual_FFmpeg_Aren_Reset;
-    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_ComponentRoleEnum = virtual_FFmpeg_Aren_ComponentRoleEnum;
-    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_ProceedBuffer     = virtual_FFmpeg_Aren_ProceedBuffer;
-    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_DoAVSync          = virtual_FFmpeg_Aren_DoAVSync;
+    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_GetComponentUUID     = virtual_FFmpeg_Aren_GetComponentUUID;
+    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_Prepare              = virtual_FFmpeg_Aren_Prepare;
+    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_Preroll              = virtual_FFmpeg_Aren_Preroll;
+    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_Start                = virtual_FFmpeg_Aren_Start;
+    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_Stop                 = virtual_FFmpeg_Aren_Stop;
+    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_Pause                = virtual_FFmpeg_Aren_Pause;
+    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_Resume               = virtual_FFmpeg_Aren_Resume;
+    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_Deinit               = virtual_FFmpeg_Aren_Deinit;
+    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_Reset                = virtual_FFmpeg_Aren_Reset;
+    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_ComponentRoleEnum    = virtual_FFmpeg_Aren_ComponentRoleEnum;
+    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_ProceedBuffer        = virtual_FFmpeg_Aren_ProceedBuffer;
+    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_DoAVSync             = virtual_FFmpeg_Aren_DoAVSync;
     MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_GetClockActionOffset = virtual_FFmpeg_Aren_GetClockActionOffset;
-    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_GetRenderDelay = virtual_FFmpeg_Aren_GetRenderDelay;
+    MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmxComponentImpl.MagOMX_GetRenderDelay       = virtual_FFmpeg_Aren_GetRenderDelay;
 
     MagOmxComponent_FFmpeg_ArenVtableInstance.MagOmxComponentAudio.MagOmx_Audio_SetParameter = virtual_FFmpeg_Aren_SetParameter;
 }
@@ -654,6 +665,8 @@ static void MagOmxComponent_FFmpeg_Aren_constructor(MagOmxComponent_FFmpeg_Aren 
     thiz->mpAudioStream = NULL;
     thiz->mpAVFormat    = NULL;
     thiz->mpSwrCtx      = NULL;
+
+    thiz->mStopped      = OMX_TRUE;
 
 #ifdef CAPTURE_PCM_DATA_TO_SDL
     thiz->mfPCMSdl      = NULL;

@@ -290,7 +290,7 @@ static OMX_ERRORTYPE  virtual_FFmpeg_Vsch_GetRenderDelay(
                     OMX_IN OMX_HANDLETYPE hComponent,
                     OMX_OUT OMX_TICKS *pRenderDelay){
     /*in us*/
-    *pRenderDelay = 10000;
+    *pRenderDelay = 1000;
 
     return OMX_ErrorNone;
 }
@@ -300,20 +300,20 @@ static void MagOmxComponent_FFmpeg_Vsch_initialize(Class this){
 	AGILE_LOGV("Enter!");
 	
 	/*Override the base component pure virtual functions*/
-    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_GetComponentUUID  = virtual_FFmpeg_Vsch_GetComponentUUID;
-    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_Prepare           = virtual_FFmpeg_Vsch_Prepare;
-    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_Preroll           = virtual_FFmpeg_Vsch_Preroll;
-    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_Start             = virtual_FFmpeg_Vsch_Start;
-    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_Stop              = virtual_FFmpeg_Vsch_Stop;
-    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_Pause             = virtual_FFmpeg_Vsch_Pause;
-    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_Resume            = virtual_FFmpeg_Vsch_Resume;
-    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_Deinit            = virtual_FFmpeg_Vsch_Deinit;
-    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_Reset             = virtual_FFmpeg_Vsch_Reset;
-    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_ComponentRoleEnum = virtual_FFmpeg_Vsch_ComponentRoleEnum;
-    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_ProceedBuffer     = virtual_FFmpeg_Vsch_ProceedBuffer;
-    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_DoAVSync          = virtual_FFmpeg_Vsch_DoAVSync;
+    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_GetComponentUUID     = virtual_FFmpeg_Vsch_GetComponentUUID;
+    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_Prepare              = virtual_FFmpeg_Vsch_Prepare;
+    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_Preroll              = virtual_FFmpeg_Vsch_Preroll;
+    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_Start                = virtual_FFmpeg_Vsch_Start;
+    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_Stop                 = virtual_FFmpeg_Vsch_Stop;
+    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_Pause                = virtual_FFmpeg_Vsch_Pause;
+    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_Resume               = virtual_FFmpeg_Vsch_Resume;
+    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_Deinit               = virtual_FFmpeg_Vsch_Deinit;
+    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_Reset                = virtual_FFmpeg_Vsch_Reset;
+    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_ComponentRoleEnum    = virtual_FFmpeg_Vsch_ComponentRoleEnum;
+    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_ProceedBuffer        = virtual_FFmpeg_Vsch_ProceedBuffer;
+    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_DoAVSync             = virtual_FFmpeg_Vsch_DoAVSync;
     MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_GetClockActionOffset = virtual_FFmpeg_Vsch_GetClockActionOffset;
-    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_GetRenderDelay = virtual_FFmpeg_Vsch_GetRenderDelay;
+    MagOmxComponent_FFmpeg_VschVtableInstance.MagOmxComponentVideo.MagOmxComponentImpl.MagOMX_GetRenderDelay       = virtual_FFmpeg_Vsch_GetRenderDelay;
 }
 
 static void MagOmxComponent_FFmpeg_Vsch_constructor(MagOmxComponent_FFmpeg_Vsch thiz, const void *params){

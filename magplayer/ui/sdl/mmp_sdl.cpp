@@ -16,6 +16,9 @@ extern "C" {
 #include "OMX_Core.h"
 
 #define SEEK_ONCE_TIME (10 * 1000) /*in ms*/
+const int black_Y = 0;
+const int black_U = 128;
+const int black_V = 128;
 
 //Screen dimension constants
 const int DEFAULT_SCREEN_WIDTH  = 640;
@@ -123,6 +126,31 @@ static void eventCallback(mmp_event_t evt, void *handler, unsigned int param1, u
     }
 }
 
+static void SetVideoOverlayBlack(SDL_Overlay *pVideoOverlay, int width, int height)
+{
+    int i;
+
+    /* get a pointer on the bitmap */
+    SDL_LockYUVOverlay (pVideoOverlay);
+
+    for (i = 0; i < width * height; i++){
+        *(pVideoOverlay->pixels[0] + i) = black_Y;
+    }
+
+    for (i = 0; i < width * height / 4; i++){
+        *(pVideoOverlay->pixels[2] + i) = black_U;
+        *(pVideoOverlay->pixels[1] + i) = black_V;
+    }
+
+    pVideoOverlay->pitches[0] = width;
+    pVideoOverlay->pitches[2] = width / 2;
+    pVideoOverlay->pitches[1] = width / 2;
+
+    /* update the bitmap content */
+    SDL_UnlockYUVOverlay(pVideoOverlay);
+
+}
+
 static void UpdateVideoOverlay(SDL_Overlay *pVideoOverlay, AVFrame *frame)
 {
     AVPicture pict = { { 0 } };
@@ -155,11 +183,9 @@ int main(int argc, char *argv[]){
     int i;
     int once_seek_time = SEEK_ONCE_TIME;
     int seekTime = 0;
-    float volume = 0.1;
     
     int display_win_width;
     int display_win_height;
-
     bool done = false;
 
     SDL_Event event;
@@ -168,15 +194,13 @@ int main(int argc, char *argv[]){
     TTF_Font *pFont = NULL;
     void *pVideoFrame = NULL;
 
-    int flags = SDL_HWSURFACE | SDL_ASYNCBLIT | SDL_HWACCEL;
-    int is_full_screen = 0;
+    int flags = SDL_HWSURFACE | SDL_ASYNCBLIT | SDL_HWACCEL | SDL_RESIZABLE;
     SDL_Rect VideoDestRect;
 
 	if (argc < 2){
 		printf("usage: mmp_sdl --url "" --seek n\n");
         printf("               --url: the playback link\n");
         printf("               --seek: the milliseconds value that once seek action moves forward or backward\n");
-        printf("        --full-screen: full screen (defalut: resizable)\n");
 		return -1;
 	}
 
@@ -186,14 +210,9 @@ int main(int argc, char *argv[]){
             strcpy(url, argv[i + 1]);
         }else if (!strcasecmp(argv[i], "--seek")){
             once_seek_time = atoi(argv[i + 1]) * 1000;
-        }else if (!strcasecmp(argv[i], "--full-screen")){
-            is_full_screen = 1;
         }
         i = i + 2;
     }
-
-    if (is_full_screen) flags |= SDL_FULLSCREEN;
-    else                flags |= SDL_RESIZABLE;
 
     Mag_CreateEventGroup(&gPrepareEventGroup);
     if (MAG_ErrNone == Mag_CreateEvent(&gPrepareCompleteEvent, MAG_EVT_PRIO_DEFAULT)){
@@ -210,7 +229,7 @@ int main(int argc, char *argv[]){
         Mag_AddEventGroup(gSeekEventGroup, gSeekCompleteEvent);
     }
 
-    printf("mmp_sdl plays url: %s, seek time: %d, full screen: %s\n\n\n", url, once_seek_time, is_full_screen ? "Y" : "N");
+    printf("mmp_sdl plays url: %s, seek time: %d s\n\n\n", url, once_seek_time/1000);
     
     player = GetMediaPlayer();
     if (player == NULL){
@@ -297,22 +316,6 @@ int main(int argc, char *argv[]){
                         player->seekTo(seekTime);
 
                         Mag_WaitForEventGroup(gSeekEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
-                        break;
-                    }else if (event.key.keysym.sym == SDLK_UP){
-                        printf("key down: up arrow\n");
-                        /*volume up*/
-                        volume += 0.1;
-                        if (volume > 1.0)
-                            volume = 1.0;
-                        player->setVolume(volume, volume);
-                        break;
-                    }else if (event.key.keysym.sym == SDLK_DOWN){
-                        printf("key down: down arrow\n");
-                        /*volume down*/
-                        volume -= 0.1;
-                        if (volume < 0.0)
-                            volume = 0.0;
-                        player->setVolume(volume, volume);
                         break;
                     }else if (event.key.keysym.sym == SDLK_s){
                         printf("key down: s\n");
@@ -433,6 +436,11 @@ int main(int argc, char *argv[]){
                 Mag_TimeTakenStatistic(MAG_TRUE, __FUNCTION__, NULL);
                 SDL_DisplayYUVOverlay(pVideoOverlay, &VideoDestRect);
                 Mag_TimeTakenStatistic(MAG_FALSE, __FUNCTION__, "SDL_DisplayYUVOverlay");
+            }
+        }else if (gStopped){
+            if (pVideoOverlay){
+                SetVideoOverlayBlack(pVideoOverlay, display_win_width, display_win_height);
+                SDL_DisplayYUVOverlay(pVideoOverlay, &VideoDestRect);
             }
         }
     }

@@ -14,6 +14,7 @@ EndOfVirtuals;
 ClassMembers(MagOmxComponent_FFmpeg_Vsch, MagOmxComponentVideo, \
 	void (*self)(void); \
 )
+
 #ifdef CAPTURE_YUV_FRAME_BEFORE_AVSYNC
     FILE *mfYUVPreAvsync;
 #endif

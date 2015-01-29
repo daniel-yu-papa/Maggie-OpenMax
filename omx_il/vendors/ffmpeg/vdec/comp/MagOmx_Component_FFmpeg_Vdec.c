@@ -381,6 +381,8 @@ decode:
         }
     }
 
+    COMP_LOGV(root, "exit!");
+
 	return OMX_ErrorNone;
 }
 

@@ -27,8 +27,6 @@ typedef struct AudioParams {
     int channels;
     i64 channel_layout;
     enum AVSampleFormat fmt;
-    int frame_size;
-    int bytes_per_sec;
 } AudioParams;
 
 DeclareClass(MagOmxComponent_FFmpeg_Aren, MagOmxComponentAudio);
@@ -54,6 +52,8 @@ ClassMembers(MagOmxComponent_FFmpeg_Aren, MagOmxComponentAudio, \
 
     MagEventHandle         mNewBufEvent;
     MagEventGroupHandle    mWaitBufEventGroup;
+
+    OMX_BOOL mStopped;
 
 #ifdef CAPTURE_PCM_DATA_TO_FILE
 	FILE *mfPCMFile;

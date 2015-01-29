@@ -86,12 +86,21 @@ static OMX_ERRORTYPE virtual_MagOmxPortClock_SetParameter(OMX_HANDLETYPE hPort, 
 			break;
 
 		case OMX_IndexConfigTimeCurrentReference:
-			if (!root->isInputPort(root)){ /*output port*/
+		{
+			OMX_TIME_CONFIG_TIMESTAMPTYPE *data;
+
+			if (root->isInputPort(root)){ /*input port*/
+				portImpl = ooc_cast(hPort, MagOmxPortImpl);
+				data = (OMX_TIME_CONFIG_TIMESTAMPTYPE *)pPortParam;
+				data->nPortIndex = portImpl->mTunneledPortIndex;
+				compRoot = ooc_cast(portImpl->mTunneledComponent, MagOmxComponent);
+				ret = MagOmxComponentVirtual(compRoot)->SetConfig(portImpl->mTunneledComponent, 
+					                                              OMX_IndexConfigTimeCurrentReference, 
+					                                              data);
+			}else{ /*output port*/
 				ret = hComp->notify(hComp, MagOMX_Component_Notify_ReferenceTimeUpdate, pPortParam);
-			}else{
-				PORT_LOGE(root, "To setConfig(OMX_IndexConfigTimeCurrentReference) on input port is Illegal!");
-				ret = OMX_ErrorUnsupportedSetting;
 			}
+		}
 			break;
 
 		default:

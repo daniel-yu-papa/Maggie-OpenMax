@@ -72,6 +72,7 @@ static OMX_ERRORTYPE virtual_MagOmxComponentVideo_SetParameter(
             }
             break;
         }
+
     	default:
         {
             if (MagOmxComponentVideoVirtual(thiz)->MagOmx_Video_SetParameter){
