@@ -170,37 +170,6 @@ else:
 
 
 #######################################################
-# Build External FFMPEG library
-#######################################################
-ffmpeg_link_file = env.GetBuildPath('#/external/ffmpeg')
-external_path = env.GetBuildPath('#/external')
-target_ffmpeg_mk = env.GetBuildPath('#/build/Targets/'+env['target']+'/configs/ffmpeg.config')
-ffmpeg_lib_install_path = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/ffmpeg')
-
-if not os.path.exists(ffmpeg_link_file):
-    output = os.popen("ls "+external_path+"/*ffmpeg*.tar.bz2")
-    ffmpeg_tarball = output.read()
-    os.chdir(external_path)
-    os.system("tar jxvf "+ffmpeg_tarball)    
-    output = os.popen("ls -d "+external_path+"/*ffmpeg*/")
-    ffmpeg_full_dir = output.read()
-    print "ffmpeg_full_dir:"+ffmpeg_full_dir
-    ffmpeg_dir = ffmpeg_full_dir.split('/', 100)[-2] 
-    print "ffmpeg_dir:"+ffmpeg_dir
-    os.system("ln -s ./"+ffmpeg_dir+" ffmpeg")
-    os.system("cp -f "+target_ffmpeg_mk+" ./ffmpeg")
-    os.chdir("./ffmpeg")
-    os.system("./ffmpeg.config")
-    os.system("make -j8")
-    os.system("mkdir -p "+ffmpeg_lib_install_path)
-    os.system("cp -Pf libavformat/*.so* "+ffmpeg_lib_install_path)
-    os.system("cp -Pf libavcodec/*.so* "+ffmpeg_lib_install_path)
-    os.system("cp -Pf libavutil/*.so* "+ffmpeg_lib_install_path)
-    os.system("cp -Pf libswscale/*.so* "+ffmpeg_lib_install_path)
-    os.system("cp -Pf libswresample/*.so* "+ffmpeg_lib_install_path)
-
-
-#######################################################
 # modules
 #
 # Usage:

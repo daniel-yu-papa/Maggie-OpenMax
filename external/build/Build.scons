@@ -1,0 +1,179 @@
+import sys
+import os
+import imp
+import shutil
+from glob import glob
+
+def LoadTool(name, env, **kw):
+    config_path = GetBuildPath('#/magplayer/build/Tools/SCons')
+    file, path, desc = imp.find_module(name, [config_path])
+    module = imp.load_module(name, file, path, desc)
+    module.generate(env, **kw)
+    
+def replaceWordInFile(input_file, output_file, word, replace):  
+    input   = open(input_file)  
+    lines   = input.readlines()  
+    input.close()  
+  
+    output  = open(output_file,'w')  
+    for line in lines:  
+        if not line:  
+            break  
+        if (word in line):  
+            temp    = line.split(word)  
+            temp1   = temp[0] + replace + temp[1]  
+            output.write(temp1)   
+        else:  
+            output.write(line)    
+    output.close()  
+
+#######################################################
+# Main Build
+#######################################################
+Import("env")
+
+### try to read in any target specific configuration
+target_config_file = env.GetBuildPath('#/build/Targets/'+env['target']+'/Config.scons')
+if os.path.exists(target_config_file):
+    # Load the target-specific config file    
+    execfile(target_config_file)
+else:
+    print '*************', target_config_file, 'is not existed! ******************'
+
+#######################################################
+# Build External freetype library
+#######################################################
+external_path = env.GetBuildPath('#/external')
+
+freetype_link_file = env.GetBuildPath('#/external/freetype')
+target_freetype_mk = env.GetBuildPath('#/build/Targets/'+env['target']+'/configs/freetype.config')
+freetype_lib_install_path = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/freetype')
+freetype_install_path = env.GetBuildPath('#/external/freetype/out')
+
+if not os.path.exists(freetype_link_file):
+    output = os.popen("ls "+external_path+"/*freetype*.tar.bz2")
+    freetype_tarball = output.read()
+    os.chdir(external_path)
+    os.system("tar jxvf "+freetype_tarball)    
+    output = os.popen("ls -d "+external_path+"/*freetype*/")
+    freetype_full_dir = output.read()
+    print "freetype_full_dir:"+freetype_full_dir
+    freetype_dir = freetype_full_dir.split('/', 100)[-2] 
+    print "freetype_dir:"+freetype_dir
+    os.system("ln -s ./"+freetype_dir+" freetype")
+    os.system("cp -f "+target_freetype_mk+" ./freetype")
+    os.chdir("./freetype")
+    replaceWordInFile("./freetype.config", "./freetype.config", "$INSTALL", freetype_install_path)
+    os.system("chmod +x ./freetype.config")
+    os.system("./freetype.config")
+    os.system("make -j8")
+    os.system("mkdir -p "+freetype_lib_install_path)
+    os.system("cp -Pf objs/.libs/*.so* "+freetype_lib_install_path)
+    os.system("mkdir -p "+freetype_install_path)
+    os.system("make install")
+
+#######################################################
+# Build External SDL library
+#######################################################
+SDL_link_file = env.GetBuildPath('#/external/SDL')
+target_SDL_mk = env.GetBuildPath('#/build/Targets/'+env['target']+'/configs/SDL.config')
+SDL_lib_install_path = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/SDL')
+SDL_install_path = env.GetBuildPath('#/external/SDL/out')
+
+if not os.path.exists(SDL_link_file):
+    output = os.popen("ls "+external_path+"/*SDL-*.tar.gz")
+    SDL_tarball = output.read()
+    os.chdir(external_path)
+    os.system("tar zxvf "+SDL_tarball)    
+    output = os.popen("ls -d "+external_path+"/*SDL*/")
+    SDL_full_dir = output.read()
+    print "SDL_full_dir:"+SDL_full_dir
+    SDL_dir = SDL_full_dir.split('/', 100)[-2] 
+    print "SDL_dir:"+SDL_dir
+    os.system("ln -s ./"+SDL_dir+" SDL")
+    os.system("cp -f "+target_SDL_mk+" ./SDL")
+    os.chdir("./SDL")
+    replaceWordInFile("./SDL.config", "./SDL.config", "$INSTALL", SDL_install_path)
+    os.system("chmod +x ./SDL.config")
+    os.system("./SDL.config")
+    os.system("make -j8")
+    os.system("mkdir -p "+SDL_lib_install_path)
+    os.system("cp -Pf build/.libs/*.so* "+SDL_lib_install_path)
+    os.system("mkdir -p "+SDL_install_path)
+    os.system("make install")
+
+#######################################################
+# Build External SDL_ttf library
+#######################################################
+SDL_ttf_link_file = env.GetBuildPath('#/external/SDL_ttf')
+target_SDL_ttf_mk = env.GetBuildPath('#/build/Targets/'+env['target']+'/configs/SDL_ttf.config')
+SDL_ttf_lib_install_path = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/SDL_ttf')
+
+if not os.path.exists(SDL_ttf_link_file):
+    output = os.popen("ls "+external_path+"/*SDL_ttf-*.tar.gz")
+    SDL_ttf_tarball = output.read()
+    os.chdir(external_path)
+    os.system("tar zxvf "+SDL_ttf_tarball)    
+    output = os.popen("ls -d "+external_path+"/*SDL_ttf*/")
+    SDL_ttf_full_dir = output.read()
+    print "SDL_ttf_full_dir:"+SDL_ttf_full_dir
+    SDL_ttf_dir = SDL_ttf_full_dir.split('/', 100)[-2] 
+    print "SDL_ttf_dir:"+SDL_ttf_dir
+    os.system("ln -s ./"+SDL_ttf_dir+" SDL_ttf")
+    os.system("cp -f "+target_SDL_ttf_mk+" ./SDL_ttf")
+    os.chdir("./SDL_ttf")
+    replaceWordInFile("./SDL_ttf.config", "./SDL_ttf.config", "$SDL_PREFIX", SDL_install_path)
+    replaceWordInFile("./SDL_ttf.config", "./SDL_ttf.config", "$FREETYPE_PREFIX", freetype_install_path)
+    os.system("chmod +x ./SDL_ttf.config")
+    os.system("./SDL_ttf.config")
+    os.system("make -j8")
+    os.system("mkdir -p "+SDL_ttf_lib_install_path)
+    os.system("cp -Pf .libs/*.so* "+SDL_ttf_lib_install_path)
+
+
+#######################################################
+# Build External FFMPEG library
+#######################################################
+ffmpeg_link_file = env.GetBuildPath('#/external/ffmpeg')
+external_path = env.GetBuildPath('#/external')
+target_ffmpeg_mk = env.GetBuildPath('#/build/Targets/'+env['target']+'/configs/ffmpeg.config')
+ffmpeg_lib_install_path = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/lib/ffmpeg')
+
+if not os.path.exists(ffmpeg_link_file):
+    output = os.popen("ls "+external_path+"/*ffmpeg*.tar.bz2")
+    ffmpeg_tarball = output.read()
+    os.chdir(external_path)
+    os.system("tar jxvf "+ffmpeg_tarball)    
+    output = os.popen("ls -d "+external_path+"/*ffmpeg*/")
+    ffmpeg_full_dir = output.read()
+    print "ffmpeg_full_dir:"+ffmpeg_full_dir
+    ffmpeg_dir = ffmpeg_full_dir.split('/', 100)[-2] 
+    print "ffmpeg_dir:"+ffmpeg_dir
+    os.system("ln -s ./"+ffmpeg_dir+" ffmpeg")
+    os.system("cp -f "+target_ffmpeg_mk+" ./ffmpeg")
+    os.chdir("./ffmpeg")
+    os.system("./ffmpeg.config")
+    os.system("make -j8")
+    os.system("mkdir -p "+ffmpeg_lib_install_path)
+    os.system("cp -Pf libavformat/*.so* "+ffmpeg_lib_install_path)
+    os.system("cp -Pf libavcodec/*.so* "+ffmpeg_lib_install_path)
+    os.system("cp -Pf libavutil/*.so* "+ffmpeg_lib_install_path)
+    os.system("cp -Pf libswscale/*.so* "+ffmpeg_lib_install_path)
+    os.system("cp -Pf libswresample/*.so* "+ffmpeg_lib_install_path)
+
+#######################################################
+# Install the config files
+#######################################################
+config_file_install_path = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config']+'/config')
+agilelog_config_path = env.GetBuildPath('#/agilelog/config')
+buffer_mgr_config_path = env.GetBuildPath('#/magplayer/src/BufferManagement/config')
+run_file_path = env.GetBuildPath('#/build/Install')
+run_install_path = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_config'])
+
+os.system("mkdir -p "+config_file_install_path)
+os.system("cp -f "+agilelog_config_path+"/agilelog.xml "+config_file_install_path)
+os.system("cp -f "+buffer_mgr_config_path+"/bufferMgr.xml "+config_file_install_path)
+
+os.system("cp -f "+run_file_path+"/run "+run_install_path)
+os.chdir(run_install_path)
+replaceWordInFile("./run", "./run", "$INSTALL_PATN_REPLACED", run_install_path)

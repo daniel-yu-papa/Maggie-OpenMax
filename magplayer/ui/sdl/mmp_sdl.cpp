@@ -229,8 +229,19 @@ int main(int argc, char *argv[]){
         Mag_AddEventGroup(gSeekEventGroup, gSeekCompleteEvent);
     }
 
-    printf("mmp_sdl plays url: %s, seek time: %d s\n\n\n", url, once_seek_time/1000);
-    
+    printf("mmp_sdl plays url: %s, seek time: %d s\n", url, once_seek_time/1000);
+    printf("\t*********************************\n");
+    printf("\t* Usage:\n");
+    printf("\t* p: start playback\n");
+    printf("\t* s: stop playback\n");
+    printf("\t* r: reset the player and start the playback again\n");
+    printf("\t* f: flush the player\n");
+    printf("\t* Space key: pause/resume toggle\n");
+    printf("\t* Left arrow: seek backward with the defined time\n");
+    printf("\t* Right arrow: seek forward with the defined time\n");
+    printf("\t* Esc: quit the playback\n");
+    printf("\t*********************************\n");
+
     player = GetMediaPlayer();
     if (player == NULL){
     	AGILE_LOGE("failed to create the player!\n");

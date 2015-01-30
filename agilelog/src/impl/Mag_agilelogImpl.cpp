@@ -53,7 +53,7 @@ MagAgileLog::MagAgileLog(){
     pthread_mutex_init(&mLogMutex, NULL);
 
     init();
-    printConfig();
+    /*printConfig();*/
 }
 
 MagAgileLog::~MagAgileLog(){
@@ -346,8 +346,8 @@ void MagAgileLog::WriteToFile(int prio, char level, const char *module, const ch
             // }
             obj->mUsingLogFile = obj->mLogFile1;
         }
-        
     }
+    
     if (obj->mUsingLogFile > 0)
         write(obj->mUsingLogFile, logBuf, length);
 }
