@@ -1,3 +1,23 @@
+/*
+ * Copyright (c) 2015  Daniel Yu <daniel_yu2015@outlook.com>
+ *
+ * This file is part of Maggie-OpenMax project.
+ *
+ * Maggie-OpenMax is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * Maggie-OpenMax is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with Maggie-OpenMax; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -40,23 +60,6 @@ MagEventGroupHandle    gFlushEventGroup;
 
 MagEventHandle         gSeekCompleteEvent;
 MagEventGroupHandle    gSeekEventGroup;
-
-/*static void *monitorThreadProc(void *arg){
-    BufferStatistic_t bufStat;
-
-    MagMediaPlayer *player = (MagMediaPlayer *)arg;
-
-    while(monitorFlag){
-        player->invoke(INVOKE_ID_GET_BUFFER_STATUS, NULL, &bufStat);
-        printf("audio buffer: %d ms, video buffer: %d ms, loadingSpeed %d Bytes/Sec/\n", 
-                bufStat.audio_buffer_time, bufStat.video_buffer_time, bufStat.loadingSpeed);
-
-        sleep(1);
-    }
-
-    printf("exit monitorThreadProc!\n");
-    return NULL;
-}*/
 
 static void eventCallback(mmp_event_t evt, void *handler, unsigned int param1, unsigned int param2){
     MagMediaPlayer *pMplayer = static_cast<MagMediaPlayer *>(handler);
@@ -191,7 +194,7 @@ int main(int argc, char *argv[]){
     SDL_Event event;
     SDL_Surface *pWindow = NULL;
     SDL_Overlay *pVideoOverlay = NULL;
-    TTF_Font *pFont = NULL;
+    /*TTF_Font *pFont = NULL;*/
     void *pVideoFrame = NULL;
 
     int flags = SDL_HWSURFACE | SDL_ASYNCBLIT | SDL_HWACCEL | SDL_RESIZABLE;
@@ -261,7 +264,7 @@ int main(int argc, char *argv[]){
         return -1;
     }
 
-    if( TTF_Init() == -1 ){
+    /*if( TTF_Init() == -1 ){
         AGILE_LOGE( "SDL_ttf could not initialize! SDL_ttf Error: %s\n", TTF_GetError());                  
         return -1;                
     }
@@ -273,7 +276,7 @@ int main(int argc, char *argv[]){
     {
         AGILE_LOGE( "Font could not be created! TTF Error: %s\n", TTF_GetError() );
         return -1;
-    }
+    }*/
     
     gSet_win_width      = DEFAULT_SCREEN_WIDTH;
     gSet_win_height     = DEFAULT_SCREEN_HEIGHT;
@@ -466,9 +469,9 @@ error:
     Mag_DestroyEvent(&gSeekCompleteEvent);
     Mag_DestroyEventGroup(&gSeekEventGroup);
 
-    TTF_CloseFont( pFont );
+    /*TTF_CloseFont( pFont );*/
     //Quit SDL subsystems
-    TTF_Quit();
+    /*TTF_Quit();*/
     SDL_Quit();
 
     printf("Exit the mmp_sdl!!\n");

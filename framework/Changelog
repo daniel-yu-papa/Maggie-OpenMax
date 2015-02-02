@@ -1,6 +1,13 @@
 Entries are sorted chronologically from oldest to youngest within each release,
 Releases are sorted from youngest to oldest.
 
+version 0.2.5
+2015-02-02
+
+- add the timer module, which could be paused and resumed
+- fixed several bugs
+
+**************************************
 version 0.2.4
 2014-11-27
 

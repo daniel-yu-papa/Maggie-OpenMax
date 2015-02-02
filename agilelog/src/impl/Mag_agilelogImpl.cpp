@@ -1,3 +1,23 @@
+/*
+ * Copyright (c) 2015  Daniel Yu <daniel_yu2015@outlook.com>
+ *
+ * This file is part of Maggie-OpenMax project.
+ *
+ * Maggie-OpenMax is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * Maggie-OpenMax is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with Maggie-OpenMax; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -12,7 +32,8 @@
 
 namespace MAGAGILELOG {
 
-#define DEFAULT_CONFIG_FILE_PATH "/data/etc/mag"
+/*You can export AGILELOG_PATH=xxx to specify the path of the configure file*/
+#define DEFAULT_CONFIG_FILE_PATH "/etc/mag"
 
 MagAgileLog *MagAgileLog::sInstance = NULL;
 pthread_mutex_t MagAgileLog::mMutex    = PTHREAD_MUTEX_INITIALIZER;
@@ -413,8 +434,8 @@ void MagAgileLog::printLog(int prio, const char *module, const char *caller, int
 void MagAgileLog::setDefaultValue(){
     mConfigValue.config_output.type  = OUTPUT_STDOUT;
     mWriteToLogFunc = WriteToStdOut;
-    mConfigValue.config_debug_level  = DEBUG_LEVEL_VERBOSE;
-    mConfigValue.config_timestamp_on = true;
+    mConfigValue.config_debug_level  = DEBUG_LEVEL_ERROR;
+    mConfigValue.config_timestamp_on = false;
 
     mConfigValue.moduleNum = 0;
     mConfigValue.pModules  = NULL;

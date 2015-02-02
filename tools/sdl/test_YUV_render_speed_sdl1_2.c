@@ -1,4 +1,4 @@
-
+/*test the YUV picture rendering speed in SDL1.2*/
 #include <stdlib.h>
 #include <stdio.h>
 
