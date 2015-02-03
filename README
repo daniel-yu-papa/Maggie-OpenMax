@@ -1,0 +1,70 @@
+                                       Maggie OpenMax Media Player
+                                              Version 0.1
+            
+
+=============================
+ Architecture Overview
+=============================
+This is an Open Source media player, which targets to the embedded hardware platform(such as Set-Top-Box, Mobile phone, Pad etc). 
+The overall software architecture includes 2 parts:
+1) Mag OpenMax library, the implementation of the OpenMAX Integration Layer (IL) API ver. 1.2.0, specified by the Khronos group (see http://www.khronos.org/openmax). The component plugins are implemented to realize the demo playback functionalities. The code could be found under the directory: omx_il/vendors, which could be the reference code to guide your writing the libraries upon the different embedded platforms.
+2) Mag Player library, the multimedia player based upon the Mag OpenMax layer. It provides the set of APIs to control the media playback and displays the playing status.
+
+The detail description of 2 parts as below
+1) Mag OpenMax library
+   It enables the user to construct graphs of media-handling components in terms of their requirements. It can not only be used in media playback as current project doing, but also be fit into other media-handling senarios, such as video conference, media processing etc.
+   The framework of components and ports is organized as the object-oriented classes hierarchy. It is written with C in the way of object-oriented.
+   The base component and port classes have done most of common works and leaves a set of empty interfaces for component plugins' realization.  
+     
+   Based upon above framework, the concrete components, running on your embedded platform, could be implemented quickly with few codes. The developers only need to focus on the specific works related to the platform media handling and don't care too much about how those components and ports working together. 
+
+2) Mag Player
+   It is an independent embedded media playback library, which could uses the different video/audio pipelines to implement the low-level media playback functionalites.
+   In current project, it uses the OpenMax pipeline.
+   The core features are:
+   - Stream demuxing and Demuxed stream data buffer management
+   - To provide a set of APIs to the application
+   - To report the playback status out to the application
+   - OpenMax pipeline implementation
+
+The demo player application is offered together with the release package. It is FFMPEG and SDL1.2 based demo player and only be running upon the Linux OS.
+
+
+=============================
+ BUILD and RUN the project
+=============================
+Before starting the project building, the scons package need to be installed.
+
+Below steps take x86 Linux OS as the example:
+1) Under the root directory of source code tree, do:
+   scons target=x86-unknown-linux build_config=Debug 
+   note: To clean up the project with command "scons target=x86-unknown-linux build_config=Debug -c"
+   
+2) All built-up libraries and binaries could be found under:
+   Targets/x86-unknown-linux/Debug/
+   
+3) ./run "local stream file" or "network stream"
+
+
+=============================
+ENVIRONMENT variables
+=============================
+1) export AGILELOG_PATH="the path to agilelog.xml"
+   By changing the agilelog.xml, the developer can define the log behaviour on your own
+
+2) export BUFFER_MGR_PATH="the path to bufferMgr.xml"
+   By changing the bufferMgr.xml, the developer can define the stream data buffering logic on your own
+
+3) export OMX_LOAD_PATH="the path to the component plugins"
+   The path where the OpenMAX component libraries are placed in 
+   
+4) export LD_LIBRARY_PATH="the path to the MagPlayer and MagOmx libraries"
+
+
+=============================
+Why not GStreamer
+=============================
+GStreamer is an extremely powerful and versatile framework for creating streaming media applications. Then why should i use the Maggie OpenMax Media player?
+1) It is a light weight media playback framework specially designed for the resources limited hardware platform.
+2) It does not rely on other open source project, except from the FFMPEG demuxing. 
+3) The OpenMax is natively designed for the embedded platform. So the only works to port Maggie OpenMax layer onto all kinds of the hardware platforms are implementing the pre-defined interfaces by filling with the platform specific code.

@@ -1,0 +1,8 @@
+Entries are sorted chronologically from oldest to youngest within each release,
+Releases are sorted from youngest to oldest.
+
+version 0.1: initial release
+2015-02-01
+
+- IL Core, Base component and port classes hierachy, Clock Component for AVSync, FFMPEG video/audio/clock component plugins
+ 

@@ -309,9 +309,7 @@ Application(name                    = 'mmp_sdl',
                                        'libavutil.so',
                                        'libavcodec.so',
                                        'libswscale.so',
-                                       'libfreetype.so',
-                                       'libSDL.so',
-                                       'libSDL_ttf.so'],
+                                       'libSDL.so'],
             extra_lib_path          = Split(MAGPLAYER_LIB_PATH)+
                                       Split(FRAMEWORK_LIB_PATH)+
                                       Split(FFMPEG_LIB_PATH)+
