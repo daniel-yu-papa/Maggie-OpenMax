@@ -67,7 +67,7 @@ OmxilClock::~OmxilClock(){
     Mag_DestroyEventGroup(&mStExecutingEventGroup);
 
     Mag_DestroyEvent(&mClkStPauseEvent);
-    Mag_DestroyEventGroup(&mStIdleEventGroup);
+    Mag_DestroyEventGroup(&mStPauseEventGroup);
 
     if (mhClock)
 	   OMX_FreeHandle(mhClock);
@@ -317,7 +317,10 @@ _status_t OmxilClock::start(){
 }
 
 _status_t OmxilClock::stop(){
+    Mag_ClearEvent(mClkStIdleEvent);
 	OMX_SendCommand(mhClock, OMX_CommandStateSet, OMX_StateIdle, NULL);
+
+     Mag_WaitForEventGroup(mStIdleEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
 	return MAG_NO_ERROR;
 }
 
@@ -328,12 +331,18 @@ _status_t OmxilClock::flush(){
 }
 
 _status_t OmxilClock::pause(){
+    Mag_ClearEvent(mClkStPauseEvent);
 	OMX_SendCommand(mhClock, OMX_CommandStateSet, OMX_StatePause, NULL);
+
+    Mag_WaitForEventGroup(mStPauseEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
 	return MAG_NO_ERROR;
 }
 
 _status_t OmxilClock::resume(){
+    Mag_ClearEvent(mClkStExecutingEvent);
 	OMX_SendCommand(mhClock, OMX_CommandStateSet, OMX_StateExecuting, NULL);
+
+    Mag_WaitForEventGroup(mStExecutingEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
 	return MAG_NO_ERROR;
 }
 

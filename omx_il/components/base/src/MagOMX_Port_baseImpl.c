@@ -736,6 +736,7 @@ static OMX_ERRORTYPE virtual_Flush(OMX_HANDLETYPE hPort){
     MagOmxComponentImpl tunnelComp;
     OMX_HANDLETYPE      hTunneledPort;
     MagOmxPort          tunneledPort;
+    MagOmxPortImpl      tunneledPortBase;
 
     OMX_BUFFERHEADERTYPE *buffer;
     OMX_S32 diff;
@@ -747,7 +748,6 @@ static OMX_ERRORTYPE virtual_Flush(OMX_HANDLETYPE hPort){
 
     if (root->isTunneled(root)){
         Mag_AcquireMutex(base->mhTunnelFlushMutex);
-
         if (root->getState(root) == kPort_State_Flushed){
             PORT_LOGD(root, "In kPort_State_Flushed state and return!");
             Mag_ReleaseMutex(base->mhTunnelFlushMutex);
@@ -755,11 +755,6 @@ static OMX_ERRORTYPE virtual_Flush(OMX_HANDLETYPE hPort){
         }
 
         root->setState(root, kPort_State_Flushing);
-
-        if (base->mLooper){
-            base->mLooper->waitOnAllDone(base->mLooper);
-            PORT_LOGD(root, "To flush port looper done");
-        }
 
         tunnelComp = ooc_cast(base->mTunneledComponent, MagOmxComponentImpl); 
         hTunneledPort = tunnelComp->getPort(tunnelComp, base->mTunneledPortIndex);
@@ -769,10 +764,38 @@ static OMX_ERRORTYPE virtual_Flush(OMX_HANDLETYPE hPort){
             Mag_ReleaseMutex(base->mhTunnelFlushMutex);
             return OMX_ErrorBadPortIndex;
         }
-        tunneledPort = ooc_cast(hTunneledPort, MagOmxPort);
+        tunneledPort     = ooc_cast(hTunneledPort, MagOmxPort);
+        tunneledPortBase = ooc_cast(hTunneledPort, MagOmxPortImpl);
 
-        if (tunneledPort->getState(tunneledPort) == kPort_State_Running){
-            MagOmxPortVirtual(tunneledPort)->Flush(hTunneledPort);
+        /*need to flush the buffer-supplier port firstly and then do it in non-buffer-supplier port*/
+        if (root->isBufferSupplier(root)){
+            if (base->mLooper){
+                base->mLooper->waitOnAllDone(base->mLooper);
+                PORT_LOGD(root, "To flush buffer-supplier port looper done");
+            }
+
+            if (tunneledPort->getState(tunneledPort) == kPort_State_Running){
+                MagOmxPortVirtual(tunneledPort)->Flush(hTunneledPort);
+            }else{
+                if (tunneledPortBase->mLooper){
+                    tunneledPortBase->mLooper->waitOnAllDone(tunneledPortBase->mLooper);
+                    PORT_LOGD(root, "To flush non-buffer-supplier port looper done");
+                }
+            }
+        }else{
+            if (tunneledPort->getState(tunneledPort) == kPort_State_Running){
+                MagOmxPortVirtual(tunneledPort)->Flush(hTunneledPort);
+            }else{
+                if (tunneledPortBase->mLooper){
+                    tunneledPortBase->mLooper->waitOnAllDone(tunneledPortBase->mLooper);
+                    PORT_LOGD(root, "To flush buffer-supplier port looper done");
+                }
+            }
+
+            if (base->mLooper){
+                base->mLooper->waitOnAllDone(base->mLooper);
+                PORT_LOGD(root, "To flush non-buffer-supplier port looper done");
+            }
         }
 
         Mag_AcquireMutex(base->mhMutex);

@@ -473,9 +473,17 @@ static ui32 MagLooper_getHandlerID(MagLooperHandle hLooper){
 }
 
 static _status_t MagLooper_waitOnAllDone(MagLooperHandle hLooper){
-    while(!(MagEventQueueEmpty(hLooper) && !hLooper->mEventInExecuting)){
-        /*usleep(4000);*/
-        /*AGILE_LOGE("exe: %d, %s", hLooper->mEventInExecuting, MagEventQueueEmpty(hLooper) ? "empty":"not empty");*/
+    while(1){
+        Mag_AcquireMutex(hLooper->mLock);
+        if ( NULL == hLooper->mDelayEvtTreeRoot && 
+             &hLooper->mNoDelayEvtQueue == hLooper->mNoDelayEvtQueue.next && 
+             !hLooper->mEventInExecuting ){
+            /*AGILE_LOGE("exe: %d, %s", hLooper->mEventInExecuting, MagEventQueueEmpty(hLooper) ? "empty":"not empty");*/
+            Mag_ReleaseMutex(hLooper->mLock);
+            return MAG_NO_ERROR;
+        }
+        Mag_ReleaseMutex(hLooper->mLock);
+        usleep(1000);
     }
     return MAG_NO_ERROR;
 }
@@ -530,12 +538,12 @@ MagLooperHandle createLooper(const char *pName){
         }
 
         Mag_CreateEventGroup(&pLooper->mMQPushEvtGroup);
-        if (MAG_ErrNone == Mag_CreateEvent(&pLooper->mMQEmptyPushEvt, 0)){}
+        if (MAG_ErrNone == Mag_CreateEvent(&pLooper->mMQEmptyPushEvt, 0))
             Mag_AddEventGroup(pLooper->mMQPushEvtGroup, pLooper->mMQEmptyPushEvt);
 
         AGILE_LOGD("[%s][0x%x]event: 0x%x, event grp: 0x%x", 
                     pLooper->mpName, pLooper, pLooper->mMQEmptyPushEvt, pLooper->mMQPushEvtGroup);
-        
+
         pLooper->mLooperID = gLooperId;
         
         pLooper->registerHandler   = MagLooper_registerHandler;
@@ -585,7 +593,7 @@ void destroyLooper(MagLooperHandle *phLooper){
 
     Mag_DestroyEvent(&hLooper->mMQEmptyPushEvt);
     Mag_DestroyEventGroup(&hLooper->mMQPushEvtGroup);
-    
+
     tmpNode = hLooper->mFreeEvtQueue.next;
     while (tmpNode != &hLooper->mFreeEvtQueue){
         list_del(tmpNode);
