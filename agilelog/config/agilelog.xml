@@ -81,72 +81,72 @@
         
         <module name = "MagPlayerImpl">
             <debug-switch on = "true"/>
-            <debug-level  level = "error"/>
+            <debug-level  level = "verbose"/>
         </module>
         
         <module name = "Magply_BuffMgr">
             <debug-switch on = "true"/>
-            <debug-level  level = "error"/>
+            <debug-level  level = "verbose"/>
         </module>
         
         <module name = "Magply_ContentPipe">
             <debug-switch on = "true"/>
-            <debug-level  level = "error"/>
+            <debug-level  level = "verbose"/>
         </module>
         
         <module name = "Magply_Demuxer">
             <debug-switch on = "true"/>
-            <debug-level  level = "error"/>
+            <debug-level  level = "verbose"/>
         </module>
         
         <module name = "Magply_Main">
             <debug-switch on = "true"/>
-            <debug-level  level = "error"/>
+            <debug-level  level = "verbose"/>
         </module>
         
         <module name = "Magply_Driver">
             <debug-switch on = "true"/>
-            <debug-level  level = "error"/>
+            <debug-level  level = "verbose"/>
         </module>
         
         <module name = "Magply_Pipeline">
             <debug-switch on = "true"/>
-            <debug-level  level = "error"/>
+            <debug-level  level = "verbose"/>
         </module>
         
         <module name = "Magply_Pipeline_OMX">
             <debug-switch on = "true"/>
-            <debug-level  level = "error"/>
+            <debug-level  level = "verbose"/>
         </module>
         
         <module name = "MagOMX_CompCore">
             <debug-switch on = "true"/>
-            <debug-level  level = "error"/>
+            <debug-level  level = "verbose"/>
         </module>
         
         <module name = "MagOMX_CompAudio">
             <debug-switch on = "true"/>
-            <debug-level  level = "error"/>
+            <debug-level  level = "verbose"/>
         </module>
         
         <module name = "MagOMX_CompBase">
             <debug-switch on = "true"/>
-            <debug-level  level = "error"/>
+            <debug-level  level = "verbose"/>
         </module>
         
         <module name = "MagOMX_CompClk">
             <debug-switch on = "true"/>
-            <debug-level  level = "error"/>
+            <debug-level  level = "verbose"/>
         </module>
         
         <module name = "MagOMX_CompVideo">
             <debug-switch on = "true"/>
-            <debug-level  level = "error"/>
+            <debug-level  level = "verbose"/>
         </module>
         
         <module name = "MagOMX_CompVendor">
             <debug-switch on = "true"/>
-            <debug-level  level = "error"/>
+            <debug-level  level = "verbose"/>
         </module>
     </module_config>
 </agilelog>

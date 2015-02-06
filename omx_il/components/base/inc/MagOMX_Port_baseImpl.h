@@ -35,7 +35,7 @@ enum{
 };
 
 typedef struct{
-    List_t node;
+    List_t           node;
     MagMessageHandle msg;
 }BufferDispatcherNode_t;
 
@@ -60,8 +60,11 @@ ClassMembers(MagOmxPortImpl, MagOmxPort, \
     OMX_ERRORTYPE         (*getOutputNode)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE **ppBuffer, OMX_BOOL block); \
     OMX_ERRORTYPE         (*relayReturnBuffer)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE* pBuffer); \
     void                  (*resetBuffer)(MagOmxPortImpl hPort, OMX_BUFFERHEADERTYPE* pBuffer); \
+    void                  (*sendBuffer)(MagOmxPortImpl hPort); \
+    void                  (*getBuffer)(MagOmxPortImpl hPort); \
 )
     MagMutexHandle         mhMutex;
+    MagMutexHandle         mhBufNumberMutex;
     MagMutexHandle         mhTunnelFlushMutex;
 
     /*Link all buffer headers*/

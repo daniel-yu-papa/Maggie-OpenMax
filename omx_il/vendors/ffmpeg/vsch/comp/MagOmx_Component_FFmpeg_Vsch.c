@@ -67,7 +67,7 @@ static OMX_ERRORTYPE localSetupComponent(
 	param.isInput      = OMX_TRUE;
 	param.bufSupplier  = OMX_BufferSupplyUnspecified;
 	param.formatStruct = 0;
-	sprintf((char *)param.name, "%s-In", CLOCK_PORT_NAME);
+	sprintf((char *)param.name, "%s-Vsch-In", CLOCK_PORT_NAME);
 
 	ooc_init_class(MagOmxPort_FFmpeg_Clk);
 	clkInPort = ooc_new(MagOmxPort_FFmpeg_Clk, &param);

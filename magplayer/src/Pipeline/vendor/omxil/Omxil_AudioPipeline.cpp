@@ -630,7 +630,7 @@ _status_t OmxilAudioPipeline::pushEsPackets(MagOmxMediaBuffer_t *buf){
             pBufHeader->nTimeStamp  = kInvalidTimeStamp;
         }
 
-        AGILE_LOGD("push audio buffer header: %p(buf:%p, size:%d, pts:0x%x)[%s]",
+        AGILE_LOGD("push audio buffer header: %p(buf:0x%x, size:%d, pts:0x%x)[%s]",
                     pBufHeader, pBufHeader->pBuffer, pBufHeader->nFilledLen, pBufHeader->nTimeStamp,
                     buf->eosFrame ? "EOS" : "PKT");
 

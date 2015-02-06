@@ -301,7 +301,7 @@ static magMemBlock_t *findAllocMemBlock(magMempoolHandle hMemPool, void *pBuf){
             debugCount++;
             while (debugNode != &hMemPool->allocatedMBListHead){
                 match_mb = (magMemBlock_t *)list_entry(debugNode, magMemBlock_t, node);
-                AGILE_LOGE("[0x%x]: buffer list: #%d - 0x%x", hMemPool, debugCount, match_mb->pBuf);
+                /*AGILE_LOGE("[0x%x]: buffer list: #%d - 0x%x", hMemPool, debugCount, match_mb->pBuf);*/
                 if (pBuf == match_mb->pBuf){
                     mb = match_mb;
                     AGILE_LOGE("[0x%x]: the pBuf[0x%x] is at the %dth places in AllocList", hMemPool, pBuf, debugCount);
@@ -596,6 +596,47 @@ done:
 }
 
 MagErr_t magMemPoolReset(magMempoolHandle hMemPool){
+    List_t *tmpNode = NULL;
+    List_t *pNode = NULL;
+    magMempoolInternal_t * mpool = NULL;
+    magMemBlock_t *mb = NULL;
+
+    pthread_mutex_lock(&hMemPool->mutex);
+    
+    tmpNode = hMemPool->memPoolListHead.next;
+
+    while (tmpNode != &hMemPool->memPoolListHead){
+        mpool = (magMempoolInternal_t *)list_entry(tmpNode, magMempoolInternal_t, node);
+        pNode = mpool->freeMBListHead.next;
+        while (pNode != &mpool->freeMBListHead){
+            list_del(pNode);
+            mb = (magMemBlock_t *)list_entry(pNode, magMemBlock_t, node);
+            list_add_tail(&mb->node, &hMemPool->unusedMBListHead);
+            pNode = mpool->freeMBListHead.next;
+        }
+        
+        list_del(&mb->node);
+        mb->start = 0;
+        mb->end   = mpool->memPoolSize - 1;
+        mb->pBuf  = mpool->pMemPoolBuf;
+        mb->pMemPool = mpool;
+        mpool->activeMBNode = &mb->node;
+        mpool->empty = MAG_TRUE;
+        list_add_tail(&mb->node, &mpool->freeMBListHead);
+        
+        tmpNode = tmpNode->next;
+    }
+
+    pNode = hMemPool->allocatedMBListHead.next;
+    while (pNode != &hMemPool->allocatedMBListHead){
+        list_del(pNode);
+        mb = (magMemBlock_t *)list_entry(pNode, magMemBlock_t, node);
+        list_add_tail(&mb->node, &hMemPool->unusedMBListHead);
+        pNode = hMemPool->allocatedMBListHead.next;
+    }
+
+    pthread_mutex_unlock(&hMemPool->mutex);
+
     return MAG_ErrNone;
 }
 

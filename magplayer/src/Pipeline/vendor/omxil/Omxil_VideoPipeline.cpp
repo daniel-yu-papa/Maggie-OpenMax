@@ -847,7 +847,7 @@ _status_t OmxilVideoPipeline::pushEsPackets(MagOmxMediaBuffer_t *buf){
             pBufHeader->nTimeStamp  = kInvalidTimeStamp;
         }
 
-        AGILE_LOGD("push video buffer header: %p(buf:%p, size:%d, pts:0x%x)[%s]",
+        AGILE_LOGD("push video buffer header: %p(buf:0x%x, size:%d, pts:0x%x)[%s]",
                     pBufHeader, pBufHeader->pBuffer, pBufHeader->nFilledLen, pBufHeader->nTimeStamp,
                     buf->eosFrame ? "EOS" : "PKT");
         ret = OMX_EmptyThisBuffer(mhVideoDecoder, pBufHeader);
@@ -947,6 +947,7 @@ _status_t OmxilVideoPipeline::putUsedFrame(void *pVideoFrame){
     if (!postBuf){
         mpFeedVrenBufMgr->put(pBuffer);
     }else{
+        AGILE_LOGV("mFeedVrenPending: %d, send a buffer to VideoRender", mFeedVrenPending);
         pBuffer->pBuffer = NULL;
         OMX_FillThisBuffer(mhVideoRender, pBuffer);
     }

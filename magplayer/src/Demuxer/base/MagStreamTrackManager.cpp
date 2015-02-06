@@ -119,11 +119,12 @@ _status_t Stream_Track::stop(){
         MagOmxMediaBuffer_t* item;
         do{
             item = dequeueFrame(false);
-            if (item != NULL){         
+            /*if (item != NULL){         
                 releaseFrame(item);
-            }
+            }*/
         }while(item != NULL);
-
+        
+        magMemPoolReset(mBufPoolHandle);
         mStartPTS = 0;
         mEndPTS   = 0;
         mFrameNum = 0;
@@ -172,7 +173,7 @@ MagOmxMediaBuffer_t* Stream_Track::dequeueFrame(bool lock){
             list_del(next);
             mStartPTS = item->pts;
             mFrameNum--;
-            /*AGILE_LOGV("%s: delete buffer(%p) to stream track queue", getInfo()->name, item->buffer);*/
+            /*AGILE_LOGV("%s: delete buffer(0x%x) from stream track queue", getInfo()->name, item->buffer);*/
         }
     }else{
         AGILE_LOGE("%s stream track is stopped, ignore the request!", mInfo->name);
@@ -289,7 +290,7 @@ _status_t     Stream_Track::enqueueFrame(MagOmxMediaBuffer_t *mb){
                     AGILE_LOGI("send out buffer level change request!!");
                     mBufLevelChange = true;
                 }
-                /*AGILE_LOGV("%s: add buffer(%p) to stream track queue", mInfo->name, buf);*/
+                /*AGILE_LOGV("%s: add buffer(0x%x) to stream track queue", mInfo->name, buf);*/
             }else{
                 mIsFull = true;
                 AGILE_LOGE("the stream track %s is FULL!!", mInfo->name);

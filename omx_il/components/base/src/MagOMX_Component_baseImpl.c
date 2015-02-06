@@ -112,6 +112,13 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
             {
             /*Mag_AcquireMutex(base->mhMutex);*/
             COMP_LOGD(root, "start the flushing");
+            base->mFlushing = OMX_TRUE;
+            if (base->mBufferLooper){
+                base->mBufferLooper->waitOnAllDone(base->mBufferLooper);
+                COMP_LOGD(root, "the flushing buffer done");
+            }
+            base->mFlushing = OMX_FALSE;
+
             base->flushPort(priv, param);
             
             if (MagOmxComponentImplVirtual(base)->MagOMX_Flush){
@@ -211,6 +218,7 @@ static void onBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
 
         if ( base->mTransitionState == OMX_TransitionStateToIdle ||
              base->mState == OMX_StateIdle ||
+             base->mFlushing ||
              (destPort != NULL && (destPort->getState(destPort) == kPort_State_Flushing || destPort->getState(destPort) == kPort_State_Stopped)) ||
              (srcPort  != NULL && (srcPort->getState(srcPort)   == kPort_State_Flushing || srcPort->getState(srcPort)   == kPort_State_Stopped)) 
            ){
@@ -2057,9 +2065,28 @@ static OMX_ERRORTYPE MagOmxComponentImpl_flushPort(OMX_HANDLETYPE hComponent, OM
     MagOmxComponentImpl comp;
     OMX_ERRORTYPE ret = OMX_ErrorNone;
 
+
     if (NULL != hComponent){
         comp = getBase(hComponent);
         /*comp->mFlushingPorts = port_index;*/
+
+        /*if the component pauses, it need to be resumed firstly and then pause it again after the flushing*/
+        if (comp->mState == OMX_StatePause){
+            if (MagOmxComponentImplVirtual(comp)->MagOMX_Resume){
+                MagOmxComponentImplVirtual(comp)->MagOMX_Resume(hComponent);
+            }
+
+            for (n = rbtree_first(comp->mPortTreeRoot); n; n = rbtree_next(n)) {
+                port = ooc_cast(n->value, MagOmxPort);
+                if (port->getDef_Enabled(port)){
+                    ret = MagOmxPortVirtual(port)->Resume(n->value);
+                    if (ret != OMX_ErrorNone){
+                        COMP_LOGE(getRoot(hComponent), "failed to resume the port!");
+                        return ret;
+                    }
+                }
+            }
+        }
 
         if (port_index == OMX_ALL){
             for (n = rbtree_first(comp->mPortTreeRoot); n; n = rbtree_next(n)) {
@@ -2073,7 +2100,7 @@ static OMX_ERRORTYPE MagOmxComponentImpl_flushPort(OMX_HANDLETYPE hComponent, OM
                 }else{
                     COMP_LOGD(getRoot(hComponent), "the port %d is disabled, ignore the flush action [OMX_ALL]!", port->getPortIndex(port));
                 }
-            }
+            } 
         }else{
             OMX_HANDLETYPE portHandle;
 
@@ -2087,6 +2114,23 @@ static OMX_ERRORTYPE MagOmxComponentImpl_flushPort(OMX_HANDLETYPE hComponent, OM
                 }
             }else{
                 COMP_LOGE(getRoot(hComponent), "the port %d is disabled, ignore the flush action!", port->getPortIndex(port));
+            }
+        }
+
+        if (comp->mState == OMX_StatePause){
+            /*if (MagOmxComponentImplVirtual(comp)->MagOMX_Pause){
+                MagOmxComponentImplVirtual(comp)->MagOMX_Pause(hComponent);
+            }*/
+
+            for (n = rbtree_first(comp->mPortTreeRoot); n; n = rbtree_next(n)) {
+                port = ooc_cast(n->value, MagOmxPort);
+                if (port->getDef_Enabled(port)){
+                    ret = MagOmxPortVirtual(port)->Pause(n->value);
+                    if (ret != OMX_ErrorNone){
+                        COMP_LOGE(getRoot(hComponent), "failed to pause the port!");
+                        return ret;
+                    }
+                }
             }
         }
     }else{
@@ -2399,7 +2443,7 @@ static OMX_ERRORTYPE MagOmxComponentImpl_syncDisplay(
         portRoot = ooc_cast(hComponent->mhClockPort, MagOmxPort);
 
         if (kPort_State_Running != portRoot->getState(portRoot)){
-            COMP_LOGD(getRoot(hComponent), "The corresponding clock port is flushed/stopped. return now!");
+            COMP_LOGD(getRoot(hComponent), "The corresponding clock port is %d. return now!", portRoot->getState(portRoot));
             return OMX_ErrorNotReady;
         }
 
@@ -2849,6 +2893,7 @@ static void MagOmxComponentImpl_constructor(MagOmxComponentImpl thiz, const void
     thiz->mAVSyncBufRBTree         = NULL;
 
     thiz->mhClockPort              = NULL;
+    thiz->mFlushing                = OMX_FALSE;
 
     Mag_CreateMutex(&thiz->mhMutex);
     Mag_CreateMutex(&thiz->mhAVSyncMutex);

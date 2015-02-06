@@ -138,23 +138,28 @@ get_again:
         list_del(next);
         bufHeader = (Omxil_BufferNode_t *)list_entry(next, Omxil_BufferNode_t, Node);
         list_add_tail(next, &mBufBusyListHead);
-        mFreeNodeNum--;
+        if (mhComponent == NULL)
+            mFreeNodeNum++;
+        else
+            mFreeNodeNum--;
         if ((mhComponent == NULL) && empty && mBlock){
             /*put-get sequence*/
             Mag_SetEvent(mGetBufEvent);
         }
+        AGILE_LOGV("[Component[%p] get]: mFreeNodeNum = %d", mhComponent, mFreeNodeNum);
         Mag_ReleaseMutex(mListMutex);
     }else{
         if (mBlock){
             Mag_ClearEvent(mPutBufEvent);
             Mag_ReleaseMutex(mListMutex);
+
             AGILE_LOGD("Wait on getting the buffer!");
             Mag_WaitForEventGroup(mWaitPutBufEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
             AGILE_LOGD("get buffer!");
             goto get_again;
         }else{
             Mag_ReleaseMutex(mListMutex);
-            AGILE_LOGD("[Component[%p] get]: no node in the mBufFreeListHead! mFreeNodeNum = %d", 
+            AGILE_LOGV("[Component[%p] get]: no node in the mBufFreeListHead! mFreeNodeNum = %d", 
                         mhComponent, mFreeNodeNum);
         }
     }
@@ -183,17 +188,21 @@ put_again:
         list_del(next);
         bufNode->pBufHeader = bufHeader;
         list_add_tail(next, &mBufFreeListHead);
-        mFreeNodeNum++;
+        if (mhComponent == NULL)
+            mFreeNodeNum--;
+        else
+            mFreeNodeNum++;
         if (empty && mBlock){
             Mag_SetEvent(mPutBufEvent);
         }
-        AGILE_LOGD("[Component[%p] put]: mFreeNodeNum = %d", mhComponent, mFreeNodeNum);
+        AGILE_LOGV("[Component[%p] put]: mFreeNodeNum = %d", mhComponent, mFreeNodeNum);
         Mag_ReleaseMutex(mListMutex);
     }else{
         if (mhComponent == NULL){
             /*get-put sequence*/
             Mag_ClearEvent(mGetBufEvent);
             Mag_ReleaseMutex(mListMutex);
+
             Mag_WaitForEventGroup(mWaitGetBufEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
             AGILE_LOGD("[put-get] get a buffer!");
             goto put_again;

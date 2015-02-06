@@ -391,9 +391,10 @@ void MagAgileLog::printLog(int prio, const char *module, const char *caller, int
     struct timezone tz;
     struct tm *tm;
 
+    pthread_mutex_lock(&mLogMutex);
     // printf("enter printLog: prio = %d, module = %s, printData = %s\n", prio, module, printData);
     if (!mConfigValue.log_on){
-        return;
+        goto out;
     }
 
     if(mConfigValue.moduleNum > 0){
@@ -401,14 +402,14 @@ void MagAgileLog::printLog(int prio, const char *module, const char *caller, int
         //print nothing
         if (NULL != pM){
             if ((!pM->debugOn) || (prio < pM->debugLevel))
-                return;
+                goto out;
         }else{
             if (prio < mConfigValue.config_debug_level)
-                return;
+                goto out;
         }
     }else{
         if (prio < mConfigValue.config_debug_level)
-            return;
+            goto out;
     }    
     
     memset(logBuf, 0, 2048);
@@ -425,10 +426,11 @@ void MagAgileLog::printLog(int prio, const char *module, const char *caller, int
     
     strcat(logBuf, printData);
     if (mWriteToLogFunc){
-        pthread_mutex_lock(&mLogMutex);
         mWriteToLogFunc(prio, getPriorityLevel(prio), module, logBuf, static_cast<void *>(this));  
-        pthread_mutex_unlock(&mLogMutex); 
     }
+
+out:
+    pthread_mutex_unlock(&mLogMutex); 
 }
 
 void MagAgileLog::setDefaultValue(){

@@ -307,6 +307,7 @@ ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
     MagEventHandle      mClkStartRunningEvt;
     MagEventGroupHandle mClkStChangeEvtGrp;
 
+    OMX_BOOL         mFlushing;
 EndOfClassMembers;
 
 

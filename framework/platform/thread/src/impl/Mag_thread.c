@@ -198,8 +198,8 @@ static _status_t MagThread_resume(struct mag_thread *self){
     Mag_AcquireMutex(self->mLock);
     if (self){
         if (self->mSuspendRequest){
-            Mag_SetEvent(self->mSuspendEvt);
             self->mSuspendRequest = MAG_FALSE;
+            Mag_SetEvent(self->mSuspendEvt);
         }
     }else{
         ret = MAG_NO_INIT;

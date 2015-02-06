@@ -475,6 +475,7 @@ static ui32 MagLooper_getHandlerID(MagLooperHandle hLooper){
 static _status_t MagLooper_waitOnAllDone(MagLooperHandle hLooper){
     while(!(MagEventQueueEmpty(hLooper) && !hLooper->mEventInExecuting)){
         /*usleep(4000);*/
+        /*AGILE_LOGE("exe: %d, %s", hLooper->mEventInExecuting, MagEventQueueEmpty(hLooper) ? "empty":"not empty");*/
     }
     return MAG_NO_ERROR;
 }

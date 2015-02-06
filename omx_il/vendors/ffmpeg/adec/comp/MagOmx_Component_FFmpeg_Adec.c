@@ -389,6 +389,8 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_ProceedBuffer(
         }
     }while(continueDec);
 
+    COMP_LOGV(root, "exit!!");
+    
     return OMX_ErrorNone;
 }
 

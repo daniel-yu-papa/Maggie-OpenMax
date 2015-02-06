@@ -198,8 +198,9 @@ static void onTimeRequestMessageReceived(const MagMessageHandle msg, OMX_PTR pri
                     (thiz->mState.eState == OMX_TIME_ClockStateRunning) ){
                 thiz->sendAVSyncAction(thiz, portIndex, timeStamp, AVSYNC_PLAY);
             }else{
-                COMP_LOGD(root, "The clock port[%d] state is %s, directly drop the packets", 
+                COMP_LOGD(root, "The clock port[%d] state[%d] is %s, directly drop the packets", 
                                 portIndex,
+                                thiz->mState.eState,
                                 base->mTransitionState == OMX_TransitionStateToIdle ? "in transitToIdle" : base->mState == OMX_StateIdle ? "in Idle" : "not in OMX_TIME_ClockStateRunning");
                 thiz->sendAVSyncAction(thiz, portIndex, timeStamp, AVSYNC_DROP);
             }
@@ -763,14 +764,14 @@ static OMX_ERRORTYPE MagOmxComponentClock_addClockPort(MagOmxComponentClock comp
 static OMX_TICKS     MagOmxComponentClock_getMediaTimeNow(MagOmxComponentClock compClock){
     OMX_TICKS tnow;
 
-    if (compClock->mState.eState == OMX_TIME_ClockStateRunning){
+    /*if (compClock->mState.eState == OMX_TIME_ClockStateRunning){*/
         Mag_AcquireMutex(compClock->mhRefTimeUpdateMutex);
         tnow = compClock->mReferenceTimeBase + (compClock->mxScale * 
                (compClock->getTimeNow(compClock) - compClock->mWallTimeBase) / 10);
         Mag_ReleaseMutex(compClock->mhRefTimeUpdateMutex);
-    }else{
+    /*}else{
         tnow = 0;
-    }
+    }*/
     return tnow;
 }
 

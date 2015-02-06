@@ -69,6 +69,14 @@ static void sdl_audio_callback(void *opaque, Uint8 *stream, int len)
         arenBuf = bufNode->pBuf;
         pAudioData = arenBuf->buf;
 
+        if (pAudioData == NULL){
+            AGILE_LOGE("got the EOS frame!");
+            thiz->mStopped = OMX_TRUE;
+            arenCompImpl->sendReturnBuffer(arenCompImpl, arenBuf->pOmxBufHeader);
+            arenCompImpl->sendEvents(thiz, OMX_EventBufferFlag, 0, 0, NULL);
+            break;
+        }
+
         if (arenBuf->nFilledLen - arenBuf->nOffset > len1){
             memcpy(stream, (uint8_t *)pAudioData + arenBuf->nOffset, len1);
             arenBuf->nOffset += len1;
@@ -277,7 +285,7 @@ static OMX_ERRORTYPE localSetupComponent(
 	param.isInput      = OMX_TRUE;
 	param.bufSupplier  = OMX_BufferSupplyUnspecified;
 	param.formatStruct = 0;
-	sprintf((char *)param.name, "%s-In", CLOCK_PORT_NAME);
+	sprintf((char *)param.name, "%s-Aren-In", CLOCK_PORT_NAME);
 
 	ooc_init_class(MagOmxPort_FFmpeg_Clk);
 	clkInPort = ooc_new(MagOmxPort_FFmpeg_Clk, &param);
@@ -484,10 +492,12 @@ static OMX_ERRORTYPE  virtual_FFmpeg_Aren_DoAVSync(
         getBuffer->nFilledLen == 0    && 
         getBuffer->nTimeStamp == kInvalidTimeStamp){
         AGILE_LOGV("get the EOS frame and send out the eos event to application");
-        thiz->mStopped = OMX_TRUE;
+        thiz->putBuffer(thiz, getBuffer, outBuf);
+
+        /*thiz->mStopped = OMX_TRUE;
         arenCompImpl->sendReturnBuffer(arenCompImpl, getBuffer);
         arenCompImpl->sendEvents(hComponent, OMX_EventBufferFlag, 0, 0, NULL);
-        Mag_SetEvent(thiz->mNewBufEvent);
+        Mag_SetEvent(thiz->mNewBufEvent);*/
         return OMX_ErrorNone;
     }
 

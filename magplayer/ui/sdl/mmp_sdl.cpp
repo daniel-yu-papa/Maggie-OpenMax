@@ -28,7 +28,7 @@ extern "C" {
 }
 
 #include "SDL.h"
-#include "SDL_ttf.h"
+/*#include "SDL_ttf.h"*/
 
 #include "framework/MagFramework.h"
 #include "mmp.h"
