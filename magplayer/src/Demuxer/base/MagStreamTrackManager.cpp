@@ -918,7 +918,8 @@ _status_t   Stream_Track_Manager::flush(){
             }
         }  
     }
-
+    mpObserver->flush();
+    
     return MAG_NO_ERROR;
 }
 

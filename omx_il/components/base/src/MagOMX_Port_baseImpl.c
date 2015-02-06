@@ -319,8 +319,12 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
     OMX_BUFFERHEADERTYPE *freeBufHeader;
     OMX_ERRORTYPE ret;
     OMX_U32 cmd;
-    MagOmxPort_State_t portSt;
-    MagOmxComponent tunneledComp;
+    MagOmxPort_State_t  portSt;
+    /*MagOmxPort_State_t  tunneledPortSt = kPort_State_Flushed;*/
+    MagOmxComponent     tunneledComp;
+    MagOmxComponentImpl tunnelCompImpl = NULL;
+    MagOmxPort          tunneledPort;
+    OMX_HANDLETYPE      hTunneledPort;
 
     if (!msg){
         PORT_LOGE(NULL, "msg is NULL!");
@@ -336,12 +340,28 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
     }
 
     portSt = root->getState(root);
+
+    if (root->isTunneled(root)){
+        tunnelCompImpl = ooc_cast(base->mTunneledComponent, MagOmxComponentImpl); 
+        hTunneledPort = tunnelCompImpl->getPort(base->mTunneledComponent, base->mTunneledPortIndex);
+        tunneledPort = ooc_cast(hTunneledPort, MagOmxPort);
+        /*tunneledPortSt = tunneledPort->getState(tunneledPort);*/
+    }
+    
     cmd = msg->what(msg);
     switch (cmd){
         case MagOmxPortImpl_EmptyThisBufferMsg:
             if (portSt == kPort_State_Flushed){
-                root->setState(root, kPort_State_Running);
-                portSt = kPort_State_Running;
+                if (/*tunneledPortSt == kPort_State_Flushed*/ tunnelCompImpl && !tunnelCompImpl->mFlushing){
+                    root->setState(root, kPort_State_Running);
+                    portSt = kPort_State_Running;
+                    tunneledPort->setState(tunneledPort, kPort_State_Running);
+                }else if (tunnelCompImpl == NULL){
+                    root->setState(root, kPort_State_Running);
+                    portSt = kPort_State_Running;
+                }else{
+                    PORT_LOGD(root, "EmptyThisBufferMsg: in Flushed state, but the tunneled comp is in flushing state, directly return!");
+                }
             }
 
             if (root->isTunneled(root)  && 
@@ -411,8 +431,16 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
 
         case MagOmxPortImpl_FillThisBufferMsg:
             if (portSt == kPort_State_Flushed){
-                root->setState(root, kPort_State_Running);
-                portSt = kPort_State_Running;
+                if (/*tunneledPortSt == kPort_State_Flushed*/ tunnelCompImpl && !tunnelCompImpl->mFlushing){
+                    root->setState(root, kPort_State_Running);
+                    portSt = kPort_State_Running;
+                    tunneledPort->setState(tunneledPort, kPort_State_Running);
+                }else if (tunnelCompImpl == NULL){
+                    root->setState(root, kPort_State_Running);
+                    portSt = kPort_State_Running;
+                }else{
+                    PORT_LOGD(root, "FillThisBufferMsg: in Flushed state, but the tunneled port is in flushing state, directly return!");
+                }
             }
 
             if (root->isTunneled(root)   &&
@@ -545,7 +573,8 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
             if (bufHeader){
                 if (root->isTunneled(root)){
                     if (root->isBufferSupplier(root)){
-                        if (portSt == kPort_State_Running){
+                        if (portSt == kPort_State_Running ||
+                            portSt == kPort_State_Flushed){
                             tunneledComp = ooc_cast(base->mTunneledComponent, MagOmxComponent);
                             if (!root->isInputPort(root)){
                                 ret = MagOmxComponentVirtual(tunneledComp)->EmptyThisBuffer(tunneledComp, bufHeader);

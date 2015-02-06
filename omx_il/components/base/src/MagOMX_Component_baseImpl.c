@@ -117,8 +117,7 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
                 base->mBufferLooper->waitOnAllDone(base->mBufferLooper);
                 COMP_LOGD(root, "the flushing buffer done");
             }
-            base->mFlushing = OMX_FALSE;
-
+            
             base->flushPort(priv, param);
             
             if (MagOmxComponentImplVirtual(base)->MagOMX_Flush){
@@ -126,6 +125,7 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
             }
 
             base->mbGetStartTime = OMX_FALSE;
+            base->mFlushing = OMX_FALSE;
             COMP_LOGD(root, "end the flushing");
             /*Mag_ReleaseMutex(base->mhMutex);
             base->sendEvents(base, OMX_EventCmdComplete, OMX_CommandFlush, param, &ret);*/
@@ -235,9 +235,9 @@ static void onBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
         }
 
         /*check if the dest port is in flushed state. if it is, turn it into running state*/
-        if (destPort != NULL && destPort->getState(destPort) == kPort_State_Flushed){
+        /*if (destPort != NULL && destPort->getState(destPort) == kPort_State_Flushed){
             destPort->setState(destPort, kPort_State_Running);
-        }
+        }*/
 
         if (MagOmxComponentImplVirtual(base)->MagOMX_ProceedBuffer){
             /*do not return back the buffer at current moment*/

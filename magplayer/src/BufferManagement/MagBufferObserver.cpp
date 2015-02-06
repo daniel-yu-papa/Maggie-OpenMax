@@ -150,6 +150,11 @@ void MagBufferObserver::reset(){
 	mBufPercentage = -1;
 }
 
+void MagBufferObserver::flush(){
+	mIsPause       = false;
+	mBufPercentage = -1;
+}
+
 void MagBufferObserver::setDefaultPolicy(LoadedBufferPolicy_t *policy){
 	policy->contentPipe.BufferSize = 30;
 	policy->contentPipe.kbps = 10000;

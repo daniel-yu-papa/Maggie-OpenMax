@@ -136,6 +136,7 @@ public:
     _status_t start(void *pPolicy);
     void stop();
     void reset();
+    void flush();
     void setMediaPlayerNotifier(MagMessageHandle msg);
 
 private:
