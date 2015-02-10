@@ -37,7 +37,10 @@ public:
     OMX_ERRORTYPE create(OMX_HANDLETYPE hComp, ui32 portIdx, OMX_HANDLETYPE privData);
     OMX_BUFFERHEADERTYPE *get();
     void put(OMX_BUFFERHEADERTYPE *bufHeader);
-    
+
+    void start();
+    void stop();
+
     bool needPushBuffers(void);
 
 private:
@@ -50,6 +53,8 @@ private:
     List_t mBufBusyListHead;
 
     bool mBlock;
+
+    bool mStopped;
 
     MagEventHandle         mPutBufEvent;
     MagEventGroupHandle    mWaitPutBufEventGroup;

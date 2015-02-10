@@ -565,7 +565,7 @@ static OMX_ERRORTYPE virtual_MagOmxComponentClock_Flush(
     clkComp = ooc_cast(hComponent, MagOmxComponentClock);
 
     clkComp->mState.eState = OMX_TIME_ClockStateWaitingForStartTime;
-    
+
     for (i = 0; i < MAX_CLOCK_PORT_NUMBER; i++){
         if (clkComp->mTimeRequestLooper[i]){
             clkComp->mTimeRequestLooper[i]->forceOut(clkComp->mTimeRequestLooper[i]);

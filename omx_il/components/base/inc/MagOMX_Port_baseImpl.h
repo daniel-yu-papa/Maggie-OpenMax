@@ -64,7 +64,6 @@ ClassMembers(MagOmxPortImpl, MagOmxPort, \
     void                  (*getBuffer)(MagOmxPortImpl hPort); \
 )
     MagMutexHandle         mhMutex;
-    MagMutexHandle         mhBufNumberMutex;
     MagMutexHandle         mhTunnelFlushMutex;
 
     /*Link all buffer headers*/

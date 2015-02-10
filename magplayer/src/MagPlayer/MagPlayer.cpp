@@ -676,10 +676,6 @@ void MagPlayer::onFlush(MagMessageHandle msg){
             AGILE_LOGV("see if the seeking is complete or not?");
             Mag_WaitForEventGroup(mSeekEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
             AGILE_LOGV("seeking completes");
-
-            /*send out the seek complete event to APP*/
-            if (mNotifySeekCompleteFn != NULL && mSeekCompletePriv != NULL)
-                mNotifySeekCompleteFn(mSeekCompletePriv);
         }else{
             Mag_SetEvent(mCompleteFlushEvt);
         }
@@ -687,6 +683,12 @@ void MagPlayer::onFlush(MagMessageHandle msg){
         resumeTo();
         mState = mFlushBackState;
         AGILE_LOGD("flushed and back to state: %s!", state2String(mState));
+
+        if (seek_flush){
+            /*send out the seek complete event to APP*/
+            if (mNotifySeekCompleteFn != NULL && mSeekCompletePriv != NULL)
+                mNotifySeekCompleteFn(mSeekCompletePriv);
+        }
     }else{
         if ((ST_FLUSHING == mState) || (ST_BUFFERING == mState)){
             AGILE_LOGW("in state: %s. ignore the flush action!", state2String(mState));

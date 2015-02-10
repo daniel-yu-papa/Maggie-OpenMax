@@ -29,7 +29,8 @@ OmxilBufferMgr::OmxilBufferMgr(ui32 size, ui32 num, bool block):
                                     mBufSize(size),
                                     mBufNum(num),
                                     mFreeNodeNum(num),
-                                    mBlock(block){
+                                    mBlock(block),
+                                    mStopped(false){
     Mag_CreateMutex(&mListMutex);
     INIT_LIST(&mBufFreeListHead);
     INIT_LIST(&mBufBusyListHead);
@@ -153,10 +154,11 @@ get_again:
             Mag_ClearEvent(mPutBufEvent);
             Mag_ReleaseMutex(mListMutex);
 
-            AGILE_LOGD("Wait on getting the buffer!");
+            AGILE_LOGD("[Component[%p] get]: Wait on getting the buffer!", mhComponent);
             Mag_WaitForEventGroup(mWaitPutBufEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
-            AGILE_LOGD("get buffer!");
-            goto get_again;
+            AGILE_LOGD("[Component[%p] get]: get buffer!", mhComponent);
+            if (!mStopped)
+                goto get_again;
         }else{
             Mag_ReleaseMutex(mListMutex);
             AGILE_LOGV("[Component[%p] get]: no node in the mBufFreeListHead! mFreeNodeNum = %d", 
@@ -222,4 +224,13 @@ bool OmxilBufferMgr::needPushBuffers(void){
                     mhComponent, mFreeNodeNum);
         return false;
     }
+}
+
+void OmxilBufferMgr::start(){
+    mStopped = false;
+}
+
+void OmxilBufferMgr::stop(){
+    mStopped = true;
+    Mag_SetEvent(mPutBufEvent);
 }

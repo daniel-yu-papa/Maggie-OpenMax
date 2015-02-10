@@ -112,7 +112,10 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
             {
             /*Mag_AcquireMutex(base->mhMutex);*/
             COMP_LOGD(root, "start the flushing");
-            base->mFlushing = OMX_TRUE;
+
+            /*Trigger the clock running event if syncDisplay waited on it*/
+            Mag_SetEvent(base->mClkStartRunningEvt);
+
             if (base->mBufferLooper){
                 base->mBufferLooper->waitOnAllDone(base->mBufferLooper);
                 COMP_LOGD(root, "the flushing buffer done");
@@ -1335,6 +1338,7 @@ static OMX_ERRORTYPE virtual_SendCommand(
             base->mCmdSetStateMsg->postMessage(base->mCmdSetStateMsg, 0);
         }
     }else if (Cmd == OMX_CommandFlush){
+        base->mFlushing = OMX_TRUE;
         if ( !base->mCmdFlushMsg ){
             base->mCmdFlushMsg = base->createMessage(hComponent, MagOmxComponentImpl_CommandFlushMsg);  
         }
@@ -2447,6 +2451,8 @@ static OMX_ERRORTYPE MagOmxComponentImpl_syncDisplay(
             return OMX_ErrorNotReady;
         }
 
+        Mag_AcquireMutex(hComponent->mhAVSyncMutex);
+
         if (!hComponent->mbGetStartTime){
             initHeader(&startTime, sizeof(OMX_TIME_CONFIG_TIMESTAMPTYPE));
             startTime.nPortIndex = portRoot->getPortIndex(portRoot);
@@ -2463,7 +2469,6 @@ static OMX_ERRORTYPE MagOmxComponentImpl_syncDisplay(
             COMP_LOGD(getRoot(hComponent), "clock component state is Running now!");
         }
 
-        Mag_AcquireMutex(hComponent->mhAVSyncMutex);
 #if 0
         if (freeList->next == freeList){
             /*free list is empty*/
@@ -2746,6 +2751,10 @@ static OMX_ERRORTYPE MagOmxComponentImpl_discardOutputBuffer(
     return OMX_ErrorUndefined;
 }
 
+static OMX_BOOL MagOmxComponentImpl_isFlushing(MagOmxComponentImpl hComponent){
+    return hComponent->mFlushing;
+}
+
 /*Class Constructor/Destructor*/
 static void MagOmxComponentImpl_initialize(Class this){
     AGILE_LOGV("Enter!");
@@ -2838,6 +2847,7 @@ static void MagOmxComponentImpl_constructor(MagOmxComponentImpl thiz, const void
     thiz->putOutputBuffer          = MagOmxComponentImpl_putOutputBuffer;
     thiz->sendOutputBuffer         = MagOmxComponentImpl_sendOutputBuffer;
     thiz->discardOutputBuffer      = MagOmxComponentImpl_discardOutputBuffer;
+    thiz->isFlushing               = MagOmxComponentImpl_isFlushing;
 
     thiz->mLooper                  = NULL;
     thiz->mMsgHandler              = NULL;

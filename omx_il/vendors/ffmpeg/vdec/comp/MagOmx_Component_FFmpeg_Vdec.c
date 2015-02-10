@@ -461,7 +461,8 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_Flush(
     AGILE_LOGD("enter!");
 
     Mag_AcquireMutex(thiz->mhFFMpegMutex);
-    avcodec_flush_buffers(thiz->mpVideoStream->codec);
+    if (thiz->mpVideoStream->codec->codec)
+        avcodec_flush_buffers(thiz->mpVideoStream->codec);
     Mag_ReleaseMutex(thiz->mhFFMpegMutex);
     thiz->mPrePTS = 0;
 

@@ -71,6 +71,7 @@ static void eventCallback(mmp_event_t evt, void *handler, unsigned int param1, u
 
         case MMP_PLAYER_EVT_PLAYBACK_COMPLETE:
             gStopped = true;
+            AGILE_LOGD("get playback complete event!");
             break;
 
         case MMP_PLAYER_EVT_BUFFER_STATUS:
@@ -315,6 +316,17 @@ int main(int argc, char *argv[]){
                         break;
                     }else if (event.key.keysym.sym == SDLK_RIGHT){
                         printf("key down: right arrow\n");
+
+                        if (gStopped){
+                            Mag_ClearEvent(gPrepareCompleteEvent);
+                            ret = player->prepareAsync();
+                            if (ret != MMP_OK){
+                                AGILE_LOGE("failed to do prepareAsync()\n");
+                                return -1;
+                            }
+                            Mag_WaitForEventGroup(gPrepareEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
+                        }
+
                         Mag_ClearEvent(gSeekCompleteEvent);
                         /*seek forward*/
                         seekTime = once_seek_time;
@@ -324,6 +336,17 @@ int main(int argc, char *argv[]){
                         break;
                     }else if (event.key.keysym.sym == SDLK_LEFT){
                         printf("key down: left arrow\n");
+
+                        if (gStopped){
+                            Mag_ClearEvent(gPrepareCompleteEvent);
+                            ret = player->prepareAsync();
+                            if (ret != MMP_OK){
+                                AGILE_LOGE("failed to do prepareAsync()\n");
+                                return -1;
+                            }
+                            Mag_WaitForEventGroup(gPrepareEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
+                        }
+
                         Mag_ClearEvent(gSeekCompleteEvent);
                         /*seek backward*/
                         seekTime =(0 - once_seek_time);

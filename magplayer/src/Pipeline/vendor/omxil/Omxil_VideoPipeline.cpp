@@ -657,6 +657,8 @@ _status_t OmxilVideoPipeline::start(){
 
     mFeedVrenPending = 0;
 
+    mpDecodedBufferMgr->start();
+
     Mag_ClearEvent(mVDecStExecutingEvent);
     Mag_ClearEvent(mVSchStExecutingEvent);
     Mag_ClearEvent(mVRenStExecutingEvent);
@@ -684,6 +686,8 @@ _status_t OmxilVideoPipeline::stop(){
     OMX_SendCommand(mhVideoDecoder, OMX_CommandStateSet, OMX_StateIdle, NULL);
 
     Mag_WaitForEventGroup(mStIdleEventGroup, MAG_EG_AND, MAG_TIMEOUT_INFINITE);
+
+    mpDecodedBufferMgr->stop();
 
     return MAG_NO_ERROR;
 }

@@ -447,7 +447,8 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_Flush(
     thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Adec);
 
     Mag_AcquireMutex(thiz->mhFFMpegMutex);
-    avcodec_flush_buffers(thiz->mpAudioStream->codec);
+    if (thiz->mpAudioStream->codec->codec)
+        avcodec_flush_buffers(thiz->mpAudioStream->codec);
     Mag_ReleaseMutex(thiz->mhFFMpegMutex);
 
     return OMX_ErrorNone;
