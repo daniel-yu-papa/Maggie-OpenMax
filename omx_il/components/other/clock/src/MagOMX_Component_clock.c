@@ -504,6 +504,7 @@ static OMX_ERRORTYPE virtual_MagOmxComponentClock_Stop(
         }
     }
 
+    clkComp->mState.nWaitMask = clkComp->mWaitStartTimeMask;
     clkComp->mState.eState = OMX_TIME_ClockStateStopped;
 
     return OMX_ErrorNone;
@@ -565,6 +566,7 @@ static OMX_ERRORTYPE virtual_MagOmxComponentClock_Flush(
     clkComp = ooc_cast(hComponent, MagOmxComponentClock);
 
     clkComp->mState.eState = OMX_TIME_ClockStateWaitingForStartTime;
+    clkComp->mState.nWaitMask = clkComp->mWaitStartTimeMask;
 
     for (i = 0; i < MAX_CLOCK_PORT_NUMBER; i++){
         if (clkComp->mTimeRequestLooper[i]){

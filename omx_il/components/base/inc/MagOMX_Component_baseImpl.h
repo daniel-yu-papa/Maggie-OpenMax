@@ -267,6 +267,10 @@ ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
     OMX_ERRORTYPE    (*discardOutputBuffer)(
                         OMX_IN MagOmxComponentImpl hComponent,
                         OMX_IN OMX_BUFFERHEADERTYPE *pBuf); \
+
+    OMX_ERRORTYPE    (*doFlush)(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN OMX_U32 portId); \
 )
     MagLooperHandle  mLooper;
     MagHandlerHandle mMsgHandler;

@@ -773,6 +773,12 @@ static OMX_ERRORTYPE virtual_Flush(OMX_HANDLETYPE hPort){
     root = getRoot(hPort);
     base = getBase(hPort);
 
+    
+    if (base->mBuffersTotal == 0){
+        PORT_LOGD(root, "No buffer allocated, don't need to flush the port!");
+        return OMX_ErrorNone;
+    }
+    
     PORT_LOGD(root, "Flushing(%d - %d)", base->mFreeBuffersNum, base->mBuffersTotal);
 
     if (root->isTunneled(root)){

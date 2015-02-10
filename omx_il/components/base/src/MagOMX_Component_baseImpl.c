@@ -110,28 +110,7 @@ static void onMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
 
         case MagOmxComponentImpl_CommandFlushMsg:
             {
-            /*Mag_AcquireMutex(base->mhMutex);*/
-            COMP_LOGD(root, "start the flushing");
-
-            /*Trigger the clock running event if syncDisplay waited on it*/
-            Mag_SetEvent(base->mClkStartRunningEvt);
-
-            if (base->mBufferLooper){
-                base->mBufferLooper->waitOnAllDone(base->mBufferLooper);
-                COMP_LOGD(root, "the flushing buffer done");
-            }
-            
-            base->flushPort(priv, param);
-            
-            if (MagOmxComponentImplVirtual(base)->MagOMX_Flush){
-                MagOmxComponentImplVirtual(base)->MagOMX_Flush(base);
-            }
-
-            base->mbGetStartTime = OMX_FALSE;
-            base->mFlushing = OMX_FALSE;
-            COMP_LOGD(root, "end the flushing");
-            /*Mag_ReleaseMutex(base->mhMutex);
-            base->sendEvents(base, OMX_EventCmdComplete, OMX_CommandFlush, param, &ret);*/
+                base->doFlush(base, param);
             }
             break;
 
@@ -555,28 +534,11 @@ static OMX_ERRORTYPE doStateIdle_Pause(OMX_IN OMX_HANDLETYPE hComponent){
 }
 
 static OMX_ERRORTYPE doStateExecuting_Idle(OMX_IN OMX_HANDLETYPE hComponent){
-    MagOmxComponent     root;
     MagOmxComponentImpl base;
-    OMX_ERRORTYPE err;
-    RBTreeNodeHandle n;
-    MagOmxPort port;
 
-    root = getRoot(hComponent);
     base = getBase(hComponent);
 
-    for (n = rbtree_first(base->mPortTreeRoot); n; n = rbtree_next(n)) {
-        port = ooc_cast(n->value, MagOmxPort);
-        if (port->getDef_Enabled(port)){
-            err = MagOmxPortVirtual(port)->Flush(n->value);
-            /*port->setState(port, kPort_State_Stopped);*/
-            if (err != OMX_ErrorNone){
-                COMP_LOGE(root, "failed to flush the port!");
-                return err;
-            }
-        }
-    }
-
-    return OMX_ErrorNone; 
+    return base->doFlush(base, OMX_ALL);
 }
 
 static OMX_ERRORTYPE doStateExecuting_Pause(OMX_IN OMX_HANDLETYPE hComponent){
@@ -625,18 +587,8 @@ static OMX_ERRORTYPE doStatePause_Idle(OMX_IN OMX_HANDLETYPE hComponent){
             }
         }
 
-        for (n = rbtree_first(base->mPortTreeRoot); n; n = rbtree_next(n)) {
-            port = ooc_cast(n->value, MagOmxPort);
-            if (port->getDef_Enabled(port)){
-                err = MagOmxPortVirtual(port)->Flush(n->value);
-                if (err != OMX_ErrorNone){
-                    COMP_LOGE(root, "failed to flush the port!");
-                    return err;
-                }
-                /*port->setState(port, kPort_State_Stopped);*/
-            }
-        }
-
+        base->doFlush(base, OMX_ALL);
+        
         return MagOmxComponentImplVirtual(base)->MagOMX_Stop(hComponent);
     }else{
         COMP_LOGE(root, "pure virtual func: MagOMX_Stop() is not overrided!!");
@@ -2141,11 +2093,13 @@ static OMX_ERRORTYPE MagOmxComponentImpl_flushPort(OMX_HANDLETYPE hComponent, OM
         ret = OMX_ErrorBadParameter;
     }
 
+    /*
+     * clock port always is running state for flushing action
     if (comp->mhClockPort){
         clockPort = ooc_cast(comp->mhClockPort, MagOmxPort);
         clockPort->setState(clockPort, kPort_State_Running);
         COMP_LOGD(getRoot(hComponent), "set clock port[%d] to running!!!", clockPort->getPortIndex(clockPort));
-    }
+    }*/
     
     /*comp->mFlushingPorts = kInvalidPortIndex;*/
     comp->sendEvents(hComponent, OMX_EventCmdComplete, OMX_CommandFlush, port_index, &ret);
@@ -2755,6 +2709,35 @@ static OMX_BOOL MagOmxComponentImpl_isFlushing(MagOmxComponentImpl hComponent){
     return hComponent->mFlushing;
 }
 
+static OMX_ERRORTYPE MagOmxComponentImpl_doFlush(
+                        OMX_IN MagOmxComponentImpl hComponent,
+                        OMX_IN OMX_U32 portId){
+    MagOmxComponent     root;
+
+    root = getRoot(hComponent);
+
+    COMP_LOGD(root, "start the flushing");
+
+    hComponent->mFlushing = OMX_TRUE;
+    /*Trigger the clock running event if syncDisplay waited on it*/
+    Mag_SetEvent(hComponent->mClkStartRunningEvt);
+
+    if (hComponent->mBufferLooper){
+        hComponent->mBufferLooper->waitOnAllDone(hComponent->mBufferLooper);
+        COMP_LOGD(root, "the flushing buffer done");
+    }
+    
+    hComponent->flushPort(hComponent, portId);
+    
+    if (MagOmxComponentImplVirtual(hComponent)->MagOMX_Flush){
+        MagOmxComponentImplVirtual(hComponent)->MagOMX_Flush(hComponent);
+    }
+
+    hComponent->mbGetStartTime = OMX_FALSE;
+    hComponent->mFlushing = OMX_FALSE;
+    COMP_LOGD(root, "end the flushing");
+}
+
 /*Class Constructor/Destructor*/
 static void MagOmxComponentImpl_initialize(Class this){
     AGILE_LOGV("Enter!");
@@ -2848,6 +2831,7 @@ static void MagOmxComponentImpl_constructor(MagOmxComponentImpl thiz, const void
     thiz->sendOutputBuffer         = MagOmxComponentImpl_sendOutputBuffer;
     thiz->discardOutputBuffer      = MagOmxComponentImpl_discardOutputBuffer;
     thiz->isFlushing               = MagOmxComponentImpl_isFlushing;
+    thiz->doFlush                  = MagOmxComponentImpl_doFlush;
 
     thiz->mLooper                  = NULL;
     thiz->mMsgHandler              = NULL;
