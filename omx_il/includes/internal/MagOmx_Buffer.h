@@ -40,8 +40,8 @@ typedef struct mag_omx_media_buffer_t{
 
   ui32 buffer_size;
   void *buffer;
-  i64 pts; /*in us*/
-  i64 dts; /*in us*/  
+  i64 pts; /*in 90K*/
+  i64 dts; /*in 90K*/  
 
   i32 stream_index; /*used for ffmpeg stream index*/
   i32 duration;     /*Duration of this packet in AVStream->time_base units*/

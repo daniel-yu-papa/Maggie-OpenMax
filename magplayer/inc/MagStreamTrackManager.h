@@ -212,6 +212,10 @@ private:
 
     MagEventGroupHandle mPlayingEvtGroup;
     MagEventHandle      mEventResume;
+
+    MagEventGroupHandle mFlushReadyEvtGroup;
+    MagEventHandle      mEventFlushReady;
+
     bool mIsPaused;
     bool mIsFlushed;
     bool mAbortReading;

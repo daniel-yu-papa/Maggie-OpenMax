@@ -173,7 +173,8 @@ MagOmxMediaBuffer_t* Stream_Track::dequeueFrame(bool lock){
             list_del(next);
             mStartPTS = item->pts;
             mFrameNum--;
-            /*AGILE_LOGV("%s: delete buffer(0x%x) from stream track queue", getInfo()->name, item->buffer);*/
+            /*AGILE_LOGV("%s: delete buffer(0x%x, pts: 0x%x) from stream track queue", 
+                            getInfo()->name, item->buffer, item->pts);*/
         }
     }else{
         AGILE_LOGE("%s stream track is stopped, ignore the request!", mInfo->name);
@@ -290,7 +291,7 @@ _status_t     Stream_Track::enqueueFrame(MagOmxMediaBuffer_t *mb){
                     AGILE_LOGI("send out buffer level change request!!");
                     mBufLevelChange = true;
                 }
-                /*AGILE_LOGV("%s: add buffer(0x%x) to stream track queue", mInfo->name, buf);*/
+                /*AGILE_LOGV("%s: add buffer(0x%x, pts: 0x%x) to stream track queue", mInfo->name, buf, mb->pts);*/
             }else{
                 mIsFull = true;
                 AGILE_LOGE("the stream track %s is FULL!!", mInfo->name);
@@ -375,6 +376,10 @@ ui32 Stream_Track::getBufferingDataTime(){
 	if ((mEndPTS >= 0) &&
         (mStartPTS >= 0) &&
         (mEndPTS >= mStartPTS)){
+
+        if (mEndPTS == mStartPTS)
+            AGILE_LOGD("stream track %s is empty!", mInfo->name);
+
 		return ((ui32)(mEndPTS - mStartPTS)/(90));
 	}else{
         duration = mFrameNum*30;
@@ -423,6 +428,10 @@ Stream_Track_Manager::Stream_Track_Manager(void *pDemuxer, MagMiniDBHandle hPara
     Mag_CreateEventGroup(&mPlayingEvtGroup);
     Mag_CreateEvent(&mEventResume, MAG_EVT_PRIO_DEFAULT);
     Mag_AddEventGroup(mPlayingEvtGroup, mEventResume);
+
+    Mag_CreateEventGroup(&mFlushReadyEvtGroup);
+    Mag_CreateEvent(&mEventFlushReady, MAG_EVT_PRIO_DEFAULT);
+    Mag_AddEventGroup(mFlushReadyEvtGroup, mEventFlushReady); 
 }
 
 Stream_Track_Manager::~Stream_Track_Manager(){
@@ -432,6 +441,8 @@ Stream_Track_Manager::~Stream_Track_Manager(){
     Mag_DestroyThread(&mhReadingFramesEntry);
     Mag_DestroyEvent(&mEventResume);
     Mag_DestroyEventGroup(&mPlayingEvtGroup); 
+    Mag_DestroyEvent(&mEventFlushReady);
+    Mag_DestroyEventGroup(&mFlushReadyEvtGroup); 
     AGILE_LOGV("exit!");
 }
 
@@ -882,6 +893,11 @@ _status_t   Stream_Track_Manager::resume(){
 
 void Stream_Track_Manager::readyToFlush(){
     mIsFlushed = true;
+
+    AGILE_LOGV("before waiting on mFlushReadyEvtGroup");
+    Mag_ClearEvent(mEventFlushReady);
+    Mag_WaitForEventGroup(mFlushReadyEvtGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
+    AGILE_LOGV("after waiting on mFlushReadyEvtGroup");
     // mAbortReading = true;
 }
 
@@ -935,6 +951,7 @@ bool Stream_Track_Manager::handleAllPlayingTracksBuffer(){
 
     if ((mIsPaused) || (mIsFlushed)){
         AGILE_LOGI("wait on the mPlayingEvtGroup! mIsPaused(%d), mIsFlushed(%d)", mIsPaused, mIsFlushed);
+        Mag_SetEvent(mEventFlushReady);
         Mag_WaitForEventGroup(mPlayingEvtGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
         AGILE_LOGI("after waitting on the mPlayingEvtGroup!");
         if (mAbortReading)

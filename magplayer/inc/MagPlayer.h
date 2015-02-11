@@ -212,6 +212,7 @@ private:
 
     MagEventGroupHandle mEventGroup;
     MagEventGroupHandle mSeekEventGroup;
+    MagEventGroupHandle mFlushEventGroup;
 
     MagEventSchedulerHandle mEventScheduler;
 

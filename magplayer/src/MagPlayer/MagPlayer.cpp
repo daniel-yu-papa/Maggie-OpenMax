@@ -659,8 +659,8 @@ void MagPlayer::onFlush(MagMessageHandle msg){
             AGILE_LOGV("It is %s action!", seek_flush ? "seek_flush" : "flush");
         }
 
-        if (mDemuxer)
-            mDemuxer->readyToFlush();
+        /*if (mDemuxer)
+            mDemuxer->readyToFlush();*/
 
         if (NULL != mAVPipelineMgr){
             mAVPipelineMgr->flush();
@@ -672,12 +672,11 @@ void MagPlayer::onFlush(MagMessageHandle msg){
         if (mSource)
             mSource->Flush();
 
+        Mag_SetEvent(mCompleteFlushEvt);
         if (seek_flush){
             AGILE_LOGV("see if the seeking is complete or not?");
             Mag_WaitForEventGroup(mSeekEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
             AGILE_LOGV("seeking completes");
-        }else{
-            Mag_SetEvent(mCompleteFlushEvt);
         }
 
         resumeTo();
@@ -744,11 +743,18 @@ void MagPlayer::onSeek(MagMessageHandle msg){
             /*Issue: some buffer-pause, buffer-play etc messages before flush 
             message would disorder the correct execution flow. 
             so discard all those messges instead*/
+            if (mDemuxer)
+                mDemuxer->readyToFlush();
+        
             mLooper->clear(mLooper);
             mLooper->waitOnAllDone(mLooper);
 
             mFlushMsg->setInt32(mFlushMsg, "seek_flush", 1);
             mFlushMsg->postMessage(mFlushMsg, 0);
+
+            AGILE_LOGV("see if the flushing is complete or not?");
+            Mag_WaitForEventGroup(mFlushEventGroup, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
+            AGILE_LOGV("flushinging completes");
         }
 
         if (mDemuxer){
@@ -1550,12 +1556,13 @@ void MagPlayer::initialize(){
     if (MAG_ErrNone == Mag_CreateEvent(&mCompletePrepareEvt, MAG_EVT_PRIO_DEFAULT))
         Mag_AddEventGroup(mEventGroup, mCompletePrepareEvt);
 
-    if (MAG_ErrNone == Mag_CreateEvent(&mCompleteFlushEvt, MAG_EVT_PRIO_DEFAULT))
-        Mag_AddEventGroup(mEventGroup, mCompleteFlushEvt);
-
     if (MAG_ErrNone == Mag_CreateEvent(&mErrorEvt, MAG_EVT_PRIO_DEFAULT))
         Mag_AddEventGroup(mEventGroup, mErrorEvt);
     
+    Mag_CreateEventGroup(&mFlushEventGroup);
+    if (MAG_ErrNone == Mag_CreateEvent(&mCompleteFlushEvt, MAG_EVT_PRIO_DEFAULT))
+        Mag_AddEventGroup(mFlushEventGroup, mCompleteFlushEvt);
+
     Mag_CreateEventGroup(&mSeekEventGroup);
     if (MAG_ErrNone == Mag_CreateEvent(&mCompleteSeekEvt, MAG_EVT_PRIO_DEFAULT))
         Mag_AddEventGroup(mSeekEventGroup, mCompleteSeekEvt);
