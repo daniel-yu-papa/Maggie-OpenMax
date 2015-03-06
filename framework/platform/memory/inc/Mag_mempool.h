@@ -31,23 +31,13 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 #define BUF_ALIGN(size, align) (((unsigned int)((size)/(align)) + 1)*align)
 
 typedef enum{
     NO_AUTO_EXPANDING,  /*if the mempool is used up, it would not create another mempool automatically*/
     AUTO_EXPANDING      /*if the mempool is used up, it would create another mempool automatically*/
 }magMemPoolCtrl_t;
-
-typedef struct{
-    pthread_mutex_t mutex;
-    List_t memPoolListHead;     /*link the magMempoolInternal_t nodes*/
-    List_t allocatedMBListHead; /*organized as FIFO*/
-    List_t unusedMBListHead;    /*no order. used to list the unused magMemBlock_t for later using*/
-    unsigned int MemPoolTotal;  /* the total number of the mempools */
-    magMemPoolCtrl_t ctrlFlag;
-    ui32 totalBufSize;          /*total allocated buffer size*/
-    ui32 bufferLimit;            /*in Bytes. 0: no limitation*/
-}magMemPoolMgr_t;
 
 typedef struct magMempoolInternal_t{
     List_t node;
@@ -67,15 +57,27 @@ typedef struct{
     magMempoolInternal_t *pMemPool;
 }magMemBlock_t;
 
-typedef magMemPoolMgr_t* magMempoolHandle;
+typedef struct MagMemoryPool{
+    List_t           memPoolListHead;     /*link the magMempoolInternal_t nodes*/
+    List_t           allocatedMBListHead; /*organized as FIFO*/
+    List_t           unusedMBListHead;    /*no order. used to list the unused magMemBlock_t for later using*/
+    unsigned int     MemPoolTotal;        /* the total number of the mempools */
+    magMemPoolCtrl_t ctrlFlag;
+    ui32             totalBufSize;        /*total allocated buffer size*/
+    ui32             bufferLimit;         /*in Bytes. 0: no limitation*/
+    pthread_mutex_t  mutex;
 
-magMempoolHandle magMemPoolCreate(unsigned int bytes, ui32 flags);
-void magMemPoolSetBufLimit(magMempoolHandle hMemPool, ui32 top_size);
-MagErr_t magMemPoolGetBuffer(magMempoolHandle hMemPool, unsigned int bytes, void **ppBuf);
-MagErr_t magMemPoolPutBuffer(magMempoolHandle hMemPool, void *pBuf);
-MagErr_t magMemPoolReset(magMempoolHandle hMemPool);
-void magMemPoolDestroy(magMempoolHandle *phMemPool);
-void magMemPoolDump(magMempoolHandle hMemPool);
+    MagErr_t (*get)(struct MagMemoryPool *self, unsigned int bytes, void **ppBuf);
+    MagErr_t (*put)(struct MagMemoryPool *self, void *pBuf);
+    MagErr_t (*reset)(struct MagMemoryPool *self);
+    void     (*setLimit)(struct MagMemoryPool *self, ui32 top_size);
+    void     (*dump)(struct MagMemoryPool *self);
+}MagMemoryPool_t;
+
+typedef MagMemoryPool_t* MagMemoryPoolHandle;
+
+MagMemoryPoolHandle Mag_createMemoryPool(unsigned int bytes, ui32 flags);
+void Mag_destroyMemoryPool(MagMemoryPoolHandle *phMemPool);
 
 #ifdef __cplusplus
 }

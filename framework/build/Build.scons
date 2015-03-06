@@ -309,7 +309,14 @@ Application(name    = 'MagPlatform_OOCTest',
                 install = True)
 
 Application(name    = 'MagPlatform_MemPoolTest', 
-                dir     = 'platform/memory/src/test', 
+                dir     = 'platform/memory/src/test/mempool', 
+                deps    = ['MagCore_Message', 'MagPlatform_Mem', 'MagCore_Event', 'MagPlatform_Hal'],
+                extra_libs = ['librt.so', 'libpthread.so', 'libMagAgilelog.so'],
+                extra_lib_path = AGILELOG_LIB_PATH,
+                install = True)
+
+Application(name    = 'MagPlatform_RingBufferTest', 
+                dir     = 'platform/memory/src/test/ringbuffer', 
                 deps    = ['MagCore_Message', 'MagPlatform_Mem', 'MagCore_Event', 'MagPlatform_Hal'],
                 extra_libs = ['librt.so', 'libpthread.so', 'libMagAgilelog.so'],
                 extra_lib_path = AGILELOG_LIB_PATH,

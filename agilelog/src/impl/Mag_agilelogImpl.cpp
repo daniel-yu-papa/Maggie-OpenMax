@@ -74,7 +74,7 @@ MagAgileLog::MagAgileLog(){
     pthread_mutex_init(&mLogMutex, NULL);
 
     init();
-    /*printConfig();*/
+    printConfig();
 }
 
 MagAgileLog::~MagAgileLog(){

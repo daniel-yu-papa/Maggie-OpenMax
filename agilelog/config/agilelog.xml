@@ -69,6 +69,11 @@
             <debug-level  level = "error"/>
         </module>
         
+        <module name = "Magfw_RingBuffer">
+            <debug-switch on = "true"/>
+            <debug-level  level = "verbose"/>
+        </module>
+        
         <module name = "Magfw_Thread">
             <debug-switch on = "true"/>
             <debug-level  level = "error"/>
