@@ -47,9 +47,14 @@ typedef enum OMX_INDEXTYPE_EXT {
 	* SetConfig: delete the port
 	* GetConfig: add the port
 	*/
-	OMX_IndexConfigExtAddPort, 	    /**< reference: OMX_CONFIG_UI32TYPE */
-	OMX_IndexConfigExtFFMpegData, 	/**< reference: OMX_CONFIG_FFMPEG_DATA_TYPE */
-    OMX_IndexConfigExtStartTime     /**< reference: OMX_CONFIG_START_TIME_TYPE */
+	OMX_IndexConfigExtAddPort, 	       /**< reference: OMX_CONFIG_UI32TYPE */
+	OMX_IndexConfigExtFFMpegData, 	   /**< reference: OMX_CONFIG_FFMPEG_DATA_TYPE */
+    OMX_IndexConfigExtStartTime,       /**< reference: OMX_CONFIG_START_TIME_TYPE */
+    OMX_IndexConfigExtReadData,        /**< reference: OMX_CONFIG_DATABUFFER */
+    OMX_IndexConfigExtWriteData,       /**< reference: OMX_CONFIG_DATABUFFER */
+    OMX_IndexConfigExtSeekData,        /**< reference: OMX_CONFIG_SEEKDATABUFFER */
+    OMX_IndexParamExtBufferSetting,    /**< reference: OMX_BUFFER_PARAM write-only*/ 
+    OMX_IndexParamExtBufferStatus,     /**< reference: OMX_BUFFER_STATUS read-only*/
 } OMX_INDEXTYPE_EXT;
 
 #ifdef __cplusplus

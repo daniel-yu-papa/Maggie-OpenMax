@@ -907,6 +907,34 @@ static OMX_ERRORTYPE MagOMX_SetParameter_internal(
         }
             break;
 
+        case OMX_IndexConfigExtWriteData:
+        {
+            OMX_CONFIG_DATABUFFER *data = (OMX_CONFIG_DATABUFFER *)pComponentParameterStructure;
+            OMX_U32 write;
+
+            if (MagOmxComponentImplVirtual(base)->MagOMX_WriteData){
+                write = MagOmxComponentImplVirtual(base)->MagOMX_WriteData(hComponent, data->pBuffer, data->nLen);
+                data->nDoneLen = write;
+            }else{
+                COMP_LOGE(root, "pure virtual func: MagOMX_WriteData() is not overrided!!");
+                return OMX_ErrorNotImplemented;
+            } 
+        }
+            break;
+
+        case OMX_IndexConfigExtSeekData:
+        {
+            OMX_CONFIG_SEEKDATABUFFER *seek = (OMX_CONFIG_SEEKDATABUFFER *)pComponentParameterStructure;
+
+            if (MagOmxComponentImplVirtual(base)->MagOMX_SeekData){
+                return MagOmxComponentImplVirtual(base)->MagOMX_SeekData(hComponent, seek->sOffset, seek->sWhence);
+            }else{
+                COMP_LOGE(root, "pure virtual func: MagOMX_SeekData() is not overrided!!");
+                return OMX_ErrorNotImplemented;
+            } 
+        }
+            break;
+
         default:
             if (isPortParam(nIndex)){
                 /*the parameters or configures for port*/
@@ -1164,6 +1192,21 @@ static OMX_ERRORTYPE MagOMX_GetParameter_internal(
                 return OMX_ErrorUndefined;
             }
         }   
+            break;
+
+        case OMX_IndexConfigExtReadData:
+        {
+            OMX_CONFIG_DATABUFFER *data = (OMX_CONFIG_DATABUFFER *)pComponentParameterStructure;
+            OMX_U32 read;
+
+            if (MagOmxComponentImplVirtual(base)->MagOMX_ReadData){
+                read = MagOmxComponentImplVirtual(base)->MagOMX_ReadData(hComponent, data->pBuffer, data->nLen);
+                data->nDoneLen = read;
+            }else{
+                COMP_LOGE(root, "pure virtual func: MagOMX_ReadData() is not overrided!!");
+                return OMX_ErrorNotImplemented;
+            } 
+        }
             break;
 
         default:
@@ -2789,6 +2832,7 @@ static void MagOmxComponentImpl_initialize(Class this){
     MagOmxComponentImplVtableInstance.MagOMX_GetClockActionOffset            = NULL;
     MagOmxComponentImplVtableInstance.MagOMX_AddPortOnRequest                = NULL;
     MagOmxComponentImplVtableInstance.MagOMX_TearDownTunnel                  = NULL;
+    MagOmxComponentImplVtableInstance.MagOMX_ProceedUsedBuffer               = NULL;
 }
 
 /*

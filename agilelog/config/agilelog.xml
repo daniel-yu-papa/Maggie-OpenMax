@@ -20,7 +20,7 @@
         <log on = "true"/>
         
         <!-- the size of log file: XX MB -->
-        <log_size>50</log_size>
+        <log_size>200</log_size>
 	</global_config>
 
     <module_config>

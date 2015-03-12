@@ -186,6 +186,30 @@ Virtuals(MagOmxComponentImpl, MagOmxComponent)
     OMX_ERRORTYPE  (*MagOMX_TearDownTunnel)(
                     OMX_IN OMX_HANDLETYPE hComponent,
                     OMX_IN OMX_U32 portIdx);
+
+    /*proceed the used buffer*/
+    OMX_ERRORTYPE (*MagOMX_ProceedUsedBuffer)(
+                    OMX_IN  OMX_HANDLETYPE hComponent, 
+                    OMX_IN  OMX_BUFFERHEADERTYPE *usedBufHeader);  
+
+    /*only used for the Buffer component for now*/
+    OMX_U32       (*MagOMX_ReadData)(
+                    OMX_IN  OMX_HANDLETYPE hComponent, 
+                    OMX_OUT OMX_U8* pData,
+                    OMX_IN  OMX_U32 length);
+
+    /*only used for Buffer component for now*/
+    OMX_U32       (*MagOMX_WriteData)(
+                    OMX_IN  OMX_HANDLETYPE hComponent, 
+                    OMX_IN  OMX_U8* pData,
+                    OMX_IN  OMX_U32 length);
+
+    /*only used for Buffer component for now*/
+    OMX_ERRORTYPE (*MagOMX_SeekData)(
+                    OMX_IN  OMX_HANDLETYPE hComponent, 
+                    OMX_IN  OMX_S64 offset,
+                    OMX_IN  OMX_SEEK_WHENCE whence);
+
 EndOfVirtuals;
 
 ClassMembers(MagOmxComponentImpl, MagOmxComponent, \

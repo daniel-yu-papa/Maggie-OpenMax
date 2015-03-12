@@ -32,6 +32,8 @@
 extern "C" {
 #endif
 
+#define kInvalidSeekOffset       ((int64_t)UINT64_C(0x8FFFFFFFFFFFFFFF))
+
 typedef struct MagRingBuffer{
     i32 rb_size;
     i32 rb_reading_pos;
@@ -46,7 +48,8 @@ typedef struct MagRingBuffer{
     i32 (*read)(struct MagRingBuffer *self, i32 bytes, ui8 *pBuf);
     i32 (*write)(struct MagRingBuffer *self, i32 bytes, ui8 *pBuf);
     i64 (*seek)(struct MagRingBuffer *self, i64 offset);
-    void (*flush)(struct MagRingBuffer *self, i64 source_offset);
+    void (*flush)(struct MagRingBuffer *self);
+    void (*setSourcePos)(struct MagRingBuffer *self, i64 source_offset);
     void (*getSourceRange)(struct MagRingBuffer *self, i64 *start, i64 *end);
 }MagRingBuffer_t;
 

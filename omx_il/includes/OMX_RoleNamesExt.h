@@ -88,6 +88,8 @@ extern "C" {
 
 /* Image/video rendered class */
 
+/* Buffer class*/
+#define OMX_ROLE_BUFFER "frame_byte.buffer"
 
 #ifdef __cplusplus
 }

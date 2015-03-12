@@ -12,42 +12,66 @@ static i32 MagRingBufferRead(struct MagRingBuffer *self, i32 bytes, ui8 *pBuf){
     i32 read = 0;
     i32 remaining = bytes;
 
-    pthread_mutex_lock(&self->mutex);
+    i32 local_rb_reading_pos;
+    i32 local_rb_writing_pos;
+    i32 local_rb_unread_data_size;
+    i32 orig_rb_unread_data_size;
 
-    if (self->rb_unread_data_size > 0){
-        if (self->rb_unread_data_size < bytes){
-            remaining = self->rb_unread_data_size;
+    local_rb_reading_pos = self->rb_reading_pos;
+    local_rb_writing_pos = self->rb_writing_pos;
+    local_rb_unread_data_size = self->rb_unread_data_size;
+    orig_rb_unread_data_size  = self->rb_unread_data_size;
+
+    if (local_rb_unread_data_size > 0){
+        if (local_rb_unread_data_size < bytes){
+            remaining = local_rb_unread_data_size;
         }
 
-        if (self->rb_writing_pos > self->rb_reading_pos){
-            AGILE_LOGV("rb_reading_pos: %d, read: %d", self->rb_reading_pos, remaining);
-            memcpy(pBuf, self->pRingBuffer + self->rb_reading_pos, remaining);
-            self->rb_reading_pos = (self->rb_reading_pos + remaining) % self->rb_size;
+        if (local_rb_writing_pos > local_rb_reading_pos){
+            AGILE_LOGV("rb_reading_pos: %d, read: %d", local_rb_reading_pos, remaining);
+            memcpy(pBuf, self->pRingBuffer + local_rb_reading_pos, remaining);
+            local_rb_reading_pos = (local_rb_reading_pos + remaining) % self->rb_size;
         }else{
-            first_part = self->rb_size - self->rb_reading_pos;
+            first_part = self->rb_size - local_rb_reading_pos;
             if (remaining > first_part)
                 second_part = remaining - first_part;
             else
                 first_part = remaining;
 
-            AGILE_LOGV("rb_reading_pos: %d, first part read: %d", self->rb_reading_pos, first_part);
-            memcpy(pBuf, self->pRingBuffer + self->rb_reading_pos, first_part);
+            AGILE_LOGV("rb_reading_pos: %d, first part read: %d", local_rb_reading_pos, first_part);
+            memcpy(pBuf, self->pRingBuffer + local_rb_reading_pos, first_part);
             if (second_part > 0){
-                AGILE_LOGV("rb_reading_pos: %d, second part read: %d", self->rb_reading_pos, second_part);
+                AGILE_LOGV("rb_reading_pos: %d, second part read: %d", local_rb_reading_pos, second_part);
                 memcpy(pBuf + first_part, self->pRingBuffer, second_part);
             }
 
-            self->rb_reading_pos = (self->rb_reading_pos + first_part + second_part) % self->rb_size;
+            local_rb_reading_pos = (local_rb_reading_pos + first_part + second_part) % self->rb_size;
         }
 
         read = remaining;
-        self->rb_unread_data_size -= remaining;
+        local_rb_unread_data_size -= remaining;
 
-        if (self->rb_unread_data_size == 0){
+        if (local_rb_unread_data_size == 0){
             AGILE_LOGD("Ring buffer[%p] becomes empty!, rb_writing_pos: %d, rb_reading_pos: %d", 
-                        self, self->rb_writing_pos, self->rb_reading_pos);
+                        self, local_rb_writing_pos, local_rb_reading_pos);
         }
     }
+
+    pthread_mutex_lock(&self->mutex);
+
+    if (orig_rb_unread_data_size == self->rb_unread_data_size){
+        self->rb_unread_data_size = local_rb_unread_data_size;
+    }else{
+        if (self->rb_unread_data_size > orig_rb_unread_data_size){
+            self->rb_unread_data_size = local_rb_unread_data_size + (self->rb_unread_data_size - orig_rb_unread_data_size);
+            
+        }else{
+            AGILE_LOGE("[%p]: fatal error: rb_unread_data_size = %d < orig_rb_unread_data_size = %d!!!!", 
+                        self->rb_unread_data_size, orig_rb_unread_data_size);
+        }
+    }
+
+    self->rb_reading_pos = local_rb_reading_pos;
 
     pthread_mutex_unlock(&self->mutex);
 
@@ -63,38 +87,50 @@ static i32 MagRingBufferWrite(struct MagRingBuffer *self, i32 bytes, ui8 *pBuf){
     i32 first_part = 0;
     i32 second_part = 0;
 
-    pthread_mutex_lock(&self->mutex);
+    i64 local_source_offset = 0;
+    i32 local_rb_reading_pos;
+    i32 local_rb_writing_pos;
+    i32 local_rb_unread_data_size;
+    i32 local_rb_total_data_size = 0;
+    i32 orig_rb_unread_data_size;
 
-    if (self->rb_unread_data_size < self->rb_size){
-        free_space = self->rb_size - self->rb_total_data_size;
+    local_rb_reading_pos = self->rb_reading_pos;
+    local_rb_writing_pos = self->rb_writing_pos;
+    local_rb_unread_data_size = self->rb_unread_data_size;
+    orig_rb_unread_data_size = self->rb_unread_data_size;
+    local_rb_total_data_size = self->rb_total_data_size;
+
+    if (local_rb_unread_data_size < self->rb_size){
+        free_space = self->rb_size - local_rb_total_data_size;
 
         if (free_space < bytes){
             if (free_space > 0){
-                memcpy(self->pRingBuffer + self->rb_writing_pos, pBuf, free_space);
-                self->rb_total_data_size = self->rb_size;
-                self->rb_writing_pos = 0;
-                self->rb_unread_data_size += free_space;
+                memcpy(self->pRingBuffer + local_rb_writing_pos, pBuf, free_space);
+                local_rb_total_data_size += free_space;
+                local_rb_writing_pos = 0;
+                local_rb_unread_data_size += free_space;
                 write += free_space;
                 remaining = bytes - write;
             }
 
             /*the buffer is full of the data(read and unread), need to over-write the old data*/
-            if (self->rb_reading_pos > self->rb_writing_pos){
-                old_data_size = self->rb_reading_pos - self->rb_writing_pos;
+            if (local_rb_reading_pos > local_rb_writing_pos){
+                old_data_size = local_rb_reading_pos - local_rb_writing_pos;
                 if (old_data_size < remaining){
                     remaining = old_data_size;
                 }
-            }else if (self->rb_reading_pos <= self->rb_writing_pos){
+            }else if (local_rb_reading_pos <= local_rb_writing_pos){
                 /*If read_pos == write_pos, it means the ring buffer is empty*/
-                first_part = self->rb_size - self->rb_writing_pos;
-                second_part = self->rb_reading_pos;
+                first_part = self->rb_size - local_rb_writing_pos;
+                second_part = local_rb_reading_pos;
 
                 if (first_part < remaining){
-                    memcpy(self->pRingBuffer + self->rb_writing_pos, pBuf + write, first_part);
+                    memcpy(self->pRingBuffer + local_rb_writing_pos, pBuf + write, first_part);
                     remaining -= first_part;
-                    self->rb_writing_pos = 0;
-                    self->rb_unread_data_size += first_part;
-                    self->source_offset += (i64)first_part;
+                    local_rb_writing_pos = 0;
+                    local_rb_unread_data_size += first_part;
+                    local_source_offset += (i64)first_part;
+                    /*self->source_offset += (i64)first_part;*/
                     write += first_part;
 
                     if (second_part < remaining){
@@ -103,26 +139,44 @@ static i32 MagRingBufferWrite(struct MagRingBuffer *self, i32 bytes, ui8 *pBuf){
                 }
             }
 
-            self->source_offset += (i64)remaining;
+            local_source_offset += (i64)remaining;
+            /*self->source_offset += (i64)remaining;*/
         }else{
-            self->rb_total_data_size += bytes;
+            local_rb_total_data_size += bytes;
         }
 
         if (remaining > 0){
             AGILE_LOGV("rb_writing_pos: %d, write: %d, remaining: %d", 
-                        self->rb_writing_pos, write, remaining);
-            memcpy(self->pRingBuffer + self->rb_writing_pos, pBuf + write, remaining);
+                        local_rb_writing_pos, write, remaining);
+            memcpy(self->pRingBuffer + local_rb_writing_pos, pBuf + write, remaining);
 
-            self->rb_writing_pos      = (self->rb_writing_pos + remaining) % self->rb_size;
-            self->rb_unread_data_size += remaining;
+            local_rb_writing_pos      = (local_rb_writing_pos + remaining) % self->rb_size;
+            local_rb_unread_data_size += remaining;
             write                     += remaining;
 
-            if (self->rb_unread_data_size == self->rb_size){
+            if (local_rb_unread_data_size == self->rb_size){
                 AGILE_LOGD("Ring buffer[%p] becomes full! rb_writing_pos: %d, rb_reading_pos: %d", 
-                            self, self->rb_writing_pos, self->rb_reading_pos);
+                            self, local_rb_writing_pos, local_rb_reading_pos);
             }
         }
     }
+
+    pthread_mutex_lock(&self->mutex);
+
+    if (orig_rb_unread_data_size == self->rb_unread_data_size){
+        self->rb_unread_data_size = local_rb_unread_data_size;
+    }else{
+        if (self->rb_unread_data_size < orig_rb_unread_data_size){
+            self->rb_unread_data_size = local_rb_unread_data_size - (orig_rb_unread_data_size - self->rb_unread_data_size);  
+        }else{
+            AGILE_LOGE("[%p]: fatal error: rb_unread_data_size = %d > orig_rb_unread_data_size = %d!!!!", 
+                        self->rb_unread_data_size, orig_rb_unread_data_size);
+        }
+    }
+
+    self->rb_writing_pos = local_rb_writing_pos;
+    self->source_offset +=  local_source_offset;
+    self->rb_total_data_size = local_rb_total_data_size;
 
     pthread_mutex_unlock(&self->mutex);
 
@@ -131,13 +185,17 @@ static i32 MagRingBufferWrite(struct MagRingBuffer *self, i32 bytes, ui8 *pBuf){
 
 /*the offset against the start of the source
 * return:
-* 0: hit on
+* 0: hit on the buffer
 * others: the offset short to the source range
 */
 static i64 MagRingBufferSeek(struct MagRingBuffer *self, i64 offset){
     i64 seek_short = 0;
     i32 seek_offset = 0;
     i64 source_range_end = 0;
+
+    if (offset < 0){
+        return kInvalidSeekOffset;
+    }
 
     pthread_mutex_lock(&self->mutex);
 
@@ -180,7 +238,7 @@ static i64 MagRingBufferSeek(struct MagRingBuffer *self, i64 offset){
     return seek_short;
 }
 
-static void MagRingBufferFlush(struct MagRingBuffer *self, i64 source_offset){
+static void MagRingBufferFlush(struct MagRingBuffer *self){
     pthread_mutex_lock(&self->mutex);
 
     self->rb_reading_pos = 0;
@@ -188,14 +246,22 @@ static void MagRingBufferFlush(struct MagRingBuffer *self, i64 source_offset){
     self->rb_total_data_size = 0;
     self->rb_unread_data_size = 0;
 
-    self->source_offset = source_offset;
+    pthread_mutex_unlock(&self->mutex);
+}
 
+static MagRingBufferSetSourcePos(struct MagRingBuffer *self, i64 source_offset){
+    pthread_mutex_lock(&self->mutex);
+    self->source_offset = source_offset;
     pthread_mutex_unlock(&self->mutex);
 }
 
 static void MagGetSourceRange(struct MagRingBuffer *self, i64 *start, i64 *end){
+    pthread_mutex_lock(&self->mutex);
+
     *start = self->source_offset;
     *end   = self->source_offset + self->rb_total_data_size;
+
+    pthread_mutex_unlock(&self->mutex);
 }
 
 MagRingBufferHandle Mag_createRingBuffer(i32 bytes, ui32 flags){
@@ -225,10 +291,11 @@ MagRingBufferHandle Mag_createRingBuffer(i32 bytes, ui32 flags){
         return NULL;
     }
 
-    hRB->read  = MagRingBufferRead;
-    hRB->write = MagRingBufferWrite;
-    hRB->seek  = MagRingBufferSeek;
-    hRB->flush = MagRingBufferFlush;
+    hRB->read           = MagRingBufferRead;
+    hRB->write          = MagRingBufferWrite;
+    hRB->seek           = MagRingBufferSeek;
+    hRB->flush          = MagRingBufferFlush;
+    hRB->setSourcePos   = MagRingBufferSetSourcePos
     hRB->getSourceRange = MagGetSourceRange;
 
     return hRB;

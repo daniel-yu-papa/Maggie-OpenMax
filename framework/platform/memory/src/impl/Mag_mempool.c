@@ -125,7 +125,8 @@ static MagErr_t allocateBuffer(MagMemoryPoolHandle hMemPool, magMempoolInternal_
     List_t *nextActive = NULL;
     /*unsigned int order = 0;*/
     int offset = 0;
-    
+    MagErr_t err = MAG_ErrNone;
+
     /*for debugging*/
     /*magMemBlock_t *mbdebug;*/
     
@@ -231,7 +232,10 @@ static MagErr_t allocateBuffer(MagMemoryPoolHandle hMemPool, magMempoolInternal_
     }
 #endif
 
-    return MAG_ErrNone;
+    if (*getBuffer == NULL)
+        err = MAG_NoMemory;
+
+    return err;
 
 #if 0    
     tmpNodeInter = mpInter->freeMBListHead.next;
@@ -384,14 +388,12 @@ static MagErr_t magMemoryPoolGetBuffer(MagMemoryPoolHandle hMemPool, unsigned in
         if ( (mpInter->node.prev == &hMemPool->memPoolListHead) ||
              (mpInter->node.prev != &hMemPool->memPoolListHead && mpInter->empty) ){
             if (MAG_ErrNone == allocateBuffer(hMemPool, mpInter, bytes, &getBuffer)){
-                if (getBuffer){
-                    /* if the memory pool has the free space for the allocation, move it to the head of the memory pool list. 
-                     * It would be firstly used in next allocation.
-                     */
-                    list_del(tmpNodeOuter);
-                    list_add(tmpNodeOuter, &hMemPool->memPoolListHead);
-                    goto find;
-                }
+                /* if the memory pool has the free space for the allocation, move it to the head of the memory pool list. 
+                 * It would be firstly used in next allocation.
+                 */
+                list_del(tmpNodeOuter);
+                list_add(tmpNodeOuter, &hMemPool->memPoolListHead);
+                goto find;
             }else{
                 pthread_mutex_unlock(&hMemPool->mutex);
                 return MAG_NoMemory;

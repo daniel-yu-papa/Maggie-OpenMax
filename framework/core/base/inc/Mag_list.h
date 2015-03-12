@@ -90,6 +90,13 @@ static inline int is_added_list(List_t *node){
         return 1;
 }
 
+static inline int is_list_empty(List_t *listHead){
+    if ((listHead->next == listHead) && (listHead->prev == listHead))
+        return 1;
+    else
+        return 0;
+}
+
 #ifdef __cplusplus
 }
 #endif

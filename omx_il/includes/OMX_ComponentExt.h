@@ -35,7 +35,8 @@ extern "C" {
 
 typedef enum OMX_PORTDOMAINEXTTYPE {
     OMX_PortDomain_ExtVendorStartUnused =OMX_PortDomainVendorStartUnused,
-    OMX_PortDomainOther_Clock         /**< Clock domain port belongs to Other domain */
+    OMX_PortDomainOther_Clock,         /**< Clock domain port belongs to Other domain */
+    OMX_PortDomainOther_Buffer         /**< Buffer domain port belongs to Other domain */
 } OMX_PORTDOMAINEXTTYPE;
 
 typedef struct OMX_CONFIG_UI32TYPE {

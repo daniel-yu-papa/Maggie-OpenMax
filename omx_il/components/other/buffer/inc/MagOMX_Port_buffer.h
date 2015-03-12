@@ -18,28 +18,26 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef __MAG_OMX_BUFFER_H__
-#define __MAG_OMX_BUFFER_H__
+#ifndef __MAGOMX_PORT_OTHER_BUFFER_H__
+#define __MAGOMX_PORT_OTHER_BUFFER_H__
 
-#include "framework/MagFramework.h"
+#include "MagOMX_Port_base.h"
+#include "MagOMX_Port_baseImpl.h"
 
-typedef   enum {
-  STREAM_FRAME_FLAG_NONE        = 0,
-  STREAM_FRAME_FLAG_KEY_FRAME   = (1 << 0),
-  STREAM_FRAME_FLAG_EOS         = (1 << 1),
-} StreamFrameFlag_t;
+#define BUFFER_PORT_NAME "Buf"
 
-typedef struct mag_omx_stream_frame_t{
-  List_t            node;
+DeclareClass(MagOmxPortBuffer, MagOmxPortImpl);
 
-  OMX_U32           size;
-  OMX_PTR           *buffer;
-  OMX_TICKS         pts;          /*in 90K*/
-  OMX_TICKS         dts;          /*in 90K*/  
+Virtuals(MagOmxPortBuffer, MagOmxPortImpl) 
+   
+EndOfVirtuals;
 
-  OMX_S32           duration;     /*Duration of this packet in ns*/
-  OMX_S64           position;     /*byte position in stream*/
-  StreamFrameFlag_t flag;
-}MagOmxStreamFrame_t;
+ClassMembers(MagOmxPortBuffer, MagOmxPortImpl, \
+	void (*self)(void); \
+)
+    MagMutexHandle                mhMutex;
+    OMX_OTHER_PORTDEFINITIONTYPE  mPortDefinition;
+
+EndOfClassMembers;
 
 #endif

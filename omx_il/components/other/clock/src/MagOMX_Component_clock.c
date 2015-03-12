@@ -920,9 +920,30 @@ static void MagOmxComponentClock_constructor(MagOmxComponentClock thiz, const vo
 }
 
 static void MagOmxComponentClock_destructor(MagOmxComponentClock thiz, MagOmxComponentClockVtable vtab){
-	AGILE_LOGV("Enter!");
+	OMX_U32 i;
+
+    AGILE_LOGV("Enter!");
 
     Mag_DestroyMutex(&thiz->mhMutex);
     Mag_DestroyMutex(&thiz->mhRefTimeUpdateMutex);
     Mag_destroyTimer(&thiz->mhTimer);
+    Mag_DestroyEvent(&thiz->mStateChangeEvt);
+    Mag_DestroyEventGroup(&thiz->mStateChangeEvtGrp);
+
+    destroyMagMessage(&thiz->mCmdStartTimeMsg);
+    for (i = 0; i < MAX_CLOCK_PORT_NUMBER; i++){
+        if (thiz->mCmdMTimeRequestMsg[i]){
+            destroyMagMessage(&thiz->mCmdMTimeRequestMsg[i]);
+        }
+
+        if (thiz->mTimeRequestMsgHandler[i]){
+            destroyHandler(&thiz->mTimeRequestMsgHandler[i]);
+        }
+
+        if (thiz->mTimeRequestLooper[i]){
+            destroyLooper(&thiz->mTimeRequestLooper[i]);
+        }
+    }
+    destroyHandler(&thiz->mCmdMsgHandler);
+    destroyLooper(&thiz->mCmdLooper);
 }
