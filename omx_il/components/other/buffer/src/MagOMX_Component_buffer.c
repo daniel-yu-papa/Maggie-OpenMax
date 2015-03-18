@@ -185,32 +185,6 @@ static OMX_ERRORTYPE virtual_MagOmxComponentBuffer_SetParameter(
 	return ret;
 }
 
-    
-/*handle the notification from attached port*/
-static OMX_ERRORTYPE  virtual_MagOmxComponentBuffer_Notify(
-                                        OMX_IN OMX_HANDLETYPE hComponent,
-                                        OMX_IN MagOMX_Component_Notify_Type_t notifyIndex,
-                                        OMX_IN OMX_PTR pNotifyData){
-    MagOmxComponentBuffer hCompClock;
-    MagOmxComponent      rootComp;
-    MagOmxComponentImpl  compImpl;
-
-    rootComp   = ooc_cast(hComponent, MagOmxComponent);
-    compImpl   = ooc_cast(hComponent, MagOmxComponentImpl);
-    hCompClock = ooc_cast(hComponent, MagOmxComponentBuffer);
-    switch (notifyIndex){
-        case MagOMX_Component_Notify_StartTime:
-        {
-            
-        }
-            break;
-
-        default:
-            return OMX_ErrorUnsupportedIndex;
-    }
-    return OMX_ErrorNone;
-}
-
 static OMX_ERRORTYPE  virtual_MagOmxComponentBuffer_TearDownTunnel(
                                         OMX_IN OMX_HANDLETYPE hComponent,
                                         OMX_IN OMX_U32 portIdx){

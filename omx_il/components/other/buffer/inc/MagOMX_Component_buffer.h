@@ -37,6 +37,7 @@ EndOfVirtuals;
 
 ClassMembers(MagOmxComponentBuffer, MagOmxComponentImpl, \
     _status_t getPushBufferLooper(OMX_HANDLETYPE handle); \
+    MagMessageHandle createPushBufMessage(OMX_HANDLETYPE handle, ui32 what);  \
     MagOmxMediaBuffer_t *(*Queue_Get)(MagOmxComponentBuffer compBuf); \
     OMX_ERRORTYPE (*Queue_Add)(MagOmxComponentBuffer compBuf, MagOmxMediaBuffer_t *mb); \
     OMX_ERRORTYPE (*Queue_Put)(MagOmxComponentBuffer compBuf, MagOmxMediaBuffer_t *mb); \

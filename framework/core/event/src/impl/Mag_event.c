@@ -174,7 +174,7 @@ MagErr_t  Mag_SetEvent(MagEventHandle evtHandle){
         rc = pthread_mutex_unlock(&evtGrp->lock);
         MAG_ASSERT(0 == rc);
 
-        rc = pthread_cond_signal(&evtGrp->cond);
+        rc = pthread_cond_broadcast(&evtGrp->cond);
         MAG_ASSERT(0 == rc);
 
         AGILE_LOGV("set event [0x%p], evtGrp [0x%p]", evtHandle, evtGrp);

@@ -365,6 +365,7 @@ static void MagOmxPort_constructor(MagOmxPort thiz, const void *params){
     thiz->getDef_Enabled           = MagOmxPort_getDef_Enabled;
     thiz->getBufferPolicy          = MagOmxPort_getBufferPolicy;
     thiz->getState                 = MagOmxPort_getState;
+    thiz->checkState               = MagOmxPort_checkState;
 
     thiz->setTunneledFlag          = MagOmxPort_setTunneledFlag;
     thiz->setDef_BufferCountActual = MagOmxPort_setDef_BufferCountActual;
@@ -406,7 +407,7 @@ static void MagOmxPort_constructor(MagOmxPort thiz, const void *params){
 
     Mag_CreateMutex(&thiz->mhMutex);
     Mag_CreateMutex(&thiz->mhParamMutex);
-    
+
     thiz->mParametersDB = createMagMiniDB(64);
 }
 

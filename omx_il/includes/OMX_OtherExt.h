@@ -19,6 +19,11 @@ typedef enum OMX_BUFFER_MODE{
     OMX_BUFFER_MODE_PULL
 }OMX_BUFFER_MODE;
 
+typedef enum OMX_BUFFER_TYPE{
+    OMX_BUFFER_TYPE_BYTE = 0,
+    OMX_BUFFER_TYPE_FRAME
+}OMX_BUFFER_TYPE;
+
 typedef enum OMX_SEEK_WHENCE{
     OMX_SEEK_SET = 0,
     OMX_SEEK_CUR,
@@ -61,6 +66,14 @@ typedef struct OMX_CONFIG_SEEKDATABUFFER {
     OMX_SEEK_WHENCE sWhence;
     OMX_S64 sCurPos;            /*Returned: current position in the source after the seeking*/
 } OMX_CONFIG_SEEKDATABUFFER;
+
+typedef struct OMX_DEMUXER_SETTING {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_BUFFER_TYPE *peBufferType;
+    OMX_STRING      *ppcStreamUrl;
+    OMX_U32         nUrlNumber;
+} OMX_DEMUXER_SETTING;
 
 #ifdef __cplusplus
 }

@@ -50,10 +50,10 @@ typedef enum{
 }MagOmxPort_Event_t;
 
 typedef enum{
-  kPort_State_Stopped,
-  kPort_State_Running,
-  kPort_State_Flushing,
-  kPort_State_Flushed
+  kPort_State_Stopped  = 0x01,
+  kPort_State_Running  = 0x02,
+  kPort_State_Flushing = 0x04,
+  kPort_State_Flushed  = 0x08
 }MagOmxPort_State_t;
 
 typedef struct{
@@ -233,7 +233,7 @@ ClassMembers(MagOmxPort, Base, \
     OMX_HANDLETYPE               mAttachedComponent;
 
     OMX_U8                       mPortName[32];
-    
+
 EndOfClassMembers;
 
 typedef struct{

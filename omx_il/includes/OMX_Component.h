@@ -303,11 +303,11 @@ typedef struct OMX_COMPONENTTYPE
             OMX_OUT OMX_STATETYPE* pState);
 
     OMX_ERRORTYPE (*ComponentTunnelRequest)(
-        OMX_IN  OMX_HANDLETYPE hComp,
-        OMX_IN  OMX_U32 nPort,
-        OMX_IN  OMX_HANDLETYPE hTunneledComp,
-        OMX_IN  OMX_U32 nTunneledPort,
-        OMX_INOUT  OMX_TUNNELSETUPTYPE* pTunnelSetup); 
+            OMX_IN  OMX_HANDLETYPE hComp,
+            OMX_IN  OMX_U32 nPort,
+            OMX_IN  OMX_HANDLETYPE hTunneledComp,
+            OMX_IN  OMX_U32 nTunneledPort,
+            OMX_INOUT  OMX_TUNNELSETUPTYPE* pTunnelSetup); 
 
     OMX_ERRORTYPE (*UseBuffer)(
             OMX_IN OMX_HANDLETYPE hComponent,
@@ -353,9 +353,9 @@ typedef struct OMX_COMPONENTTYPE
             OMX_IN void* eglImage);
 
     OMX_ERRORTYPE (*ComponentRoleEnum)(
-        OMX_IN OMX_HANDLETYPE hComponent,
-		OMX_OUT OMX_U8 *cRole,
-		OMX_IN OMX_U32 nIndex);
+            OMX_IN OMX_HANDLETYPE hComponent,
+    		OMX_OUT OMX_U8 *cRole,
+    		OMX_IN OMX_U32 nIndex);
 
 } OMX_COMPONENTTYPE;
 

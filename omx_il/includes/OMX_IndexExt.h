@@ -53,8 +53,10 @@ typedef enum OMX_INDEXTYPE_EXT {
     OMX_IndexConfigExtReadData,        /**< reference: OMX_CONFIG_DATABUFFER */
     OMX_IndexConfigExtWriteData,       /**< reference: OMX_CONFIG_DATABUFFER */
     OMX_IndexConfigExtSeekData,        /**< reference: OMX_CONFIG_SEEKDATABUFFER */
-    OMX_IndexParamExtBufferSetting,    /**< reference: OMX_BUFFER_PARAM write-only*/ 
-    OMX_IndexParamExtBufferStatus,     /**< reference: OMX_BUFFER_STATUS read-only*/
+    OMX_IndexParamExtBufferSetting,    /**< reference: OMX_BUFFER_PARAM*/ 
+    OMX_IndexParamExtBufferStatus,     /**< reference: OMX_BUFFER_STATUS*/
+    OMX_IndexParamExtDemuxerSetting,   /**< reference: OMX_DEMUXER_SETTING*/ 
+    OMX_IndexConfigExtStartDemuxing,   /**< reference: OMX_STRING*/
 } OMX_INDEXTYPE_EXT;
 
 #ifdef __cplusplus
