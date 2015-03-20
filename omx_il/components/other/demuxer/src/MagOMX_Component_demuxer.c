@@ -21,11 +21,11 @@
 #include "MagOMX_Component_demuxer.h"
 #include "MagOMX_Port_demuxer.h"
 
-#define DEMUXER_LOOPER_NAME        "CompDemuxerLooper"
+#define FRAME_LOOPER_NAME "CompFrameLooper%d"
 
 AllocateClass(MagOmxComponentDemuxer, MagOmxComponentImpl);
 
-static OMX_S32 MagOmxComponentDemuxer_ReadDataBuffer(OMX_PTR opaque, OMX_U8* pData, OMX_U32 length){
+static OMX_S32 MagOmxComponentDemuxer_readDataBuffer(OMX_PTR opaque, OMX_U8* pData, OMX_U32 length){
     MagOmxComponent bufComp;
     OMX_CONFIG_DATABUFFER config;
     OMX_ERRORTYPE ret;
@@ -45,7 +45,7 @@ static OMX_S32 MagOmxComponentDemuxer_ReadDataBuffer(OMX_PTR opaque, OMX_U8* pDa
     }
 }
 
-static OMX_S32 MagOmxComponentDemuxer_WriteDataBuffer(OMX_PTR opaque, OMX_U8* pData, OMX_U32 length){
+static OMX_S32 MagOmxComponentDemuxer_writeDataBuffer(OMX_PTR opaque, OMX_U8* pData, OMX_U32 length){
     MagOmxComponent bufComp;
     OMX_CONFIG_DATABUFFER config;
     OMX_ERRORTYPE ret;
@@ -65,7 +65,7 @@ static OMX_S32 MagOmxComponentDemuxer_WriteDataBuffer(OMX_PTR opaque, OMX_U8* pD
     }
 }
     
-static OMX_S64 MagOmxComponentDemuxer_SeekDataBuffer(OMX_PTR opaque, OMX_S64 offset, OMX_SEEK_WHENCE whence){
+static OMX_S64 MagOmxComponentDemuxer_seekDataBuffer(OMX_PTR opaque, OMX_S64 offset, OMX_SEEK_WHENCE whence){
     MagOmxComponent bufComp;
     OMX_CONFIG_SEEKDATABUFFER config;
     OMX_ERRORTYPE ret;
@@ -85,19 +85,28 @@ static OMX_S64 MagOmxComponentDemuxer_SeekDataBuffer(OMX_PTR opaque, OMX_S64 off
     }
 }
 
-static void MagOmxComponentDemuxer_StreamEvtCallback(OMX_HANDLETYPE hComponent, OMX_DEMUXER_STREAM_INFO *pSInfo){
+static void MagOmxComponentDemuxer_StreamEvtCallback(OMX_HANDLETYPE hComponent, 
+                                                     MAG_DEMUXER_DATA_SOURCE *pDataSource,
+                                                     OMX_DEMUXER_STREAM_INFO *pSInfo){
     MagOmxComponentDemuxer thiz;
     MagOmxComponent        root;
     MagOmxComponentImpl    base;
     MagOmxPort_Constructor_Param_t param;
     OMX_U32 portIndex;
     OMX_ERRORTYPE ret;
-    MAG_DEMUXER_PORT_DESC *portItem;
+    MAG_DEMUXER_OUTPUTPORT_DESC *outputPort;
     MagOmxPort streamPort;
 
     thiz = ooc_cast(hComponent, MagOmxComponentDemuxer);
     root = ooc_cast(hComponent, MagOmxComponent);
     base = ooc_cast(hComponent, MagOmxComponentImpl);
+
+    outputPort = (MAG_DEMUXER_OUTPUTPORT_DESC *)mag_mallocz(sizeof(MAG_DEMUXER_OUTPUTPORT_DESC));
+    if (outputPort == NULL){
+        COMP_LOGE(root, "Failed to malloc MAG_DEMUXER_OUTPUTPORT_DESC!!");
+        return;
+    }
+    INIT_LIST(&outputPort->node);
 
     if (pSInfo->type == OMX_DynamicPort_Video){
         MagOmxPortVideo vPort;
@@ -116,8 +125,7 @@ static void MagOmxComponentDemuxer_StreamEvtCallback(OMX_HANDLETYPE hComponent, 
         vPort = ooc_new(MagOmxPortVideo, &param);
         MAG_ASSERT(vPort);
 
-        portItem = thiz->mPortTable[portIndex];
-        portItem->portType = OMX_DynamicPort_Video;
+        outputPort->portType = OMX_DynamicPort_Video;
         streamPort = ooc_cast(vPort, MagOmxPort);
 
         thiz->addPort(thiz, portIndex, vPort);
@@ -138,8 +146,7 @@ static void MagOmxComponentDemuxer_StreamEvtCallback(OMX_HANDLETYPE hComponent, 
         aPort = ooc_new(MagOmxPortAudio, &param);
         MAG_ASSERT(aPort);
 
-        portItem = thiz->mPortTable[portIndex];
-        portItem->portType = OMX_DynamicPort_Audio;
+        outputPort->portType = OMX_DynamicPort_Audio;
         streamPort = ooc_cast(aPort, MagOmxPort);
 
         thiz->addPort(thiz, portIndex, aPort);
@@ -150,31 +157,25 @@ static void MagOmxComponentDemuxer_StreamEvtCallback(OMX_HANDLETYPE hComponent, 
         return;
     }
 
-    portItem->portIdx = portIndex;
-    portItem->hPort   = streamPort;
-    memcpy(&portItem->info.stream_info, pSInfo, sizeof(OMX_DEMUXER_STREAM_INFO));
+    outputPort->portIdx     = portIndex;
+    outputPort->hPort       = streamPort;
+    outputPort->stream_info = pSInfo;
 
-    thiz->mStreamTable[pSInfo->stream_id] = portItem;
+    pDataSource->streamTable[pSInfo->stream_id] = outputPort;
 
     base->sendEvents( thiz,
                       OMX_EventDynamicPortAdding,
                       portIndex,
-                      portItem->portType,
-                      (OMX_PTR)(portItem) );
+                      outputPort->portType,
+                      (OMX_PTR)(outputPort) );
 }
 
-static void onAVFrameMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
-    MagOmxComponent       root;
-    MagOmxComponentImpl   base;
-    MagOmxComponentDemuxer thiz;
-    OMX_ERRORTYPE         ret;         
-    MagOmxPort            port;
-    OMX_PTR               frame;
-    OMX_U32               cmd;
-
-    root = ooc_cast(priv, MagOmxComponent);
-    base = ooc_cast(priv, MagOmxComponentImpl);
-    thiz = ooc_cast(priv, MagOmxComponentDemuxer);
+static void onSendFrameMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
+    MAG_DEMUXER_DATA_SOURCE *pDataSource;
+    OMX_ERRORTYPE           ret;         
+    MagOmxPort              port;
+    OMX_PTR                 frame;
+    OMX_U32                 cmd;
 
     if (!msg){
         COMP_LOGE(root, "msg is NULL!");
@@ -186,17 +187,17 @@ static void onAVFrameMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
         return;
     }
 
-    port = ooc_cast(priv, MagOmxPort);
+    pDataSource = (MAG_DEMUXER_DATA_SOURCE *)priv;
 
     cmd = msg->what(msg);
     switch (cmd){
-        case MagOmxComponentDemuxer_AVFrameMsg:
+        case MagOmxComponentDemuxer_SendFrameMsg:
         {
-            MAG_DEMUXER_PORT_DESC *portDesc;
+            MAG_DEMUXER_OUTPUTPORT_DESC *portDesc;
             MAG_DEMUXER_AVFRAME   *avframe = (MAG_DEMUXER_AVFRAME *)frame;
             OMX_BUFFERHEADERTYPE  *destbufHeader;
 
-            portDesc = thiz->mStreamTable[avframe->stream_id];
+            portDesc = pDataSource->streamTable[avframe->stream_id];
             port = portDesc->hPort;
             destbufHeader = MagOmxPortVirtual(port)->GetOutputBuffer(port);
 
@@ -257,9 +258,10 @@ static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_SetParameter(
 					                OMX_IN  OMX_HANDLETYPE hComponent, 
 					                OMX_IN  OMX_INDEXTYPE nIndex,
 					                OMX_IN  OMX_PTR pComponentParameterStructure){
-	MagOmxComponentDemuxer thiz;
-    MagOmxComponent        root;
-    OMX_ERRORTYPE          ret = OMX_ErrorNone;
+	MagOmxComponentDemuxer  thiz;
+    MagOmxComponent         root;
+    OMX_ERRORTYPE           ret = OMX_ErrorNone;
+    MAG_DEMUXER_DATA_SOURCE *pDataSource;
 
 	if ((NULL == hComponent) || (NULL == pComponentParameterStructure)){
         return OMX_ErrorBadParameter;
@@ -267,8 +269,6 @@ static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_SetParameter(
 
     thiz = ooc_cast(hComponent, MagOmxComponentDemuxer);
     root = ooc_cast(hComponent, MagOmxComponent);
-
-    Mag_AcquireMutex(thiz->mhMutex);
 
     switch (nIndex){
     	case OMX_IndexParamExtDemuxerSetting:
@@ -283,6 +283,13 @@ static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_SetParameter(
             setting = (OMX_DEMUXER_SETTING *)pComponentParameterStructure;
 
             for (i = 0; i < setting->nUrlNumber; i++){
+                pDataSource = (MAG_DEMUXER_DATA_SOURCE *)mag_mallocz(sizeof(MAG_DEMUXER_DATA_SOURCE));
+                if (pDataSource == NULL){
+                    COMP_LOGE(root, "Failed to malloc MAG_DEMUXER_DATA_SOURCE!!");
+                    return OMX_ErrorInsufficientResources;
+                }
+                INIT_LIST(&pDataSource->node);
+
                 if (setting->peBufferType[i] == OMX_BUFFER_TYPE_BYTE){
                     ret = thiz->getPortIndex(thiz, &portIndex);
                     if (ret == OMX_ErrorNone)
@@ -292,17 +299,15 @@ static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_SetParameter(
                     param.isInput      = OMX_TRUE;
                     param.bufSupplier  = OMX_BufferSupplyUnspecified;
                     param.formatStruct = 0;
-                    sprintf((char *)param.name, "%s-Demuxer-In-%d", BUFFER_PORT_NAME, portIndex);
+                    sprintf((char *)param.name, "Demuxer-%s-In-%d", BUFFER_PORT_NAME, portIndex);
 
                     ooc_init_class(MagOmxPortBuffer);
                     bufferPort = ooc_new(MagOmxPortBuffer, &param);
                     MAG_ASSERT(bufferPort);
 
-                    thiz->mPortTable[portIndex].portIdx  = portIndex;
-                    thiz->mPortTable[portIndex].hPort    = ooc_cast(bufferPort, MagOmxPort);
-                    thiz->mPortTable[portIndex].portType = OMX_DynamicPort_Buffer;
-                    thiz->mPortTable[portIndex].info.url = mag_strdup(setting->ppcStreamUrl[i]); 
-
+                    pDataSource->portIndex = portIndex;
+                    pDataSource->hPort     = ooc_cast(bufferPort, MagOmxPort);
+ 
                     thiz->addPort(thiz, portIndex, bufferPort);
 
                     base->sendEvents( thiz,
@@ -312,17 +317,15 @@ static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_SetParameter(
                                       (OMX_PTR)(setting->ppcStreamUrl[i]) );
 
                 }else{
-                    if (MagOmxComponentDemuxerVirtual(thiz)->MagOMX_Demuxer_SetUrl){
-                        ret = MagOmxComponentDemuxerVirtual(thiz)->MagOMX_Demuxer_SetUrl(setting->ppcStreamUrl[i]);
-                    }else{
-                        COMP_LOGE(root, "pure virtual function MagOMX_Demuxer_SetUrl() should be overrided");
-                        ret = OMX_ErrorNotImplemented;
-                    }
+                    pDataSource->portIndex = kInvalidCompPortNumber;
                 }
+
+                pDataSource->url = mag_strdup(setting->ppcStreamUrl[i]);
+                list_add_tail(&pDataSource->node, &thiz->mDataSourceList);
 
                 COMP_LOGD(root, "%dth: mBufferType[%s], url[%s]",
                                  i,
-                                 setting->peBufferType[i] == OMX_BUFFER_TYPE_BYTE ? "bytes" : "frame",
+                                 setting->peBufferType[i] == OMX_BUFFER_TYPE_BYTE ? "byte" : "frame",
                                  setting->ppcStreamUrl[i]);
             }
         }
@@ -331,14 +334,27 @@ static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_SetParameter(
         case OMX_IndexConfigExtStartDemuxing:
         {
             OMX_STRING url;
+            List_t *next;
+            MAG_DEMUXER_DATA_SOURCE *dataSource;
 
             url = (OMX_STRING)pComponentParameterStructure;
 
-            if (MagOmxComponentDemuxerVirtual(thiz)->MagOMX_Demuxer_StartDemuxing){
-                ret = MagOmxComponentDemuxerVirtual(thiz)->MagOMX_Demuxer_StartDemuxing(thiz, url);
-            }else{
-                COMP_LOGE(root, "pure virtual function MagOMX_Demuxer_StartDemuxing() should be overrided");
-                ret = OMX_ErrorNotImplemented;
+            next = thiz->mDataSourceList.next;
+            while(next != &thiz->mDataSourceList){
+                dataSource = (MAG_DEMUXER_DATA_SOURCE *)list_entry( next, 
+                                                                    MAG_DEMUXER_DATA_SOURCE, 
+                                                                    node);
+
+                if (!strcmp(dataSource->url, url)){
+                    if (MagOmxComponentDemuxerVirtual(thiz)->MagOMX_Demuxer_ReadFrame){
+                        ret = MagOmxComponentDemuxerVirtual(thiz)->MagOMX_Demuxer_ReadFrame(thiz, dataSource);
+                    }else{
+                        COMP_LOGE(root, "pure virtual function MagOMX_Demuxer_ReadFrame() should be overrided");
+                        ret = OMX_ErrorNotImplemented;
+                    }
+                }else{
+                    next = next->next;
+                }
             }
         }
             break;
@@ -347,18 +363,12 @@ static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_SetParameter(
     		break;
     }
 
-    Mag_ReleaseMutex(thiz->mhMutex);
-
 	return ret;
 }
 
 static OMX_ERRORTYPE  virtual_MagOmxComponentDemuxer_TearDownTunnel(
                                         OMX_IN OMX_HANDLETYPE hComponent,
                                         OMX_IN OMX_U32 portIdx){
-    MagOmxComponentDemuxer  clkComp;
-    MagOmxComponentImpl   clkCompImpl;
-    MagOmxComponent       clkCompRoot; 
-    OMX_HANDLETYPE        clkPort;
 
     AGILE_LOGV("enter!");
     
@@ -366,15 +376,15 @@ static OMX_ERRORTYPE  virtual_MagOmxComponentDemuxer_TearDownTunnel(
 }
 
 static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_Prepare(
-                    OMX_IN  OMX_HANDLETYPE hComponent){
-    MagOmxPortImpl  portImpl;
-    MagOmxComponent tunneledComp;
-    MagOmxComponentDemuxer thiz;
-    MagOmxComponentImpl    base;
-    OMX_U32 i;
-    MAG_DEMUXER_PORT_DESC *pPortInfo;
-    MagOmx_Data_Operation dataSource;
-    OMX_ERRORTYPE ret;
+                                        OMX_IN  OMX_HANDLETYPE hComponent){
+    MagOmxPortImpl          portImpl;
+    MagOmxComponent         tunneledComp;
+    MagOmxComponentDemuxer  thiz;
+    MagOmxComponentImpl     base;
+    MAG_DEMUXER_DATA_SOURCE *pDataSource;
+    OMX_ERRORTYPE           ret;
+    List_t                  *next;
+    OMX_U32                 index = 0;
 
     if (NULL == hComponent){
         return OMX_ErrorBadParameter;
@@ -383,44 +393,27 @@ static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_Prepare(
     thiz = ooc_cast(hComponent, MagOmxComponentDemuxer);
     base = ooc_cast(hComponent, MagOmxComponentImpl);
 
-    if (MagOmxComponentDemuxerVirtual(thiz)->MagOMX_Demuxer_SetAVFrameMsg){
-        if (thiz->mAVFrameMsg == NULL){
-            thiz->mAVFrameMsg = thiz->createAVFrameMessage(thiz, MagOmxComponentDemuxer_AVFrameMsg);
+    next = thiz->mDataSourceList.next;
+    while(next != &thiz->mDataSourceList){
+        pDataSource = (MAG_DEMUXER_DATA_SOURCE *)list_entry(next, 
+                                                            MAG_DEMUXER_DATA_SOURCE, 
+                                                            node);
+
+        if (pDataSource->portIndex == kInvalidCompPortNumber){
+            continue;
         }
-        MagOmxComponentDemuxerVirtual(thiz)->MagOMX_Demuxer_SetAVFrameMsg(thiz, thiz->mAVFrameMsg);
-    }else{
-        COMP_LOGE(root, "pure virtual function MagOMX_Demuxer_SetAVFrameMsg() should be overrided");
-        return OMX_ErrorNotImplemented;
-    }
 
-    for (i = 0; i < MAX_DYNAMIC_PORT_NUMBER; i++){
-        if (thiz->mPortMap & (1 << i) != 0){
-            pPortInfo = &thiz->mPortTable[i];
+        portImpl     = ooc_cast(pDataSource->hPort, MagOmxPortImpl);
+        tunneledComp = ooc_cast(portImpl->mTunneledComponent, MagOmxComponent);
 
-            if (pPortInfo->portIdx == kInvalidCompPortNumber || pPortInfo->hPort == NULL){
-                COMP_LOGE(root, "%dth: the port is invalid[index: 0x%x, handle: %p]",
-                                 i,
-                                 pPortInfo->portIdx,
-                                 pPortInfo->hPort);
-            }
+        pDataSource->opaque     = tunneledComp;
+        pDataSource->Data_Read  = thiz->readDataBuffer;
+        pDataSource->Data_Write = thiz->writeDataBuffer;
+        pDataSource->Data_Seek  = thiz->seekDataBuffer;
 
-            if (pPortInfo->portType == OMX_DynamicPort_Buffer){
-                portImpl = ooc_cast(pPortInfo->hPort, MagOmxPortImpl);
-                tunneledComp = ooc_cast(portImpl->mTunneledComponent, MagOmxComponent);
+        thiz->createSendFrameMessage(thiz, pDataSource, index++, MagOmxComponentDemuxer_SendFrameMsg);
 
-                dataSource.url        = pPortInfo->info.url;
-                dataSource.opaque     = tunneledComp;
-                dataSource.Data_Read  = MagOmxComponentDemuxer_ReadDataBuffer;
-                dataSource.Data_Write = MagOmxComponentDemuxer_WriteDataBuffer;
-                dataSource.Data_Seek  = MagOmxComponentDemuxer_SeekDataBuffer;
-
-                if (MagOmxComponentDemuxerVirtual(thiz)->MagOMX_Demuxer_SetDataSource){
-                    MagOmxComponentDemuxerVirtual(thiz)->MagOMX_Demuxer_SetDataSource(thiz, &dataSource);
-                }else{
-                    COMP_LOGE(root, "pure virtual function MagOMX_Demuxer_SetDataSource() should be overrided");
-                }
-            }
-        }
+        next = next->next;  
     }
 
     return OMX_ErrorNone;
@@ -438,21 +431,28 @@ static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_Stop(
 
 static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_Start(
                                         OMX_IN  OMX_HANDLETYPE hComponent){
-    MagOmxPortImpl  portImpl;
-    MagOmxComponent tunneledComp;
-    MagOmxComponentDemuxer thiz;
-    MAG_DEMUXER_PORT_DESC *pPortInfo;
-    MagOmx_Data_Operation dataSource;
-    OMX_U32 i;
+    MagOmxComponentDemuxer  thiz;
+    MAG_DEMUXER_DATA_SOURCE *pDataSource;
+    List_t                  *next;
 
     thiz = ooc_cast(hComponent, MagOmxComponentDemuxer);
 
-    if (MagOmxComponentDemuxerVirtual(thiz)->MagOMX_Demuxer_DetectStreams){
-        MagOmxComponentDemuxerVirtual(thiz)->MagOMX_Demuxer_DetectStreams( thiz,
-                                                                           MagOmxComponentDemuxer_StreamEvtCallback);
-    }else{
-        COMP_LOGE(root, "pure virtual function MagOMX_Demuxer_DetectStreams() should be overrided");
-        return OMX_ErrorNotImplemented;
+    next = thiz->mDataSourceList.next;
+    while(next != &thiz->mDataSourceList){
+        pDataSource = (MAG_DEMUXER_DATA_SOURCE *)list_entry(next, 
+                                                            MAG_DEMUXER_DATA_SOURCE, 
+                                                            node);
+
+        if (MagOmxComponentDemuxerVirtual(thiz)->MagOMX_Demuxer_DetectStreams){
+            MagOmxComponentDemuxerVirtual(thiz)->MagOMX_Demuxer_DetectStreams( thiz,
+                                                                               pDataSource,
+                                                                               MagOmxComponentDemuxer_StreamEvtCallback);
+        }else{
+            COMP_LOGE(root, "pure virtual function MagOMX_Demuxer_DetectStreams() should be overrided");
+            return OMX_ErrorNotImplemented;
+        }
+
+        next = next->next;
     }
     
     return OMX_ErrorNone;
@@ -473,66 +473,57 @@ static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_Flush(
     return OMX_ErrorNone;
 }
 
-static MagMessageHandle MagOmxComponentDemuxer_createAVFrameMessage(OMX_HANDLETYPE handle, ui32 what) {
-    MagOmxComponentDemuxer hComponent = NULL;
+static MagMessageHandle MagOmxComponentDemuxer_createSendFrameMessage(MagOmxComponentDemuxer thiz,
+                                                                      MAG_DEMUXER_DATA_SOURCE *pDataSource, 
+                                                                      OMX_U32 index, 
+                                                                      OMX_U32 what) {
     MagMessageHandle msg;
 
-    if (NULL == handle){
-        return NULL;
-    }
+    thiz->getPushBufferLooper(pDataSource, index);
     
-    hComponent = ooc_cast(handle, MagOmxComponentDemuxer);
-    hComponent->avFrameLooper(handle);
-    
-    msg = createMagMessage(hComponent->mAVFrameLooper, what, hComponent->mAVFrameMsgHandler->id(hComponent->mAVFrameMsgHandler));
+    msg = createMagMessage(pDataSource->sendFrameLooper, what, pDataSource->sendFrameHandler->id(pDataSource->sendFrameHandler));
     if (msg == NULL){
         AGILE_LOGE("failed to create the message: %d", what);
     }
     return msg;
 }
 
-static _status_t MagOmxComponentDemuxer_avFrameLooper(OMX_HANDLETYPE handle){
-    MagOmxComponentDemuxer hComponent = NULL;
+static OMX_ERRORTYPE MagOmxComponentDemuxer_getSendFrameLooper(MAG_DEMUXER_DATA_SOURCE *pDataSource, OMX_U32 index){
+    OMX_U8 looper_name[128];
 
-    if (NULL == handle){
-        return MAG_BAD_VALUE;
+    if ((NULL != pDataSource->sendFrameLooper) && (NULL != pDataSource->sendFrameHandler)){
+        return OMX_ErrorNone;
     }
     
-    hComponent = ooc_cast(handle, MagOmxComponentDemuxer);
-    
-    if ((NULL != hComponent->mAVFrameLooper) && (NULL != hComponent->mAVFrameMsgHandler)){
-        return MAG_NO_ERROR;
+    if (NULL == pDataSource->sendFrameLooper){
+        sprintf(looper_name, FRAME_LOOPER_NAME, index);
+        pDataSource->sendFrameLooper = createLooper(looper_name);
     }
     
-    if (NULL == hComponent->mAVFrameLooper){
-        hComponent->mAVFrameLooper = createLooper(DEMUXER_LOOPER_NAME);
-        AGILE_LOGV("looper handler: 0x%x", hComponent->mAVFrameLooper);
-    }
-    
-    if (NULL != hComponent->mAVFrameLooper){
-        if (NULL == hComponent->mAVFrameMsgHandler){
-            hComponent->mAVFrameMsgHandler = createHandler(hComponent->mAVFrameLooper, onAVFrameMessageReceived, handle);
+    if (NULL != pDataSource->sendFrameLooper){
+        if (NULL == pDataSource->sendFrameHandler){
+            pDataSource->sendFrameHandler = createHandler(pDataSource->sendFrameLooper, onSendFrameMessageReceived, pDataSource);
 
-            if (NULL != hComponent->mAVFrameMsgHandler){
-                hComponent->mAVFrameLooper->registerHandler(hComponent->mAVFrameLooper, hComponent->mAVFrameMsgHandler);
-                hComponent->mAVFrameLooper->start(hComponent->mAVFrameLooper);
+            if (NULL != pDataSource->sendFrameHandler){
+                pDataSource->sendFrameLooper->registerHandler(pDataSource->sendFrameLooper, pDataSource->sendFrameHandler);
+                pDataSource->sendFrameLooper->start(pDataSource->sendFrameLooper);
             }else{
                 AGILE_LOGE("failed to create Handler");
-                return MAG_NO_INIT;
+                return OMX_ErrorInsufficientResources;
             }
         }
     }else{
-        AGILE_LOGE("failed to create Looper: %s", DEMUXER_LOOPER_NAME);
-        return MAG_NO_INIT;
+        AGILE_LOGE("failed to create Looper: %s", looper_name);
+        return OMX_ErrorInsufficientResources;
     }
-    return MAG_NO_ERROR;
+    return OMX_ErrorNone;
 }
 
 OMX_ERRORTYPE MagOmxComponentDemuxer_getPortIndex(MagOmxComponentDemuxer thiz, OMX_U32 *pIdx){
     OMX_U32 i;
 
-    for (i = 0; i < MAX_DYNAMIC_PORT_NUMBER; i++){
-        if (thiz->mPortMap & (1 << i) == 0){
+    for (i = MAG_DEMUX_START_PORT_INDEX; i < MAX_DYNAMIC_PORT_NUMBER; i++){
+        if !( (thiz->mPortMap >> i) & 0x1 ){
             *pIdx = i;
             thiz->mPortMap |= (1 << i);
             return OMX_ErrorNone;
@@ -582,10 +573,13 @@ static void MagOmxComponentDemuxer_constructor(MagOmxComponentDemuxer thiz, cons
     if (MAG_ErrNone == Mag_CreateEvent(&thiz->mBufferFreeEvt, MAG_EVT_PRIO_DEFAULT))
         Mag_AddEventGroup(thiz->mBufferFreeEvtGrp, thiz->mBufferFreeEvt);
 
-    thiz->avFrameLooper          = MagOmxComponentDemuxer_avFrameLooper;
-    thiz->createAVFrameMessage   = MagOmxComponentDemuxer_createAVFrameMessage;
+    thiz->getSendFrameLooper     = MagOmxComponentDemuxer_getSendFrameLooper;
+    thiz->createSendFrameMessage = MagOmxComponentDemuxer_createSendFrameMessage;
     thiz->getPortIndex           = MagOmxComponentDemuxer_getPortIndex;
     thiz->returnPortIndex        = MagOmxComponentDemuxer_returnPortIndex;
+    thiz->readDataBuffer         = MagOmxComponentDemuxer_readDataBuffer;
+    thiz->writeDataBuffer        = MagOmxComponentDemuxer_writeDataBuffer;
+    thiz->seekDataBuffer         = MagOmxComponentDemuxer_seekDataBuffer;
 }
 
 static void MagOmxComponentDemuxer_destructor(MagOmxComponentDemuxer thiz, MagOmxComponentDemuxerVtable vtab){

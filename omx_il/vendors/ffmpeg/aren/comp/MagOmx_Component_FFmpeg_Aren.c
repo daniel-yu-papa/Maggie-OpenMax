@@ -36,7 +36,6 @@
 #define COMPONENT_NAME "OMX.Mag.aren.ffmpeg"
 #define ROLE_NAME      OMX_ROLE_AUDIO_RENDERER_PCM
 #define START_PORT_INDEX kCompPortStartNumber
-#define PORT_NUMBER      2
 
 /* SDL audio buffer size, in samples. Should be small to have precise
    A/V sync as SDL does not have hardware buffer fullness info. */
@@ -725,14 +724,13 @@ static OMX_ERRORTYPE MagOmxComponent_FFmpeg_Aren_Init(OMX_OUT OMX_HANDLETYPE *hC
 				                                  OMX_IN  OMX_CALLBACKTYPE* pCallBacks){
 	MagOmxComponent_FFmpeg_Aren hArenComp;
 	MagOmxComponentImpl     parent;
-    OMX_U32 param[2];
+    OMX_U32 param[1];
 
     AGILE_LOGV("Enter!");
 
     ooc_init_class(MagOmxComponent_FFmpeg_Aren);
 
     param[0] = START_PORT_INDEX;
-    param[1] = PORT_NUMBER;
 
     hArenComp = (MagOmxComponent_FFmpeg_Aren) ooc_new( MagOmxComponent_FFmpeg_Aren, (void *)param);
     MAG_ASSERT(hArenComp);
@@ -779,4 +777,3 @@ void MagOMX_Component_Deregistration(OMX_HANDLETYPE hComponent){
 #undef COMPONENT_NAME
 #undef ROLE_NAME
 #undef START_PORT_INDEX
-#undef PORT_NUMBER

@@ -27,30 +27,50 @@
 #define MAX_DYNAMIC_PORT_NUMBER 64
 #define MAX_STREAMS_NUMBER      64
 
-typedef struct MagOmx_Data_Operation{
-    OMX_PTR    opaque;
-    OMX_STRING url;
-    OMX_S32 (*Data_Read)(OMX_PTR opaque, OMX_U8* pData, OMX_U32 length);
-    OMX_S32 (*Data_Write)(OMX_PTR opaque, OMX_U8* pData, OMX_U32 length);
-    OMX_S64 (*Data_Seek)(OMX_PTR opaque, OMX_S64 offset, OMX_SEEK_WHENCE whence);
-}MagOmx_Data_Operation;
+#define MAG_DEMUX_START_PORT_INDEX    kCompPortStartNumber
 
-typedef void (*StreamEvtCallback)(OMX_HANDLETYPE hComponent, OMX_DEMUXER_STREAM_INFO sInfo) cbNewStreamAdded
+typedef void (*StreamEvtCallback)(OMX_HANDLETYPE hComponent,  \
+                                  MAG_DEMUXER_DATA_SOURCE *pDataSource, \
+                                  OMX_DEMUXER_STREAM_INFO sInfo) cbNewStreamAdded
 
 enum{
-    MagOmxComponentDemuxer_AVFrameMsg = 0
+    MagOmxComponentDemuxer_SendFrameMsg = 0
 };
 
-typedef struct MAG_DEMUXER_PORT_DESC
+typedef struct MAG_DEMUXER_OUTPUTPORT_DESC
 {
+    List_t                  node;
+
     OMX_U32                 portIdx;
     MagOmxPort              hPort;
     OMX_DYNAMIC_PORT_TYPE   portType;
-    union {
-        OMX_STRING              url;
-        OMX_DEMUXER_STREAM_INFO stream_info;
-    }info;
-}MAG_DEMUXER_PORT_DESC;
+    OMX_DEMUXER_STREAM_INFO *stream_info;
+}MAG_DEMUXER_OUTPUTPORT_DESC;
+
+typedef struct MAG_DEMUXER_DATA_SOURCE{
+    List_t     node;
+
+    OMX_STRING url;
+
+    void       *hDemuxer;
+    void       *hDemuxerOpts;
+    void       *hCodecOpts;
+
+    MagOmxPort hPort;
+    OMX_U32    portIndex;
+
+    OMX_PTR    opaque;
+    OMX_S32    (*Data_Read)(OMX_PTR opaque, OMX_U8* pData, OMX_U32 length);
+    OMX_S32    (*Data_Write)(OMX_PTR opaque, OMX_U8* pData, OMX_U32 length);
+    OMX_S64    (*Data_Seek)(OMX_PTR opaque, OMX_S64 offset, OMX_SEEK_WHENCE whence);
+
+    MAG_DEMUXER_PORT_DESC  **streamTable;
+    OMX_U32     streamNumber;
+
+    MagLooperHandle  sendFrameLooper;
+    MagHandlerHandle sendFrameHandler;
+    MagMessageHandle sendFrameMessage;
+}MAG_DEMUXER_DATA_SOURCE;
 
 typedef enum MAG_DEMUXER_AVFRAME_FLAG{
   MAG_AVFRAME_FLAG_NONE        = 0,
@@ -68,39 +88,34 @@ typedef struct MAG_DEMUXER_AVFRAME{
     OMX_S32                  duration;     /*Duration of this packet in ns*/
     OMX_S64                  position;     /*byte position in stream*/
     MAG_DEMUXER_AVFRAME_FLAG flag;
+
+    OMX_PTR                   priv;
+    void                      (*releaseFrame)(OMX_PTR raw_frame);
 }MAG_DEMUXER_AVFRAME;
 
 DeclareClass(MagOmxComponentDemuxer, MagOmxComponentImpl);
 
 Virtuals(MagOmxComponentDemuxer, MagOmxComponentImpl) 
     /*Pure virtual functions. Must be overrided by sub-components*/
-    OMX_ERRORTYPE (*MagOMX_Demuxer_SetUrl)(
-                                    OMX_IN OMX_HANDLETYPE hComponent,
-                                    OMX_IN OMX_STRING url);
-
-    OMX_ERRORTYPE (*MagOMX_Demuxer_SetDataSource)(
-                                    OMX_IN OMX_HANDLETYPE hComponent,
-                                    OMX_IN MagOmx_Data_Operation *pSource);
-
-    OMX_ERRORTYPE (*MagOMX_Demuxer_SetAVFrameMsg)(
-                                    OMX_IN OMX_HANDLETYPE hComponent,
-                                    OMX_IN MagMessageHandle msg);
-
     OMX_ERRORTYPE (*MagOMX_Demuxer_DetectStreams)(
                                     OMX_IN OMX_HANDLETYPE hComponent,
+                                    MAG_DEMUXER_DATA_SOURCE *pDataSource,
                                     OMX_IN cbNewStreamAdded fn);
 
-    OMX_ERRORTYPE (*MagOMX_Demuxer_StartDemuxing)(
-                                    OMX_IN OMX_HANDLETYPE hComponent,
-                                    OMX_IN OMX_STRING url);
+    OMX_ERRORTYPE (*MagOMX_Demuxer_ReadFrame)(
+                                    OMX_IN OMX_HANDLETYPE   hComponent,
+                                    OMX_IN MAG_DEMUXER_DATA_SOURCE *pDataSource);
 EndOfVirtuals;
 
 ClassMembers(MagOmxComponentDemuxer, MagOmxComponentImpl, \
-    _status_t (*avFrameLooper)(OMX_HANDLETYPE handle); \
-    MagMessageHandle (*createAVFrameMessage)(OMX_HANDLETYPE handle, ui32 what);  \
+    _status_t (*getSendFrameLooper)(OMX_HANDLETYPE handle); \
+    MagMessageHandle (*createSendFrameMessage)(OMX_HANDLETYPE handle, ui32 what);  \
     OMX_ERRORTYPE (*getPortIndex)(MagOmxComponentDemuxer thiz, OMX_U32 *pIdx); \
     OMX_ERRORTYPE (*returnPortIndex)(MagOmxComponentDemuxer thiz, OMX_U32 Index); \
-    MagOmx_Data_Operation (*getDataHandler)(MagOmxComponentDemuxer thiz); \
+    MAG_DATA_SOURCE (*getDataHandler)(MagOmxComponentDemuxer thiz); \
+    OMX_S32 (*readDataBuffer)(OMX_PTR opaque, OMX_U8* pData, OMX_U32 length); \
+    OMX_S32 (*writeDataBuffer)(OMX_PTR opaque, OMX_U8* pData, OMX_U32 length); \
+    OMX_S64 (*seekDataBuffer)(OMX_PTR opaque, OMX_S64 offset, OMX_SEEK_WHENCE whence); \
 )
     MagMutexHandle         mhMutex;
     
@@ -114,11 +129,9 @@ ClassMembers(MagOmxComponentDemuxer, MagOmxComponentImpl, \
     MagEventGroupHandle    mBufferFreeEvtGrp;
 
     OMX_U64                mPortMap;
-    MAG_DEMUXER_PORT_DESC  mPortTable[MAX_DYNAMIC_PORT_NUMBER];
 
-    MAG_DEMUXER_PORT_DESC  *mStreamTable[MAX_STREAMS_NUMBER];
+    List_t                 mDataSourceList;
 
-    MagOmx_Data_Operation  mDataOperation;
 EndOfClassMembers;
 
 #endif

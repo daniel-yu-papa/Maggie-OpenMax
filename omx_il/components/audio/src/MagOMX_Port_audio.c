@@ -131,6 +131,17 @@ static OMX_ERRORTYPE virtual_MagOmxPortAudio_GetParameter(OMX_HANDLETYPE hPort, 
 	return OMX_ErrorNone;
 }
 
+static OMX_ERRORTYPE virtual_MagOmxPortAudio_ProceedReturnedBuffer(OMX_HANDLETYPE port, OMX_BUFFERHEADERTYPE* pBufHeader){
+    MAG_DEMUXER_AVFRAME *avframe;
+
+    if (pBufHeader->pAppPrivate){
+        avframe = (MAG_DEMUXER_AVFRAME *)pBufHeader->pAppPrivate;
+        if(avframe->releaseFrame)
+            avframe->releaseFrame(avframe->priv);
+    }
+    return OMX_ErrorNone;
+}
+
 /*Member functions*/
 static void MagOmxPortAudio_addFormat(MagOmxPortAudio hPort, MagOMX_Audio_PortFormat_t *pFormat){
 	MagOMX_Audio_PortFormat_t *format;
@@ -148,6 +159,8 @@ static void MagOmxPortAudio_initialize(Class this){
 	MagOmxPortAudioVtableInstance.MagOmxPortImpl.MagOmxPort.GetPortSpecificDef  = virtual_MagOmxPortAudio_GetPortSpecificDef;
 	MagOmxPortAudioVtableInstance.MagOmxPortImpl.MagOmxPort.SetParameter        = virtual_MagOmxPortAudio_SetParameter;
 	MagOmxPortAudioVtableInstance.MagOmxPortImpl.MagOmxPort.GetParameter        = virtual_MagOmxPortAudio_GetParameter;
+
+    MagOmxPortAudioVtableInstance.MagOmxPortImpl.MagOMX_ProceedReturnedBuffer   = virtual_MagOmxPortAudio_ProceedReturnedBuffer;
 }
 
 /*

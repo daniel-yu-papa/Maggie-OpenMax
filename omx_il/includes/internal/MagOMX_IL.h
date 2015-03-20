@@ -22,6 +22,7 @@
 #define __MAG_OMX_IL_H__
 
 #include "OMX_Core.h"
+#include "OMX_CoreExt.h"
 #include "OMX_Audio.h"
 #include "OMX_AudioExt.h"
 #include "OMX_Video.h"
@@ -32,6 +33,7 @@
 #include "OMX_RoleNamesExt.h"
 #include "OMX_Types.h"
 #include "OMX_Other.h"
+#include "OMX_OtherExt.h"
 #include "OMX_IVCommon.h"
 #include "OMX_Image.h"
 

@@ -2299,6 +2299,8 @@ static void MagOmxComponentImpl_addPort(MagOmxComponentImpl hComponent,
     portRoot = ooc_cast(hPort, MagOmxPort);
 
     hComponent->mPortTreeRoot =  rbtree_insert(hComponent->mPortTreeRoot, portIndex, hPort);
+    hComponent->mPorts++;
+
     portRoot->setAttachedComponent(portRoot, hComponent);
 
     if (MagOmxPortVirtual(portRoot)->GetDomainType(portRoot) == OMX_PortDomainOther_Clock){ 
@@ -2327,6 +2329,10 @@ static OMX_HANDLETYPE MagOmxComponentImpl_getPort(MagOmxComponentImpl hComponent
     }
 
     return (hPort);
+}
+
+static OMX_U32 MagOmxComponentImpl_getTotalPorts(MagOmxComponentImpl hComponent){
+    return hComponent->mPorts;
 }
 
 /*setup the port connection inside the component*/
@@ -2837,7 +2843,6 @@ static void MagOmxComponentImpl_initialize(Class this){
 
 /*
  * params[0]: the index of the first port(mStartPortNumber)
- * params[1]: the number of ports(mPorts)
  */
 static void MagOmxComponentImpl_constructor(MagOmxComponentImpl thiz, const void *params){
     MagErr_t mc_ret;
@@ -2862,6 +2867,7 @@ static void MagOmxComponentImpl_constructor(MagOmxComponentImpl thiz, const void
     thiz->disablePort              = MagOmxComponentImpl_disablePort;
     thiz->addPort                  = MagOmxComponentImpl_addPort;
     thiz->getPort                  = MagOmxComponentImpl_getPort;
+    thiz->getTotalPorts            = MagOmxComponentImpl_getTotalPorts;
     thiz->sendEvents               = MagOmxComponentImpl_sendEvents;
     thiz->sendEmptyBufferDoneEvent = MagOmxComponentImpl_sendEmptyBufferDoneEvent;
     thiz->sendFillBufferDoneEvent  = MagOmxComponentImpl_sendFillBufferDoneEvent;
@@ -2924,8 +2930,8 @@ static void MagOmxComponentImpl_constructor(MagOmxComponentImpl thiz, const void
     thiz->mpAppData                = NULL;
 
     thiz->mStartPortNumber         = *((OMX_U32 *)params + 0);
-    thiz->mPorts                   = *((OMX_U32 *)params + 1);
 
+    thiz->mPorts                   = 0;
     /*thiz->mFlushingPorts           = kInvalidPortIndex;*/
 
     thiz->mAVSyncBufRBTree         = NULL;

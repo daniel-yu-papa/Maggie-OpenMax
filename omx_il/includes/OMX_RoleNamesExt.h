@@ -91,6 +91,9 @@ extern "C" {
 /* Buffer class*/
 #define OMX_ROLE_BUFFER "frame_byte.buffer"
 
+/* demuxer class*/
+#define OMX_ROLE_CONTAINER_DEMUXER_EXT_AUTO "container_demuxer_auto"
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

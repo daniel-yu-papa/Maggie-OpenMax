@@ -31,7 +31,6 @@
 
 #define COMPONENT_NAME "OMX.Mag.vdec.ffmpeg"
 #define START_PORT_INDEX kCompPortStartNumber
-#define PORT_NUMBER      2
 
 #define CAPTURE_ES_FILE_NAME "./video.es"
 #define CAPTURE_DECODED_YUV_FILE_NAME "./vdec.yuv"
@@ -517,14 +516,13 @@ static OMX_ERRORTYPE MagOmxComponent_FFmpeg_Vdec_Init(OMX_OUT OMX_HANDLETYPE *hC
 				                                  OMX_IN  OMX_CALLBACKTYPE* pCallBacks){
 	MagOmxComponent_FFmpeg_Vdec hVdecComp;
 	MagOmxComponentImpl     parent;
-    OMX_U32 param[2];
+    OMX_U32 param[1];
 
     AGILE_LOGV("enter!");
 
     ooc_init_class(MagOmxComponent_FFmpeg_Vdec);
 
     param[0] = START_PORT_INDEX;
-    param[1] = PORT_NUMBER;
 
     hVdecComp = (MagOmxComponent_FFmpeg_Vdec) ooc_new( MagOmxComponent_FFmpeg_Vdec, (void *)param);
     MAG_ASSERT(hVdecComp);
@@ -577,4 +575,3 @@ void MagOMX_Component_Deregistration(OMX_HANDLETYPE hComponent){
 
 #undef COMPONENT_NAME
 #undef START_PORT_INDEX
-#undef PORT_NUMBER

@@ -137,6 +137,18 @@ static OMX_ERRORTYPE virtual_MagOmxPortVideo_GetParameter(OMX_HANDLETYPE hPort, 
 	return OMX_ErrorNone;
 }
 
+static OMX_ERRORTYPE virtual_MagOmxPortVideo_ProceedReturnedBuffer(OMX_HANDLETYPE port, OMX_BUFFERHEADERTYPE* pBufHeader){
+    MAG_DEMUXER_AVFRAME *avframe;
+
+    if (pBufHeader->pAppPrivate){
+        avframe = (MAG_DEMUXER_AVFRAME *)pBufHeader->pAppPrivate;
+        if(avframe->releaseFrame)
+            avframe->releaseFrame(avframe->priv);
+    }
+    return OMX_ErrorNone;
+}
+
+
 /*Member functions*/
 static void MagOmxPortVideo_addFormat(MagOmxPortVideo hPort, MagOMX_Video_PortFormat_t *pFormat){
 	MagOMX_Video_PortFormat_t *format;
@@ -158,6 +170,8 @@ static void MagOmxPortVideo_initialize(Class this){
 	MagOmxPortVideoVtableInstance.MagOmxPortImpl.MagOmxPort.GetPortSpecificDef  = virtual_MagOmxPortVideo_GetPortSpecificDef;
 	MagOmxPortVideoVtableInstance.MagOmxPortImpl.MagOmxPort.SetParameter        = virtual_MagOmxPortVideo_SetParameter;
 	MagOmxPortVideoVtableInstance.MagOmxPortImpl.MagOmxPort.GetParameter        = virtual_MagOmxPortVideo_GetParameter;
+    
+    MagOmxPortVideoVtableInstance.MagOmxPortImpl.MagOMX_ProceedReturnedBuffer   = virtual_MagOmxPortVideo_ProceedReturnedBuffer;
 }
 
 /*

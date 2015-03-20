@@ -31,7 +31,6 @@
 
 #define COMPONENT_NAME "OMX.Mag.adec.ffmpeg"
 #define START_PORT_INDEX kCompPortStartNumber
-#define PORT_NUMBER      2
 
 AllocateClass(MagOmxComponent_FFmpeg_Adec, MagOmxComponentAudio);
 
@@ -500,14 +499,14 @@ static OMX_ERRORTYPE MagOmxComponent_FFmpeg_Adec_Init(OMX_OUT OMX_HANDLETYPE *hC
                                                   OMX_IN  OMX_CALLBACKTYPE* pCallBacks){
     MagOmxComponent_FFmpeg_Adec hAdecComp;
     MagOmxComponentImpl     parent;
-    OMX_U32 param[2];
+    OMX_U32 param[1];
 
     AGILE_LOGV("enter!");
 
     ooc_init_class(MagOmxComponent_FFmpeg_Adec);
 
     param[0] = START_PORT_INDEX;
-    param[1] = PORT_NUMBER;
+    /*param[1] = PORT_NUMBER;*/
 
     hAdecComp = (MagOmxComponent_FFmpeg_Adec) ooc_new( MagOmxComponent_FFmpeg_Adec, (void *)param);
     MAG_ASSERT(hAdecComp);
@@ -553,4 +552,3 @@ void MagOMX_Component_Deregistration(OMX_HANDLETYPE hComponent){
 
 #undef COMPONENT_NAME
 #undef START_PORT_INDEX
-#undef PORT_NUMBER

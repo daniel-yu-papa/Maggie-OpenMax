@@ -35,7 +35,6 @@
 #define COMPONENT_NAME "OMX.Mag.vsch.ffmpeg"
 #define ROLE_NAME      OMX_ROLE_VIDEO_SCHEDULER_BINARY
 #define START_PORT_INDEX kCompPortStartNumber
-#define PORT_NUMBER      3
 
 #define FILE_YUV_PRE_AYSYNC "./pre_avsync.yuv"
 
@@ -352,14 +351,13 @@ static OMX_ERRORTYPE MagOmxComponent_FFmpeg_Vsch_Init(OMX_OUT OMX_HANDLETYPE *hC
 				                                  OMX_IN  OMX_CALLBACKTYPE* pCallBacks){
 	MagOmxComponent_FFmpeg_Vsch hVschComp;
 	MagOmxComponentImpl     parent;
-    OMX_U32 param[2];
+    OMX_U32 param[1];
 
     AGILE_LOGV("Enter!");
 
     ooc_init_class(MagOmxComponent_FFmpeg_Vsch);
 
     param[0] = START_PORT_INDEX;
-    param[1] = PORT_NUMBER;
 
     hVschComp = (MagOmxComponent_FFmpeg_Vsch) ooc_new( MagOmxComponent_FFmpeg_Vsch, (void *)param);
     MAG_ASSERT(hVschComp);
@@ -404,4 +402,3 @@ void MagOMX_Component_Deregistration(OMX_HANDLETYPE hComponent){
 #undef COMPONENT_NAME
 #undef ROLE_NAME
 #undef START_PORT_INDEX
-#undef PORT_NUMBER

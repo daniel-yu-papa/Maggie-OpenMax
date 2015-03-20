@@ -226,6 +226,7 @@ ClassMembers(MagOmxComponentImpl, MagOmxComponent, \
     OMX_ERRORTYPE    (*disablePort)(OMX_HANDLETYPE handle, OMX_U32 port_index); \
     void             (*addPort)(MagOmxComponentImpl hComponent, OMX_U32 portIndex, OMX_HANDLETYPE hPort);  \
     OMX_HANDLETYPE   (*getPort)(MagOmxComponentImpl hComponent, OMX_U32 portIndex); \
+    OMX_U32          (*getTotalPorts)(MagOmxComponentImpl hComponent); \
     OMX_BOOL         (*isFlushing)(MagOmxComponentImpl hComponent); \
 
     OMX_ERRORTYPE    (*sendEvents)(

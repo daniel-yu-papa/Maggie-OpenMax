@@ -30,7 +30,6 @@
 #define COMPONENT_NAME   "OMX.Mag.clock.ffmpeg"
 #define ROLE_NAME        OMX_ROLE_CLOCK_BINARY
 #define START_PORT_INDEX kCompPortStartNumber
-#define PORT_NUMBER      MAX_CLOCK_PORT_NUMBER
 
 AllocateClass(MagOmxComponent_FFmpeg_Clk, MagOmxComponentClock);
 
@@ -217,14 +216,13 @@ static OMX_ERRORTYPE MagOmxComponent_FFmpeg_Clk_Init(OMX_OUT OMX_HANDLETYPE *hCo
 				                                  OMX_IN  OMX_CALLBACKTYPE* pCallBacks){
 	MagOmxComponent_FFmpeg_Clk hClkComp;
 	MagOmxComponentImpl        parent;
-    OMX_U32 param[2];
+    OMX_U32 param[1];
 
     AGILE_LOGV("enter!");
 
     ooc_init_class(MagOmxComponent_FFmpeg_Clk);
 
     param[0] = START_PORT_INDEX;
-    param[1] = PORT_NUMBER;
 
     hClkComp = (MagOmxComponent_FFmpeg_Clk) ooc_new( MagOmxComponent_FFmpeg_Clk, (void *)param);
     MAG_ASSERT(hClkComp);
@@ -266,4 +264,3 @@ void MagOMX_Component_Deregistration(OMX_HANDLETYPE hComponent){
 #undef COMPONENT_NAME
 #undef ROLE_NAME
 #undef START_PORT_INDEX
-#undef PORT_NUMBER
