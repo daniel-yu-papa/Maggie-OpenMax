@@ -1857,6 +1857,10 @@ static OMX_ERRORTYPE MagOmxPortImpl_getOutputNode(MagOmxPortImpl hPort, OMX_BUFF
 
     *ppBuffer = NULL;
     portRoot = ooc_cast(hPort, MagOmxPort);
+    
+    if (portRoot->getState(portRoot) == kPort_State_Stopped){
+        return OMX_ErrorIncorrectStateOperation;
+    }
 
 retry:
     Mag_AcquireMutex(hPort->mhMutex);

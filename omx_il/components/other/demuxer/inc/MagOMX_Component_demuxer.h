@@ -64,7 +64,7 @@ typedef struct MAG_DEMUXER_DATA_SOURCE{
     OMX_S32    (*Data_Write)(OMX_PTR opaque, OMX_U8* pData, OMX_U32 length);
     OMX_S64    (*Data_Seek)(OMX_PTR opaque, OMX_S64 offset, OMX_SEEK_WHENCE whence);
 
-    MAG_DEMUXER_PORT_DESC  **streamTable;
+    MAG_DEMUXER_OUTPUTPORT_DESC  **streamTable;
     OMX_U32     streamNumber;
 
     MagLooperHandle  sendFrameLooper;
@@ -79,6 +79,8 @@ typedef enum MAG_DEMUXER_AVFRAME_FLAG{
 } MAG_DEMUXER_AVFRAME_FLAG;
 
 typedef struct MAG_DEMUXER_AVFRAME{
+    List_t                   node;
+
     OMX_U32                  stream_id;    /*the id of the stream that the frame belongs to*/
     OMX_U32                  size;         /*the size of frame buffer*/
     OMX_U8                   *buffer;      /*point to frame buffer*/
@@ -89,8 +91,8 @@ typedef struct MAG_DEMUXER_AVFRAME{
     OMX_S64                  position;     /*byte position in stream*/
     MAG_DEMUXER_AVFRAME_FLAG flag;
 
-    OMX_PTR                   priv;
-    void                      (*releaseFrame)(OMX_PTR raw_frame);
+    OMX_PTR                   priv;        /*point to low-level avpacket*/
+    void                      (*releaseFrame)(OMX_HANDLETYPE hComponent, OMX_PTR frame);
 }MAG_DEMUXER_AVFRAME;
 
 DeclareClass(MagOmxComponentDemuxer, MagOmxComponentImpl);
@@ -103,7 +105,7 @@ Virtuals(MagOmxComponentDemuxer, MagOmxComponentImpl)
                                     OMX_IN cbNewStreamAdded fn);
 
     OMX_ERRORTYPE (*MagOMX_Demuxer_ReadFrame)(
-                                    OMX_IN OMX_HANDLETYPE   hComponent,
+                                    OMX_IN OMX_HANDLETYPE hComponent,
                                     OMX_IN MAG_DEMUXER_DATA_SOURCE *pDataSource);
 EndOfVirtuals;
 
@@ -116,6 +118,8 @@ ClassMembers(MagOmxComponentDemuxer, MagOmxComponentImpl, \
     OMX_S32 (*readDataBuffer)(OMX_PTR opaque, OMX_U8* pData, OMX_U32 length); \
     OMX_S32 (*writeDataBuffer)(OMX_PTR opaque, OMX_U8* pData, OMX_U32 length); \
     OMX_S64 (*seekDataBuffer)(OMX_PTR opaque, OMX_S64 offset, OMX_SEEK_WHENCE whence); \
+    MAG_DEMUXER_AVFRAME *(*getAVFrame)(MagOmxComponentDemuxer thiz); \
+    void (*putAVFrame)(MagOmxComponentDemuxer thiz, MAG_DEMUXER_AVFRAME *avframe); \
 )
     MagMutexHandle         mhMutex;
     
@@ -131,7 +135,7 @@ ClassMembers(MagOmxComponentDemuxer, MagOmxComponentImpl, \
     OMX_U64                mPortMap;
 
     List_t                 mDataSourceList;
-
+    List_t                 mFreeAVFrameList;
 EndOfClassMembers;
 
 #endif

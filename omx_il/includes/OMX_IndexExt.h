@@ -56,7 +56,7 @@ typedef enum OMX_INDEXTYPE_EXT {
     OMX_IndexParamExtBufferSetting,    /**< reference: OMX_BUFFER_PARAM*/ 
     OMX_IndexParamExtBufferStatus,     /**< reference: OMX_BUFFER_STATUS*/
     OMX_IndexParamExtDemuxerSetting,   /**< reference: OMX_DEMUXER_SETTING*/ 
-    OMX_IndexConfigExtStartDemuxing,   /**< reference: OMX_STRING*/
+    OMX_IndexConfigExtStartDemuxing,   /**< reference: OMX_DEMUXER_KICKOFF*/
 } OMX_INDEXTYPE_EXT;
 
 #ifdef __cplusplus

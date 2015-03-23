@@ -75,6 +75,14 @@ typedef struct OMX_DEMUXER_SETTING {
     OMX_U32         nUrlNumber;
 } OMX_DEMUXER_SETTING;
 
+typedef struct OMX_DEMUXER_KICKOFF {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_STRING      url;
+    OMX_U32         *pnStreamId;    /*the stream ids to be started*/
+    OMX_U32         nStreamNum;     /*Total number of the started streams*/
+} OMX_DEMUXER_KICKOFF;
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

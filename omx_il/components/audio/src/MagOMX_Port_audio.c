@@ -133,11 +133,15 @@ static OMX_ERRORTYPE virtual_MagOmxPortAudio_GetParameter(OMX_HANDLETYPE hPort, 
 
 static OMX_ERRORTYPE virtual_MagOmxPortAudio_ProceedReturnedBuffer(OMX_HANDLETYPE port, OMX_BUFFERHEADERTYPE* pBufHeader){
     MAG_DEMUXER_AVFRAME *avframe;
+    MagOmxPort hPort;
+    OMX_HANDLETYPE component;
 
     if (pBufHeader->pAppPrivate){
+        hPort = ooc_cast(port, MagOmxPort);
+        component = hPort->getAttachedComponent(hPort);
         avframe = (MAG_DEMUXER_AVFRAME *)pBufHeader->pAppPrivate;
         if(avframe->releaseFrame)
-            avframe->releaseFrame(avframe->priv);
+            avframe->releaseFrame(component, avframe);
     }
     return OMX_ErrorNone;
 }

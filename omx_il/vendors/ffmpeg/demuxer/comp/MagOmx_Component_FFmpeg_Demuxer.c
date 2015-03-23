@@ -229,7 +229,6 @@ static void ffmpeg_utiles_ReportStreamInfo(MagOmxComponent_FFmpeg_Demuxer thiz,
     OMX_U32    i;
     AVStream   *st;
     const char *profile;
-    OMX_U32    stream_id;
     AVFormatContext  *avFormat;
 
     for (i = 0; i < avFormat->nb_streams; i++){
@@ -289,6 +288,9 @@ static void ffmpeg_utiles_ReportStreamInfo(MagOmxComponent_FFmpeg_Demuxer thiz,
             pStInfo->url_data_source = OMX_TRUE;
         }
 
+        dataSource->streamNumber = avFormat->nb_streams;
+        *dataSource->streamTable = (MAG_DEMUXER_PORT_DESC *)mag_mallocz(sizeof(MAG_DEMUXER_PORT_DESC *) * avFormat->nb_streams);
+
         callBack(thiz, dataSource, pStInfo);
     }
 
@@ -308,61 +310,6 @@ static OMX_ERRORTYPE localSetupComponent(
 
     demuxComp = ooc_cast(hComponent, MagOmxComponent);
     demuxComp->setName(demuxComp, (OMX_U8 *)COMPONENT_NAME);
-
-    return OMX_ErrorNone;
-}
-
-static OMX_ERRORTYPE virtual_FFmpeg_Demuxer_SetUrl(
-                                    OMX_IN OMX_HANDLETYPE hComponent,
-                                    OMX_IN OMX_STRING url){
-    MagOmxComponent_FFmpeg_Demuxer thiz;
-    MAG_FFMPEG_DEMUXER_DATA_SOURCE *pDataSource;
-
-    thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Demuxer);
-    pDataSource = (MAG_FFMPEG_DEMUXER_DATA_SOURCE *)mag_mallocz(sizeof(MAG_FFMPEG_DEMUXER_DATA_SOURCE));
-
-    INIT_LIST(&pDataSource->node);
-
-    pDataSource->url       = mag_strdup(url);
-    pDataSource.opaque     = NULL;
-    pDataSource.Data_Read  = NULL;
-    pDataSource.Data_Write = NULL;
-    pDataSource.Data_Seek  = NULL;
-
-    list_add_tail(&pDataSource->node, &thiz->mDataSourceList);
-
-    return OMX_ErrorNone;
-}
-
-static OMX_ERRORTYPE virtual_FFmpeg_Demuxer_SetDataSource(
-                                    OMX_IN OMX_HANDLETYPE hComponent,
-                                    OMX_IN MAG_DATA_SOURCE *pSource){
-    MagOmxComponent_FFmpeg_Demuxer thiz;
-    MAG_FFMPEG_DEMUXER_DATA_SOURCE *pDataSource;
-
-    thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Demuxer);
-    pDataSource = (MAG_FFMPEG_DEMUXER_DATA_SOURCE *)mag_mallocz(sizeof(MAG_FFMPEG_DEMUXER_DATA_SOURCE));
-
-    INIT_LIST(&pDataSource->node);
-
-    pDataSource->url       = mag_strdup(url);
-    pDataSource.opaque     = pSource->opaque;
-    pDataSource.Data_Read  = pSource->Data_Read;
-    pDataSource.Data_Write = pSource->Data_Write;
-    pDataSource.Data_Seek  = pSource->Data_Seek;
-
-    list_add_tail(&pDataSource->node, &thiz->mDataSourceList);
-    
-    return OMX_ErrorNone;
-}
-
-static OMX_ERRORTYPE virtual_FFmpeg_Demuxer_SetAVFrameMsg(
-                                    OMX_IN OMX_HANDLETYPE hComponent,
-                                    OMX_IN MagMessageHandle msg){
-    MagOmxComponent_FFmpeg_Demuxer thiz;
-
-    thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Demuxer);
-    thiz->mPushFrameMsg = msg;
 
     return OMX_ErrorNone;
 }
@@ -452,24 +399,92 @@ static OMX_ERRORTYPE virtual_FFmpeg_Demuxer_ReadFrame(
     AVPacket packet;
     AVPacket *pPacket = &packet;
     AVFormatContext  *avFormat;
+    MAG_DEMUXER_AVFRAME *avFrame;
+    MagOmxComponentDemuxer parent;
+    MagOmxComponent_FFmpeg_Demuxer thiz;
+
+    parent = ooc_cast(hComponent, MagOmxComponentDemuxer);
+    thiz   = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Demuxer);
 
     avFormat = (AVFormatContext *)pDataSource->hDemuxer;
 
     res = av_read_frame(avFormat, pPacket);
 
+    avFrame = parent->getAVFrame(parent);
     if (res >= 0) {
         av_dup_packet(pPacket);
-        
+        thiz->fillAVFrame(thiz, pPacket, avFrame, pDataSource);
     }else{
         if ( (res == AVERROR_EOF || url_feof(avFormat->pb)) ||
                  (avFormat->pb && avFormat->pb->error) ){
+            thiz->fillAVFrame(thiz, NULL, avFrame, pDataSource);
         }
     }
+
+    pDataSource->sendFrameMessage->setPointer(pDataSource->sendFrameMessage, "av_frame", avFrame, MAG_FALSE);
+    pDataSource->sendFrameMessage->postMessage(pDataSource->sendFrameMessage, 0);
+
+    return OMX_ErrorNone;
 }
 
 static int FFmpeg_Demuxer_demux_interrupt_cb(void *ctx){
     MAG_FFMPEG_DEMUXER_PLAY_STATE *is = (MAG_FFMPEG_DEMUXER_PLAY_STATE *)(ctx);
     return is->abort_request;
+}
+
+static void FFmpeg_Demuxer_fillAVFrame(MagOmxComponent_FFmpeg_Demuxer thiz, 
+                                       AVPacket *pPacket, 
+                                       MAG_DEMUXER_AVFRAME *avFrame, 
+                                       OMX_IN MAG_DEMUXER_DATA_SOURCE *pDataSource){
+    AVRational timeBase;
+    AVRational newBase;
+
+    timeBase.num = pDataSource->time_base_num;
+    timeBase.den = pDataSource->time_base_den;
+    newBase.num  = 1;
+    newBase.den  = 90000;
+
+    if (pPacket != NULL){
+        avFrame->buffer = pPacket->data;
+        avFrame->size   = pPacket->size;
+
+        if (pPacket->pts == AV_NOPTS_VALUE){
+            avFrame->pts = -1; /*any value < 0 means the invalid pts*/
+            AGILE_LOGD("invalid pts in stream %d", pPacket->stream_index);
+        }else{
+            avFrame->pts = av_rescale_q(pPacket->pts, timeBase, newBase);
+        }
+        avFrame->dts         = av_rescale_q(pPacket->dts, timeBase, newBase);
+        if (AV_PKT_FLAG_KEY == pPacket->flags)
+            avFrame->flag = MAG_AVFRAME_FLAG_KEY_FRAME;
+
+        avFrame->stream_id = pPacket->stream_index;
+        avFrame->duration  = pPacket->duration;
+        avFrame->position  = pPacket->pos;
+    }else{
+        /*this is the generated EOS frame*/
+        avFrame->buffer = NULL;
+        avFrame->size   = 0;
+        avFrame->pts    = 0;
+        avFrame->dts    = 0;
+        avFrame->flag   = MAG_AVFRAME_FLAG_EOS;
+    }
+    avFrame->priv = pPacket;
+    avFrame->releaseFrame = thiz->releaseAVFrame;
+}
+
+static void FFmpeg_Demuxer_releaseAVFrame(OMX_HANDLETYPE hComponent, OMX_PTR frame){
+    AVPacket *pPacket;
+    MagOmxComponentDemuxer *demuxer;
+    MAG_DEMUXER_AVFRAME *avframe;
+
+    demuxer = ooc_cast(hComponent, MagOmxComponentDemuxer);
+
+    avframe = (MAG_DEMUXER_AVFRAME *)frame;
+    pPacket = (AVPacket *)avframe->priv;
+
+    av_free_packet(pPacket);
+    demuxer->putAVFrame(demuxer, avframe);
 }
 
 /*Class Constructor/Destructor*/
@@ -488,6 +503,7 @@ static void MagOmxComponent_FFmpeg_Demuxer_constructor(MagOmxComponent_FFmpeg_De
     chain_constructor(MagOmxComponent_FFmpeg_Demuxer, thiz, params);
 
     thiz->demux_interrupt_cb = FFmpeg_Demuxer_demux_interrupt_cb;
+    thiz->releaseAVFrame     = FFmpeg_Demuxer_releaseAVFrame;
 
     INIT_LIST(&thiz->mDataSourceList);
     Mag_CreateMutex(&thiz->mhFFMpegMutex);
