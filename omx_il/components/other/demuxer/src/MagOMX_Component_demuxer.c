@@ -439,7 +439,7 @@ static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_Prepare(
         pDataSource->Data_Write = thiz->writeDataBuffer;
         pDataSource->Data_Seek  = thiz->seekDataBuffer;
 
-        thiz->createSendFrameMessage(thiz, pDataSource, index++, MagOmxComponentDemuxer_SendFrameMsg);
+        pDataSource->sendFrameMessage = thiz->createSendFrameMessage(thiz, pDataSource, index++, MagOmxComponentDemuxer_SendFrameMsg);
 
         next = next->next;  
     }
@@ -527,9 +527,33 @@ static OMX_ERRORTYPE  virtual_MagOmxComponentDemuxer_AddPortOnRequest(
 
     thiz->addPort(thiz, portIndex, bufferPort);
     *pPortIdx = portIndex;
-    
+
     return OMX_ErrorNone;
 }   
+
+static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_Deinit(
+                    OMX_IN  OMX_HANDLETYPE hComponent){
+    OMX_U32 i = 0;
+    OMX_HANDLETYPE port;
+    MagOmxComponentImpl demuxCompImpl;
+    MagOmxComponentDemuxer demuxComp;
+
+    AGILE_LOGV("enter!");
+
+    demuxCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
+    demuxComp     = ooc_cast(hComponent, MagOmxComponentDemuxer);
+
+    while (demuxComp->mPortMap){
+        if ( (demuxComp->mPortMap >> i) & 0x1 ){
+            port = demuxCompImpl->getPort(demuxCompImpl, i);
+            ooc_delete((Object)port);
+            demuxComp->mPortMap &= ~(1 << i);
+            i++;
+        }
+    }
+
+    return OMX_ErrorNone;
+}
 
 static MagMessageHandle MagOmxComponentDemuxer_createSendFrameMessage(MagOmxComponentDemuxer thiz,
                                                                       MAG_DEMUXER_DATA_SOURCE *pDataSource, 
@@ -592,7 +616,7 @@ static OMX_ERRORTYPE MagOmxComponentDemuxer_getPortIndex(MagOmxComponentDemuxer 
 }
 
 static OMX_ERRORTYPE MagOmxComponentDemuxer_returnPortIndex(MagOmxComponentDemuxer thiz, OMX_U32 Index){
-    thiz->mPortMap &= ~(1 << Index)
+    thiz->mPortMap &= ~(1 << Index);
 }
 
 static MAG_DEMUXER_AVFRAME *MagOmxComponentDemuxer_getAVFrame(MagOmxComponentDemuxer thiz){
@@ -637,6 +661,8 @@ static void MagOmxComponentDemuxer_initialize(Class this){
     MagOmxComponentDemuxerVtableInstance.MagOmxComponentImpl.MagOMX_ReadData          = virtual_MagOmxComponentDemuxer_ReadData;
     MagOmxComponentDemuxerVtableInstance.MagOmxComponentImpl.MagOMX_SeekData          = virtual_MagOmxComponentDemuxer_SeekData;
     MagOmxComponentDemuxerVtableInstance.MagOmxComponentImpl.MagOMX_AddPortOnRequest  = virtual_MagOmxComponentDemuxer_AddPortOnRequest;
+    MagOmxComponentDemuxerVtableInstance.MagOmxComponentImpl.MagOMX_Deinit            = virtual_MagOmxComponentDemuxer_Deinit;
+
 }
 
 static void MagOmxComponentDemuxer_constructor(MagOmxComponentDemuxer thiz, const void *params){
@@ -653,6 +679,11 @@ static void MagOmxComponentDemuxer_constructor(MagOmxComponentDemuxer thiz, cons
     if (MAG_ErrNone == Mag_CreateEvent(&thiz->mBufferFreeEvt, MAG_EVT_PRIO_DEFAULT))
         Mag_AddEventGroup(thiz->mBufferFreeEvtGrp, thiz->mBufferFreeEvt);
 
+    thiz->mBufferType = OMX_BUFFER_TYPE_BYTE;
+    thiz->mPortMap    = 0;
+    INIT_LIST(&thiz->mDataSourceList);
+    INIT_LIST(&thiz->mFreeAVFrameList);
+
     thiz->getSendFrameLooper     = MagOmxComponentDemuxer_getSendFrameLooper;
     thiz->createSendFrameMessage = MagOmxComponentDemuxer_createSendFrameMessage;
     thiz->getPortIndex           = MagOmxComponentDemuxer_getPortIndex;
@@ -666,31 +697,43 @@ static void MagOmxComponentDemuxer_constructor(MagOmxComponentDemuxer thiz, cons
 
 static void MagOmxComponentDemuxer_destructor(MagOmxComponentDemuxer thiz, MagOmxComponentDemuxerVtable vtab){
     List_t *next;
-    MagOmxStreamFrame_t *item = NULL;
+    MAG_DEMUXER_DATA_SOURCE     *pDataSource = NULL;
+    MAG_DEMUXER_OUTPUTPORT_DESC *pOPort = NULL;
+    MAG_DEMUXER_AVFRAME         *pFrame  = NULL;
+    OMX_U32 i;
 
 	AGILE_LOGV("Enter!");
 
-    if (thiz->mhRingBuffer){
-        Mag_destroyRingBuffer(&thiz->mhRingBuffer);
+    while (!is_list_empty(&thiz->mDataSourceList)){
+        next = thiz->mDataSourceList.next;
+        pDataSource = (MAG_DEMUXER_DATA_SOURCE *)list_entry(next, 
+                                                            MAG_DEMUXER_DATA_SOURCE, 
+                                                            node);
+        for (i = 0; i < pDataSource->streamNumber; i++){
+            pOPort = pDataSource->streamTable[i];
+            mag_freep(&pOPort);
+        }
+        mag_freep(pDataSource->streamTable);
+
+        destroyMagMessage(&pDataSource->sendFrameMessage);
+        destroyHandler(&pDataSource->sendFrameHandler);
+        destroyLooper(&pDataSource->sendFrameLooper);
+
+        list_del(next);
+        mag_freep(&pDataSource);
     }
 
-    if (thiz->mhFrameBufferPool){
-        while (!is_list_empty(&thiz->mFrameBufferFreeList)){
-            next = thiz->mFrameBufferFreeList.next;
-            item = (MagOmxStreamFrame_t *)list_entry(next, 
-                                                     MagOmxStreamFrame_t, 
-                                                     node);
-            list_del(next);
-            mag_freep(&item);
-        }
-
-        Mag_destroyMemoryPool(&thiz->mhFrameBufferPool);
+    while (!is_list_empty(&thiz->mFreeAVFrameList)){
+        next = thiz->mFreeAVFrameList.next;
+        pFrame = (MAG_DEMUXER_AVFRAME *)list_entry(next, 
+                                                   MAG_DEMUXER_AVFRAME, 
+                                                   node);
+        list_del(next);
+        mag_freep(&pFrame);
     }
 
     Mag_DestroyMutex(&thiz->mhMutex);
     Mag_DestroyEvent(&thiz->mBufferFreeEvt);
     Mag_DestroyEventGroup(&thiz->mBufferFreeEvtGrp);
-    destroyMagMessage(&thiz->mPushBufferMsg);
-    destroyHandler(&thiz->mAVFrameMsgHandler);
-    destroyLooper(&thiz->mAVFrameLooper);
+    
 }

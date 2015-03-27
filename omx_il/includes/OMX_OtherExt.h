@@ -83,6 +83,34 @@ typedef struct OMX_DEMUXER_KICKOFF {
     OMX_U32         nStreamNum;     /*Total number of the started streams*/
 } OMX_DEMUXER_KICKOFF;
 
+typedef struct OMX_DATA_SOURCE_SETTING {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_STRING      url; 
+}OMX_DATA_SOURCE_SETTING;
+
+typedef enum OMX_COMPONENT_TYPE{
+    OMX_COMPONENT_VIDEO = 0,
+    OMX_COMPONENT_AUDIO,
+    OMX_COMPONENT_OTHER
+}OMX_COMPONENT_TYPE;
+
+typedef struct OMX_CODEC_PIPELINE_COMP_PARAM {
+    OMX_STRING role;
+    OMX_U32    buffer_number;
+    OMX_U32    buffer_size;
+    OMX_COMPONENT_TYPE type;
+    OMX_U32    codec_id;
+}OMX_CODEC_PIPELINE_COMP_PARAM;
+
+typedef struct OMX_CODEC_PIPELINE_SETTING {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+
+    OMX_CODEC_PIPELINE_COMP_PARAM *compList;
+    OMX_U32 compNum;
+}OMX_CODEC_PIPELINE_SETTING;
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

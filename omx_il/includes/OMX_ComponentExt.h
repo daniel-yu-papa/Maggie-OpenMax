@@ -38,6 +38,7 @@ typedef enum OMX_PORTDOMAINEXTTYPE {
     OMX_PortDomainOther_Clock,         /**< Clock domain port belongs to Other domain */
     OMX_PortDomainOther_Buffer,        /**< Buffer domain port belongs to Other domain */
     OMX_PortDomainOther_Demuxer        /**< Demuxer domain port belongs to Other domain */
+    OMX_PortDomainOther_DataSource     /**< DataSource domain port belongs to Other domain */
 } OMX_PORTDOMAINEXTTYPE;
 
 typedef struct OMX_CONFIG_UI32TYPE {

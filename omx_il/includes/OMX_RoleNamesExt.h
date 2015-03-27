@@ -94,6 +94,9 @@ extern "C" {
 /* demuxer class*/
 #define OMX_ROLE_CONTAINER_DEMUXER_EXT_AUTO "container_demuxer_auto"
 
+/* data source class*/
+#define OMX_ROLE_DATA_SOURCE_AUTO "data_source_auto"
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

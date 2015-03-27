@@ -20,6 +20,7 @@
 
 #include "MagOMX_Component_buffer.h"
 #include "MagOMX_Port_buffer.h"
+#include "MagOMX_Port_DataSource.h"
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
@@ -141,8 +142,6 @@ static OMX_ERRORTYPE virtual_MagOmxComponentBuffer_SetParameter(
     thiz = ooc_cast(hComponent, MagOmxComponentBuffer);
     root = ooc_cast(hComponent, MagOmxComponent);
 
-    Mag_AcquireMutex(thiz->mhMutex);
-
     switch (nIndex){
     	case OMX_IndexParamExtBufferSetting:
         {
@@ -176,11 +175,24 @@ static OMX_ERRORTYPE virtual_MagOmxComponentBuffer_SetParameter(
         }
     		break;
 
+        case OMX_IndexConfigExtSeekData:
+        {
+            OMX_CONFIG_SEEKDATABUFFER *seekConfig;
+
+            seekConfig = (OMX_CONFIG_SEEKDATABUFFER *)pComponentParameterStructure;
+
+            if (MagOmxComponentBufferVirtual(thiz)->MagOMX_SeekData){
+                ret = MagOmxComponentBufferVirtual(thiz)->MagOMX_SeekData(thiz, seekConfig->sOffset, seekConfig->sWhence);
+            }else{
+                COMP_LOGE(root, "pure virtual function MagOMX_SeekData() should be overrided");
+                return OMX_ErrorNotImplemented;
+            }
+        }
+            break;
+
     	default:
     		break;
     }
-
-    Mag_ReleaseMutex(thiz->mhMutex);
 
 	return ret;
 }
@@ -789,7 +801,7 @@ static void MagOmxComponentBuffer_destructor(MagOmxComponentBuffer thiz, MagOmxC
 
 static OMX_ERRORTYPE localSetupComponent(
                     OMX_IN  OMX_HANDLETYPE hComponent){
-    MagOmxPortBuffer         bufferInPort;
+    MagOmxPortDataSource     datasourceInPort;
     MagOmxPortBuffer         bufferOutPort;
     MagOmxPort_Constructor_Param_t param;
     MagOmxComponentImpl      bufferCompImpl;
@@ -801,11 +813,11 @@ static OMX_ERRORTYPE localSetupComponent(
     param.isInput      = OMX_TRUE;
     param.bufSupplier  = OMX_BufferSupplyUnspecified;
     param.formatStruct = 0;
-    sprintf((char *)param.name, "%s-In", BUFFER_PORT_NAME);
+    sprintf((char *)param.name, "%s-In", DATA_SOURCE_PORT_NAME);
 
-    ooc_init_class(MagOmxPortBuffer);
-    bufferInPort = ooc_new(MagOmxPortBuffer, &param);
-    MAG_ASSERT(bufferInPort);
+    ooc_init_class(MagOmxPortDataSource);
+    datasourceInPort = ooc_new(MagOmxPortDataSource, &param);
+    MAG_ASSERT(datasourceInPort);
 
     param.portIndex    = START_PORT_INDEX + 1;
     param.isInput      = OMX_FALSE;
@@ -821,10 +833,10 @@ static OMX_ERRORTYPE localSetupComponent(
     bufferComp     = ooc_cast(hComponent, MagOmxComponent);
     
     bufferComp->setName(bufferComp, (OMX_U8 *)COMPONENT_NAME);
-    bufferCompImpl->addPort(bufferCompImpl, START_PORT_INDEX + 0, bufferInPort);
+    bufferCompImpl->addPort(bufferCompImpl, START_PORT_INDEX + 0, datasourceInPort);
     bufferCompImpl->addPort(bufferCompImpl, START_PORT_INDEX + 1, bufferOutPort);
 
-    bufferCompImpl->setupPortDataFlow(bufferCompImpl, bufferInPort, bufferOutPort);
+    bufferCompImpl->setupPortDataFlow(bufferCompImpl, datasourceInPort, bufferOutPort);
 
     return OMX_ErrorNone;
 }

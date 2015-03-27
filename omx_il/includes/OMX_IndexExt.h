@@ -47,16 +47,18 @@ typedef enum OMX_INDEXTYPE_EXT {
 	* SetConfig: delete the port
 	* GetConfig: add the port
 	*/
-	OMX_IndexConfigExtAddPort, 	       /**< reference: OMX_CONFIG_UI32TYPE */
-	OMX_IndexConfigExtFFMpegData, 	   /**< reference: OMX_CONFIG_FFMPEG_DATA_TYPE */
-    OMX_IndexConfigExtStartTime,       /**< reference: OMX_CONFIG_START_TIME_TYPE */
-    OMX_IndexConfigExtReadData,        /**< reference: OMX_CONFIG_DATABUFFER */
-    OMX_IndexConfigExtWriteData,       /**< reference: OMX_CONFIG_DATABUFFER */
-    OMX_IndexConfigExtSeekData,        /**< reference: OMX_CONFIG_SEEKDATABUFFER */
-    OMX_IndexParamExtBufferSetting,    /**< reference: OMX_BUFFER_PARAM*/ 
-    OMX_IndexParamExtBufferStatus,     /**< reference: OMX_BUFFER_STATUS*/
-    OMX_IndexParamExtDemuxerSetting,   /**< reference: OMX_DEMUXER_SETTING*/ 
-    OMX_IndexConfigExtStartDemuxing,   /**< reference: OMX_DEMUXER_KICKOFF*/
+	OMX_IndexConfigExtAddPort, 	          /**< reference: OMX_CONFIG_UI32TYPE */
+	OMX_IndexConfigExtFFMpegData, 	      /**< reference: OMX_CONFIG_FFMPEG_DATA_TYPE */
+    OMX_IndexConfigExtStartTime,          /**< reference: OMX_CONFIG_START_TIME_TYPE */
+    OMX_IndexConfigExtReadData,           /**< reference: OMX_CONFIG_DATABUFFER */
+    OMX_IndexConfigExtWriteData,          /**< reference: OMX_CONFIG_DATABUFFER */
+    OMX_IndexConfigExtSeekData,           /**< reference: OMX_CONFIG_SEEKDATABUFFER */
+    OMX_IndexParamExtBufferSetting,       /**< reference: OMX_BUFFER_PARAM*/ 
+    OMX_IndexParamExtBufferStatus,        /**< reference: OMX_BUFFER_STATUS*/
+    OMX_IndexParamExtDemuxerSetting,      /**< reference: OMX_DEMUXER_SETTING*/ 
+    OMX_IndexConfigExtStartDemuxing,      /**< reference: OMX_DEMUXER_KICKOFF*/
+    OMX_IndexParamExtDataSourceSetting,   /**< reference: OMX_DATA_SOURCE_SETTING*/
+    OMX_IndexParamCodecPipelineSetting    /**< reference: OMX_CODEC_PIPELINE_SETTING*/
 } OMX_INDEXTYPE_EXT;
 
 #ifdef __cplusplus

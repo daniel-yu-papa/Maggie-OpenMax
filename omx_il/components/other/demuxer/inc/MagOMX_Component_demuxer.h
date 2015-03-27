@@ -125,10 +125,6 @@ ClassMembers(MagOmxComponentDemuxer, MagOmxComponentImpl, \
     
     OMX_BUFFER_TYPE        mBufferType;
 
-    MagLooperHandle        mAVFrameLooper;
-    MagHandlerHandle       mAVFrameMsgHandler;
-    MagMessageHandle       mAVFrameMsg;
-
     MagEventHandle         mBufferFreeEvt;
     MagEventGroupHandle    mBufferFreeEvtGrp;
 
