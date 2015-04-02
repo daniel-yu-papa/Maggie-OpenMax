@@ -97,6 +97,16 @@ extern "C" {
 /* data source class*/
 #define OMX_ROLE_DATA_SOURCE_AUTO "data_source_auto"
 
+/* pipeline class*/
+#define OMX_ROLE_PIPELINE_VIDEO_DECODER    "pipeline_video_decoder"
+#define OMX_ROLE_PIPELINE_AUDIO_DECODER    "pipeline_audio_decoder"
+#define OMX_ROLE_PIPELINE_SUBTITLE_DECODER "pipeline_subtitle_decoder"
+
+#define OMX_ROLE_PIPELINE_VIDEO_ENCODER    "pipeline_video_encoder"
+#define OMX_ROLE_PIPELINE_AUDIO_ENCODER    "pipeline_audio_encoder"
+
+#define OMX_ROLE_PIPELINE_PLAYBACK         "pipeline_playback"
+    
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

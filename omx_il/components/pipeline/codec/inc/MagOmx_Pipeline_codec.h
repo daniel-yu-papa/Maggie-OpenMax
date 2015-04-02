@@ -24,16 +24,18 @@
 #include "MagOMX_Component_base.h"
 #include "MagOMX_Component_baseImpl.h"
 
-enum{
-    MagOmxPipelineCodec_ReadDataMsg = 0
-};
-
 typedef struct{
     List_t node;
     OMX_CODEC_PIPELINE_COMP_PARAM param;
     OMX_HANDLETYPE   hComp;
     OMX_CALLBACKTYPE callbacks;
+    MagEventHandle   stateTransitEvent;
 }MagOmxPipelineCodecComp;
+
+typedef struct{
+    OMX_HANDLETYPE   hComp;
+    OMX_U32          portIdx;
+}MagOmxPipelineCompMap;
 
 DeclareClass(MagOmxPipelineCodec, MagOmxComponentImpl);
 
@@ -43,10 +45,19 @@ Virtuals(MagOmxPipelineCodec, MagOmxComponentImpl)
 EndOfVirtuals;
 
 ClassMembers(MagOmxPipelineCodec, MagOmxComponentImpl, \
-    _status_t getReadDataLooper(OMX_HANDLETYPE handle); \
-    MagMessageHandle createReadDataMessage(OMX_HANDLETYPE handle, ui32 what);  \
+    OMX_ERRORTYPE (*compCallback_EventHandler)(
+                                            OMX_HANDLETYPE hComponent,
+                                            OMX_PTR pAppData,
+                                            OMX_EVENTTYPE eEvent,
+                                            OMX_U32 Data1,
+                                            OMX_U32 Data2,
+                                            OMX_PTR pEventData); \
 )
-    List_t mLinkList;
+    List_t             mLinkList;
+    OMX_PORTDOMAINTYPE mDomain;
+    OMX_U32            mPortCount;
+    MagOmxPipelineCompMap mOutputPortMap[MAG_PIPELINE_MAX_OUTPUT_PORTS];
+    MagEventGroupHandle mStateTransitEvtGrp;
 
 EndOfClassMembers;
 

@@ -210,6 +210,13 @@ Virtuals(MagOmxComponentImpl, MagOmxComponent)
                     OMX_IN  OMX_S64 offset,
                     OMX_IN  OMX_SEEK_WHENCE whence);
 
+    /*for pipeline compoenent, the exposed port index and component handler need to be remapped to the real ones*/
+    OMX_ERRORTYPE (*MagOMX_Pipeline_Map)(
+                    OMX_IN   OMX_HANDLETYPE hComponent, 
+                    OMX_OUT  OMX_U32        mPortIdx,
+                    OMX_OUT  OMX_HANDLETYPE *hCompMapped,
+                    OMX_OUT  OMX_U32        *nPortIdxMapped);
+
 EndOfVirtuals;
 
 ClassMembers(MagOmxComponentImpl, MagOmxComponent, \

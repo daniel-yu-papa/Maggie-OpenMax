@@ -97,6 +97,16 @@ static void MagOmxComponentDemuxer_StreamEvtCallback(OMX_HANDLETYPE hComponent,
     MAG_DEMUXER_OUTPUTPORT_DESC *outputPort;
     MagOmxPort streamPort;
 
+    if (pDataSource == NULL || pSInfo == NULL){
+        /*report out the end*/
+        base->sendEvents( thiz,
+                      OMX_EventDynamicPortAdding,
+                      kInvalidCompPortNumber,
+                      OMX_DynamicPort_Unknown,
+                      NULL );
+        return;
+    }
+
     thiz = ooc_cast(hComponent, MagOmxComponentDemuxer);
     root = ooc_cast(hComponent, MagOmxComponent);
     base = ooc_cast(hComponent, MagOmxComponentImpl);
@@ -272,6 +282,7 @@ static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_SetParameter(
 					                OMX_IN  OMX_INDEXTYPE nIndex,
 					                OMX_IN  OMX_PTR pComponentParameterStructure){
 	MagOmxComponentDemuxer  thiz;
+    MagOmxComponentImpl     base;
     MagOmxComponent         root;
     OMX_ERRORTYPE           ret = OMX_ErrorNone;
     MAG_DEMUXER_DATA_SOURCE *pDataSource;
@@ -281,6 +292,7 @@ static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_SetParameter(
     }
 
     thiz = ooc_cast(hComponent, MagOmxComponentDemuxer);
+    base = ooc_cast(hComponent, MagOmxComponentImpl);
     root = ooc_cast(hComponent, MagOmxComponent);
 
     switch (nIndex){
@@ -295,52 +307,50 @@ static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_SetParameter(
 
             setting = (OMX_DEMUXER_SETTING *)pComponentParameterStructure;
 
-            for (i = 0; i < setting->nUrlNumber; i++){
-                pDataSource = (MAG_DEMUXER_DATA_SOURCE *)mag_mallocz(sizeof(MAG_DEMUXER_DATA_SOURCE));
-                if (pDataSource == NULL){
-                    COMP_LOGE(root, "Failed to malloc MAG_DEMUXER_DATA_SOURCE!!");
-                    return OMX_ErrorInsufficientResources;
-                }
-                INIT_LIST(&pDataSource->node);
-
-                if (setting->peBufferType[i] == OMX_BUFFER_TYPE_BYTE){
-                    ret = thiz->getPortIndex(thiz, &portIndex);
-                    if (ret == OMX_ErrorNone)
-                        param.portIndex    = portIndex;
-                    else
-                        return ret;
-                    param.isInput      = OMX_TRUE;
-                    param.bufSupplier  = OMX_BufferSupplyUnspecified;
-                    param.formatStruct = 0;
-                    sprintf((char *)param.name, "Demuxer-%s-In-%d", BUFFER_PORT_NAME, portIndex);
-
-                    ooc_init_class(MagOmxPortBuffer);
-                    bufferPort = ooc_new(MagOmxPortBuffer, &param);
-                    MAG_ASSERT(bufferPort);
-
-                    pDataSource->portIndex = portIndex;
-                    pDataSource->hPort     = ooc_cast(bufferPort, MagOmxPort);
- 
-                    thiz->addPort(thiz, portIndex, bufferPort);
-
-                    base->sendEvents( thiz,
-                                      OMX_EventDynamicPortAdding,
-                                      portIndex,
-                                      OMX_DynamicPort_Buffer,
-                                      (OMX_PTR)(setting->ppcStreamUrl[i]) );
-
-                }else{
-                    pDataSource->portIndex = kInvalidCompPortNumber;
-                }
-
-                pDataSource->url = mag_strdup(setting->ppcStreamUrl[i]);
-                list_add_tail(&pDataSource->node, &thiz->mDataSourceList);
-
-                COMP_LOGD(root, "%dth: mBufferType[%s], url[%s]",
-                                 i,
-                                 setting->peBufferType[i] == OMX_BUFFER_TYPE_BYTE ? "byte" : "frame",
-                                 setting->ppcStreamUrl[i]);
+            pDataSource = (MAG_DEMUXER_DATA_SOURCE *)mag_mallocz(sizeof(MAG_DEMUXER_DATA_SOURCE));
+            if (pDataSource == NULL){
+                COMP_LOGE(root, "Failed to malloc MAG_DEMUXER_DATA_SOURCE!!");
+                return OMX_ErrorInsufficientResources;
             }
+            INIT_LIST(&pDataSource->node);
+
+            if (setting->eBufferType == OMX_BUFFER_TYPE_BYTE){
+                ret = thiz->getPortIndex(thiz, &portIndex);
+                if (ret == OMX_ErrorNone)
+                    param.portIndex    = portIndex;
+                else
+                    return ret;
+                param.isInput      = OMX_TRUE;
+                param.bufSupplier  = OMX_BufferSupplyUnspecified;
+                param.formatStruct = 0;
+                sprintf((char *)param.name, "Demuxer-%s-In-%d", BUFFER_PORT_NAME, portIndex);
+
+                ooc_init_class(MagOmxPortBuffer);
+                bufferPort = ooc_new(MagOmxPortBuffer, &param);
+                MAG_ASSERT(bufferPort);
+
+                pDataSource->portIndex = portIndex;
+                pDataSource->hPort     = ooc_cast(bufferPort, MagOmxPort);
+
+                base->addPort(base, portIndex, bufferPort);
+
+                base->sendEvents( thiz,
+                                  OMX_EventDynamicPortAdding,
+                                  portIndex,
+                                  OMX_DynamicPort_Buffer,
+                                  (OMX_PTR)(setting->cStreamUrl) );
+
+            }else{
+                pDataSource->portIndex = kInvalidCompPortNumber;
+            }
+
+            pDataSource->url = mag_strdup(setting->cStreamUrl);
+            list_add_tail(&pDataSource->node, &thiz->mDataSourceList);
+
+            COMP_LOGD(root, "%dth: mBufferType[%s], url[%s]",
+                             i,
+                             setting->eBufferType == OMX_BUFFER_TYPE_BYTE ? "byte" : "frame",
+                             setting->cStreamUrl);
         }
     		break;
 
@@ -365,11 +375,13 @@ static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_SetParameter(
 
                 if (!strcmp(dataSource->url, url)){
                     for (i = 0; i < sKickOff->nStreamNum; i++){
-                        portDesc = dataSource->streamTable[sKickOff->pnStreamId[i]];
-                        err = MagOmxPortVirtual(portDesc->hPort)->Run(portDesc->hPort);
-                        if (err != OMX_ErrorNone){
-                            COMP_LOGE(root, "failed to start the port of the stream id[%d]!", sKickOff->pnStreamId[i]);
-                            continue;
+                        if (sKickOff->pnStreamId[i] >= 0){
+                            portDesc = dataSource->streamTable[sKickOff->pnStreamId[i]];
+                            err = MagOmxPortVirtual(portDesc->hPort)->Run(portDesc->hPort);
+                            if (err != OMX_ErrorNone){
+                                COMP_LOGE(root, "failed to start the port of the stream id[%d]!", sKickOff->pnStreamId[i]);
+                                continue;
+                            }
                         }
                     }
                     
@@ -561,7 +573,7 @@ static MagMessageHandle MagOmxComponentDemuxer_createSendFrameMessage(MagOmxComp
                                                                       OMX_U32 what) {
     MagMessageHandle msg;
 
-    thiz->getPushBufferLooper(pDataSource, index);
+    thiz->getSendFrameLooper(pDataSource, index);
     
     msg = createMagMessage(pDataSource->sendFrameLooper, what, pDataSource->sendFrameHandler->id(pDataSource->sendFrameHandler));
     if (msg == NULL){

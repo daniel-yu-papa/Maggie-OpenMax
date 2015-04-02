@@ -47,12 +47,11 @@ typedef struct OMX_CONFIG_UI32TYPE {
     OMX_U32 uValue;    
 } OMX_CONFIG_UI32TYPE;
 
-typedef struct OMX_CONFIG_FFMPEG_DATA_TYPE{
+typedef struct OMX_CONFIG_STREAM_HANDLE{
 	OMX_U32 nSize;
     OMX_VERSIONTYPE nVersion;
-	OMX_PTR avformat;
-	OMX_PTR avstream;
-}OMX_CONFIG_FFMPEG_DATA_TYPE;
+	OMX_PTR hAVStream;
+}OMX_CONFIG_STREAM_HANDLE;
 
 typedef struct OMX_CONFIG_START_TIME_TYPE{
     OMX_U32 nSize;

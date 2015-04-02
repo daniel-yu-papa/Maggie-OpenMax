@@ -50,13 +50,14 @@ typedef struct OMX_DEMUXER_STREAM_INFO
     OMX_U8     codec_info[128];
     OMX_U32    codec_id;
     OMX_U32    stream_id;        /*the stream id used by low-level demuxer and identifies the frame belonging to which stream*/  
-    OMX_PTR    priv;             /*point to low-level demuxer handler*/
+    OMX_PTR    stream_hanlde;    /*point to low-level demuxer handler*/
 }OMX_DEMUXER_STREAM_INFO;
 
 typedef enum OMX_EVENTTYPE_EXT
 {
     OMX_EventKhronosExtensions, /**< Reserved region for introducing Khronos Standard Extensions */ 
     OMX_EventDynamicPortAdding,
+    OMX_EventAVStreamInfo
 } OMX_EVENTTYPE_EXT;
 
 #ifdef __cplusplus

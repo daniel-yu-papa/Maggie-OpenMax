@@ -231,6 +231,7 @@ static void ffmpeg_utiles_ReportStreamInfo(MagOmxComponent_FFmpeg_Demuxer thiz,
     const char *profile;
     AVFormatContext  *avFormat;
 
+    avFormat = (AVFormatContext *)dataSource->hDemuxer;
     for (i = 0; i < avFormat->nb_streams; i++){
         st        = avFormat->streams[i];
         stream_id = i + thiz->mStreamIndex;
@@ -280,7 +281,7 @@ static void ffmpeg_utiles_ReportStreamInfo(MagOmxComponent_FFmpeg_Demuxer thiz,
         pStInfo->time_base_den = st->time_base.den;
         pStInfo->duration      = avFormat->duration / 1000;
         pStInfo->stream_id     = i;
-        pStInfo->priv          = (OMX_PTR)avFormat;
+        pStInfo->stream_hanlde = (OMX_PTR)st;
 
         if (dataSource->hPort){
             pStInfo->url_data_source = OMX_FALSE;
@@ -293,6 +294,9 @@ static void ffmpeg_utiles_ReportStreamInfo(MagOmxComponent_FFmpeg_Demuxer thiz,
 
         callBack(thiz, dataSource, pStInfo);
     }
+
+    /*report the end of streams list*/
+    callBack(thiz, NULL, NULL);
 
     thiz->mStreamIndex += avFormat->nb_streams;
 }

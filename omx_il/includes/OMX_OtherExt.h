@@ -20,7 +20,8 @@ typedef enum OMX_BUFFER_MODE{
 }OMX_BUFFER_MODE;
 
 typedef enum OMX_BUFFER_TYPE{
-    OMX_BUFFER_TYPE_BYTE = 0,
+    OMX_BUFFER_TYPE_NONE = 0,
+    OMX_BUFFER_TYPE_BYTE,
     OMX_BUFFER_TYPE_FRAME
 }OMX_BUFFER_TYPE;
 
@@ -70,16 +71,15 @@ typedef struct OMX_CONFIG_SEEKDATABUFFER {
 typedef struct OMX_DEMUXER_SETTING {
     OMX_U32 nSize;
     OMX_VERSIONTYPE nVersion;
-    OMX_BUFFER_TYPE *peBufferType;
-    OMX_STRING      *ppcStreamUrl;
-    OMX_U32         nUrlNumber;
+    OMX_BUFFER_TYPE eBufferType;
+    OMX_STRING      cStreamUrl;
 } OMX_DEMUXER_SETTING;
 
 typedef struct OMX_DEMUXER_KICKOFF {
     OMX_U32 nSize;
     OMX_VERSIONTYPE nVersion;
     OMX_STRING      url;
-    OMX_U32         *pnStreamId;    /*the stream ids to be started*/
+    OMX_S32         *pnStreamId;    /*the stream ids(>= 0) to be started. -1: not running */
     OMX_U32         nStreamNum;     /*Total number of the started streams*/
 } OMX_DEMUXER_KICKOFF;
 
@@ -101,15 +101,31 @@ typedef struct OMX_CODEC_PIPELINE_COMP_PARAM {
     OMX_U32    buffer_size;
     OMX_COMPONENT_TYPE type;
     OMX_U32    codec_id;
+    OMX_PTR    stream_handle;
 }OMX_CODEC_PIPELINE_COMP_PARAM;
 
 typedef struct OMX_CODEC_PIPELINE_SETTING {
     OMX_U32 nSize;
     OMX_VERSIONTYPE nVersion;
 
+    OMX_PORTDOMAINTYPE domain;  /*the pipeline is only for one of domain, can't be mixture*/
     OMX_CODEC_PIPELINE_COMP_PARAM *compList;
     OMX_U32 compNum;
 }OMX_CODEC_PIPELINE_SETTING;
+
+typedef struct OMX_PLAYBACK_PIPELINE_SETTING {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+
+    OMX_STRING      url;
+    OMX_BOOL        free_run;              /*OMX_TRUE: no clock component connected.*/
+    
+    OMX_BUFFER_TYPE buffer_type;
+    OMX_U32         buffer_size;           /*in KB*/  
+    OMX_U32         buffer_time;           /*in ms units*/
+    OMX_U32         buffer_low_threshold;  /*n%. play when the percentage of buffering data >= n, pause when the percentage < n*/
+    OMX_U32         buffer_high_threshold;
+}OMX_PLAYBACK_PIPELINE_SETTING;
 
 #ifdef __cplusplus
 }

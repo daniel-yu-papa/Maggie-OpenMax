@@ -1485,10 +1485,11 @@ static OMX_ERRORTYPE virtual_ComponentTunnelRequest(
                 OMX_INOUT  OMX_TUNNELSETUPTYPE* pTunnelSetup){
 
     MagOmxComponentImpl comp; 
-    MagOmxPort port;
+    MagOmxPort          port;
     MagOmxComponentImpl tunneledComp; 
-    MagOmxPort tunneledPort;
-    OMX_ERRORTYPE ret;
+    MagOmxPort          tunneledPort;
+    OMX_ERRORTYPE       ret;
+    OMX_U32             tunneledPortId = nTunneledPort;
 
     if (NULL == hComponent){
         COMP_LOGE(NULL, "Wrong parameters: hComponent(%p)", hComponent);
@@ -1496,11 +1497,29 @@ static OMX_ERRORTYPE virtual_ComponentTunnelRequest(
     }
     
     comp = getBase(hComponent);
-    port = ooc_cast(comp->getPort(comp, nPort), MagOmxPort);
+    if (MagOmxComponentImplVirtual(comp)->MagOMX_Pipeline_Map)
+        OMX_HANDLETYPE h;
+        OMX_U32        idx;
+
+        MagOmxComponentImplVirtual(comp)->MagOMX_Pipeline_Map(hComponent, nPort, &h, &idx);
+        comp = getBase(h);
+        port = ooc_cast(comp->getPort(comp, idx), MagOmxPort);
+    else{
+        port = ooc_cast(comp->getPort(comp, nPort), MagOmxPort);
+    } 
+    
     
     if (hTunneledComp){
         tunneledComp = getBase(hTunneledComp);
-        tunneledPort = ooc_cast(tunneledComp->getPort(tunneledComp, nTunneledPort), MagOmxPort);
+        if (MagOmxComponentImplVirtual(tunneledComp)->MagOMX_Pipeline_Map)
+            OMX_HANDLETYPE h;
+            
+            MagOmxComponentImplVirtual(tunneledComp)->MagOMX_Pipeline_Map(hTunneledComp, nTunneledPort, &h, &tunneledPortId);
+            tunneledComp = getBase(h);
+            tunneledPort = ooc_cast(tunneledComp->getPort(tunneledComp, tunneledPortId), MagOmxPort);
+        else{
+            tunneledPort = ooc_cast(tunneledComp->getPort(tunneledComp, nTunneledPort), MagOmxPort);
+        } 
 
         COMP_LOGD(getRoot(hComponent), "port[0x%x] to tunneledPort[0x%x]", port, tunneledPort);
     }
@@ -1508,7 +1527,7 @@ static OMX_ERRORTYPE virtual_ComponentTunnelRequest(
     /*Mag_AcquireMutex(comp->mhMutex);*/
     if ((comp->mState == OMX_StateLoaded) ||
         (!port->getDef_Enabled(port) && !tunneledPort->getDef_Enabled(tunneledPort))){
-        ret = MagOmxPortVirtual(port)->SetupTunnel(port, hTunneledComp, nTunneledPort, pTunnelSetup);
+        ret = MagOmxPortVirtual(port)->SetupTunnel(port, tunneledComp, tunneledPortId, pTunnelSetup);
     }else{
         COMP_LOGE(getRoot(hComponent), "wrong state: %s!", OmxState2String(comp->mState));
         ret = OMX_ErrorIncorrectStateOperation;
@@ -2145,7 +2164,7 @@ static OMX_ERRORTYPE MagOmxComponentImpl_flushPort(OMX_HANDLETYPE hComponent, OM
     }*/
     
     /*comp->mFlushingPorts = kInvalidPortIndex;*/
-    comp->sendEvents(hComponent, OMX_EventCmdComplete, OMX_CommandFlush, port_index, &ret);
+    /*comp->sendEvents(hComponent, OMX_EventCmdComplete, OMX_CommandFlush, port_index, &ret);*/
     return ret;;
 }
 
@@ -2762,6 +2781,7 @@ static OMX_ERRORTYPE MagOmxComponentImpl_doFlush(
                         OMX_IN MagOmxComponentImpl hComponent,
                         OMX_IN OMX_U32 portId){
     MagOmxComponent     root;
+    OMX_ERRORTYPE       ret;
 
     root = getRoot(hComponent);
 
@@ -2776,7 +2796,7 @@ static OMX_ERRORTYPE MagOmxComponentImpl_doFlush(
         COMP_LOGD(root, "the flushing buffer done");
     }
     
-    hComponent->flushPort(hComponent, portId);
+    ret = hComponent->flushPort(hComponent, portId);
     
     if (MagOmxComponentImplVirtual(hComponent)->MagOMX_Flush){
         MagOmxComponentImplVirtual(hComponent)->MagOMX_Flush(hComponent);
@@ -2784,6 +2804,8 @@ static OMX_ERRORTYPE MagOmxComponentImpl_doFlush(
 
     hComponent->mbGetStartTime = OMX_FALSE;
     hComponent->mFlushing = OMX_FALSE;
+    comp->sendEvents(hComponent, OMX_EventCmdComplete, OMX_CommandFlush, portId, &ret);
+    
     COMP_LOGD(root, "end the flushing");
 }
 
@@ -2839,6 +2861,10 @@ static void MagOmxComponentImpl_initialize(Class this){
     MagOmxComponentImplVtableInstance.MagOMX_AddPortOnRequest                = NULL;
     MagOmxComponentImplVtableInstance.MagOMX_TearDownTunnel                  = NULL;
     MagOmxComponentImplVtableInstance.MagOMX_ProceedUsedBuffer               = NULL;
+    MagOmxComponentImplVtableInstance.MagOMX_ReadData                        = NULL;
+    MagOmxComponentImplVtableInstance.MagOMX_WriteData                       = NULL;
+    MagOmxComponentImplVtableInstance.MagOMX_SeekData                        = NULL;
+    MagOmxComponentImplVtableInstance.MagOMX_Pipeline_Map                    = NULL;
 }
 
 /*

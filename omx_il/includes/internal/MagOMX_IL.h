@@ -55,6 +55,8 @@ extern "C" {
 
 #define kInvalidTimeStamp       ((int64_t)UINT64_C(0x8000000000000000))
 
+#define MAG_PIPELINE_MAX_OUTPUT_PORTS 32
+
 #define STRINGIFY(x) case x: return #x
 
 #define MagOMX_MIN(X,Y)  \

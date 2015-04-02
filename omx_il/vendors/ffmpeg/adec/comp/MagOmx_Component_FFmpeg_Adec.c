@@ -421,14 +421,11 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_SetParameter(
     thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Adec);
 
     switch (nIndex){
-        case OMX_IndexConfigExtFFMpegData:
+        case OMX_IndexConfigExtStreamHandle:
         {
-            OMX_CONFIG_FFMPEG_DATA_TYPE *ffmpegData = (OMX_CONFIG_FFMPEG_DATA_TYPE *)pComponentParameterStructure;
-            AGILE_LOGI("set parameter: avstream=%p, avformat=%p",
-                        ffmpegData->avstream,
-                        ffmpegData->avformat);
-            thiz->mpAudioStream = (AVStream *)ffmpegData->avstream;
-            thiz->mpAVFormat    = (AVFormatContext *)ffmpegData->avformat;
+            OMX_CONFIG_STREAM_HANDLE *hStrm = (OMX_CONFIG_STREAM_HANDLE *)pComponentParameterStructure;
+            AGILE_LOGI("set parameter: avstream=%p", hStrm->avstream);
+            thiz->mpAudioStream = (AVStream *)hStrm->hAVStream;
         }
             break;
 

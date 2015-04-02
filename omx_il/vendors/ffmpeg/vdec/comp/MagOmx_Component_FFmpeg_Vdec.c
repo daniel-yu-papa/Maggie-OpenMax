@@ -342,7 +342,7 @@ decode:
 		destbufHeader = MagOmxPortVirtual(destPort)->GetOutputBuffer(destPort);
 
 		decodedFrame->pts = av_frame_get_best_effort_timestamp(decodedFrame);
-		decodedFrame->sample_aspect_ratio = av_guess_sample_aspect_ratio(vdecComp->mpAVFormat, 
+		decodedFrame->sample_aspect_ratio = av_guess_sample_aspect_ratio(NULL, 
 			                                                             vdecComp->mpVideoStream, 
 			                                                             decodedFrame);
 		destbufHeader->pBuffer = (OMX_U8 *)av_frame_clone(decodedFrame);
@@ -433,14 +433,11 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_SetParameter(
     thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vdec);
 
     switch (nIndex){
-        case OMX_IndexConfigExtFFMpegData:
+        case OMX_IndexConfigExtStreamHandle:
         {
-            OMX_CONFIG_FFMPEG_DATA_TYPE *ffmpegData = (OMX_CONFIG_FFMPEG_DATA_TYPE *)pComponentParameterStructure;
-            AGILE_LOGI("set parameter: avstream=%p, avformat=%p",
-            	        ffmpegData->avstream,
-            	        ffmpegData->avformat);
-            thiz->mpVideoStream = (AVStream *)ffmpegData->avstream;
-	    	thiz->mpAVFormat    = (AVFormatContext *)ffmpegData->avformat;
+            OMX_CONFIG_STREAM_HANDLE *hStrm = (OMX_CONFIG_STREAM_HANDLE *)pComponentParameterStructure;
+            AGILE_LOGI("set parameter: avstream=%p", hStrm->avstream);
+            thiz->mpVideoStream = (AVStream *)hStrm->hAVStream;
         }
         	break;
 

@@ -18,36 +18,21 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef __MAG_OMX_IL_CORE_H__
-#define __MAG_OMX_IL_CORE_H__
+#ifndef __MAGOMX_PIPELINE_FFMPEG_PLAYBACK_H__
+#define __MAGOMX_PIPELINE_FFMPEG_PLAYBACK_H__
 
-#include "framework/MagFramework.h"
-#include "MagOMX_IL.h"
+#include "MagOmx_Pipeline_playback.h"
 
-typedef MagOMX_Component_Registration_t *(*comp_reg_func_t) ();
-typedef void (*comp_dereg_func_t) (OMX_HANDLETYPE hComponent);
+DeclareClass(MagOmxPipeline_FFmpeg_Playback, MagOmxPipelinePlayback);
 
-typedef struct {
-    List_t         node;
-    OMX_HANDLETYPE compHandle;
-}Component_Handle_t;
+Virtuals(MagOmxPipeline_FFmpeg_Playback, MagOmxPipelinePlayback) 
 
-typedef struct {
-    List_t            node;
-    OMX_PTR           libHandle;
-    List_t            compHandleList;
-    MagOMX_Component_Registration_t *regInfo;
-    comp_dereg_func_t deregFunc;
-}Component_Entry_t;
+EndOfVirtuals;
 
-typedef struct{
-    List_t  LoadedCompListHead;
-    OMX_U32 LoadedCompNumber;
-
-    HashTableHandle roleToComponentTable;
-    HashTableHandle componentToRoleTable;
-
-    MagMutexHandle  lock;
-}MagOMX_IL_Core_t;
+ClassMembers(MagOmxPipeline_FFmpeg_Playback, MagOmxPipelinePlayback, \
+	void (*self)(void); \
+)
+    
+EndOfClassMembers;
 
 #endif
