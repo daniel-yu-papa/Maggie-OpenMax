@@ -64,14 +64,15 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_SetParameter(
         case OMX_IndexParamCodecPipelineSetting:
         {
             OMX_CODEC_PIPELINE_SETTING *setting;
-            MagOmxPipelineCodecComp *entry;
+            MagOmxCodecPipelineSetting *entry;
             OMX_U32 i;
 
             setting = (OMX_CODEC_PIPELINE_SETTING *)pComponentParameterStructure;
 
-            thiz->mDomain = setting->domain;
+            thiz->mDomain    = setting->domain;
+            thiz->mCompCount = setting->compNum;
             for (i = 0; i < setting->compNum; i++){
-                entry = (MagOmxPipelineCodecComp *)mag_mallocz(sizeof(MagOmxPipelineCodecComp));
+                entry = (MagOmxCodecPipelineSetting *)mag_mallocz(sizeof(MagOmxCodecPipelineSetting));
                 INIT_LIST(&entry->node);
                 entry->param.role          = mag_strdup(setting->compList[i].role);
                 entry->param.buffer_number = setting->compList[i].buffer_number;
@@ -79,8 +80,7 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_SetParameter(
                 entry->param.type          = setting->compList[i].type;
                 entry->param.codec_id      = setting->compList[i].codec_id;
                 entry->param.stream_handle = setting->compList[i].stream_handle;
-                list_add_tail(&entry->node, &thiz->mLinkList);
-
+                
                 entry->callbacks.EventHandler    = thiz->compCallback_EventHandler;
                 entry->callbacks.EmptyBufferDone = NULL;
                 entry->callbacks.FillBufferDone  = NULL;
@@ -88,6 +88,8 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_SetParameter(
                 if (MAG_ErrNone == Mag_CreateEvent(&entry->stateTransitEvent, MAG_EVT_PRIO_DEFAULT)){
                     Mag_AddEventGroup(thiz->mStateTransitEvtGrp, entry->stateTransitEvent);
                 }
+
+                list_add_tail(&entry->node, &thiz->mLinkList);
             }
         }
             break;
@@ -101,25 +103,25 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_SetParameter(
 
 static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Prepare(
                                         OMX_IN  OMX_HANDLETYPE hComponent){
-    MagOmxPipelineCodec   thiz;
-    MagOmxComponent       root;
-    MagOmxComponentImpl   base;
+    MagOmxPipelineCodec     thiz;
+    MagOmxComponent         root;
+    MagOmxComponentImpl     base;
 
-    OMX_ERRORTYPE         err = OMX_ErrorNone;
-    List_t *next;
-    MagOmxPipelineCodecComp *compDesc;
-    char compName[128];
-    OMX_PORT_PARAM_TYPE portParam;
+    OMX_ERRORTYPE           err = OMX_ErrorNone;
+    List_t                  *next;
+    MagOmxCodecPipelineSetting *cpls;
+    char                    compName[128];
+    OMX_PORT_PARAM_TYPE     portParam;
     OMX_PARAM_PORTDEFINITIONTYPE portDef;
+    OMX_CONFIG_STREAM_HANDLE     codecStrmHandle;
 
-    OMX_S32 port_out_idx           = kInvalidCompPortNumber;
-    OMX_HANDLETYPE comp_out_hanlde = NULL;
-    OMX_S32 tmp_port_out_idx       = kInvalidCompPortNumber;
-    char comp_out_name[128];
+    OMX_S32        port_out_idx     = kInvalidCompPortNumber;
+    OMX_HANDLETYPE comp_out_hanlde  = NULL;
+    OMX_S32        tmp_port_out_idx = kInvalidCompPortNumber;
+    char           comp_out_name[128];
     OMX_HANDLETYPE hPort;
-    OMX_U32 i;
-    OMX_BOOL isLastComp = OMX_FALSE;
-    OMX_CONFIG_STREAM_HANDLE codecStrmHandle;
+    OMX_U32        i;
+    OMX_U32        compIdx = 1;
 
     thiz = ooc_cast(hComponent, MagOmxPipelineCodec);
     root = ooc_cast(hComponent, MagOmxComponent);
@@ -129,25 +131,25 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Prepare(
 
     next = thiz->mLinkList.next;
     while (next != &thiz->mLinkList){
-        compDesc = (MagOmxPipelineCodecComp *)list_entry( next, 
-                                                          MagOmxPipelineCodecComp, 
+        cpls = (MagOmxCodecPipelineSetting *)list_entry( next, 
+                                                          MagOmxCodecPipelineSetting, 
                                                           node);
 
-        err = OMX_ComponentOfRoleEnum(compName, compDesc->param.role, 1);
+        err = OMX_ComponentOfRoleEnum(compName, cpls->param.role, 1);
         if (err == OMX_ErrorNone){
             AGILE_LOGV("get the component name[%s] that has the role[%s]",
-                        compName, compDesc->param.role);
+                        compName, cpls->param.role);
 
-            err = OMX_GetHandle(&compDesc->hComp, compName, (OMX_PTR)compDesc, &compDesc->callbacks);
+            err = OMX_GetHandle(&cpls->hComp, compName, (OMX_PTR)cpls, &cpls->callbacks);
             if(err != OMX_ErrorNone) {
                 AGILE_LOGE("OMX_GetHandle(%s) gets failure", compName);
                 return err;
             }
 
-            if (compDesc->param.stream_handle){
+            if (cpls->param.stream_handle){
                 initHeader(&codecStrmHandle, sizeof(OMX_CONFIG_STREAM_HANDLE));
-                codecStrmHandle.hAVStream = compDesc->param.stream_handle;
-                err = OMX_SetParameter(compDesc->hComp, (OMX_INDEXTYPE)OMX_IndexConfigExtStreamHandle, &codecStrmHandle);
+                codecStrmHandle.hAVStream = cpls->param.stream_handle;
+                err = OMX_SetParameter(cpls->hComp, (OMX_INDEXTYPE)OMX_IndexConfigExtStreamHandle, &codecStrmHandle);
                 if(err != OMX_ErrorNone){
                     AGILE_LOGE("Error in setting codec component OMX_CONFIG_STREAM_HANDLE parameter");
                     return err;
@@ -155,14 +157,14 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Prepare(
             }
 
             initHeader(&portParam, sizeof(OMX_PORT_PARAM_TYPE));
-            if (compDesc->param.type == OMX_COMPONENT_VIDEO){
-                err = OMX_GetParameter(compDesc->hComp, OMX_IndexParamVideoInit, &portParam);
-            }else if (compDesc->param.type == OMX_COMPONENT_AUDIO){
-                err = OMX_GetParameter(compDesc->hComp, OMX_IndexParamAudioInit, &portParam);
-            }else if (compDesc->param.type == OMX_COMPONENT_OTHER){
-                err = OMX_GetParameter(compDesc->hComp, OMX_IndexParamOtherInit, &portParam);
+            if (cpls->param.type == OMX_COMPONENT_VIDEO){
+                err = OMX_GetParameter(cpls->hComp, OMX_IndexParamVideoInit, &portParam);
+            }else if (cpls->param.type == OMX_COMPONENT_AUDIO){
+                err = OMX_GetParameter(cpls->hComp, OMX_IndexParamAudioInit, &portParam);
+            }else if (cpls->param.type == OMX_COMPONENT_OTHER){
+                err = OMX_GetParameter(cpls->hComp, OMX_IndexParamOtherInit, &portParam);
             }else{
-                AGILE_LOGE("Unsupportted component type: %d", compDesc->param.type);
+                AGILE_LOGE("Unsupportted component type: %d", cpls->param.type);
                 return OMX_ErrorBadParameter;
             }
 
@@ -181,26 +183,26 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Prepare(
 
             for (i = portParam.nStartPortNumber; i < portParam.nStartPortNumber + portParam.nPorts; i++){
                 portDef.nPortIndex = i;
-                err = OMX_GetParameter(compDesc->hComp, OMX_IndexParamPortDefinition, &portDef);
+                err = OMX_GetParameter(cpls->hComp, OMX_IndexParamPortDefinition, &portDef);
                 if(err != OMX_ErrorNone){
                     AGILE_LOGE("Failed to get %s port[%d] OMX_PARAM_PORTDEFINITIONTYPE parameter", compName, i);
                     return err;
                 }
 
-                portDef.nBufferCountActual              = compDesc->param.buffer_number;
+                portDef.nBufferCountActual              = cpls->param.buffer_number;
                 /*the buffer size is variable in terms of demuxed audio frame*/
-                portDef.nBufferSize                     = compDesc->param.buffer_size;
-                if (compDesc->param.type == OMX_COMPONENT_VIDEO){
-                    portDef.format.video.eCompressionFormat = (OMX_VIDEO_CODINGTYPE)compDesc->param.codec_id;
-                }else if (compDesc->param.type == OMX_COMPONENT_AUDIO){
-                    portDef.format.audio.eEncoding = (OMX_AUDIO_CODINGTYPE)compDesc->param.codec_id;
-                }else if (compDesc->param.type == OMX_COMPONENT_OTHER){
+                portDef.nBufferSize                     = cpls->param.buffer_size;
+                if (cpls->param.type == OMX_COMPONENT_VIDEO){
+                    portDef.format.video.eCompressionFormat = (OMX_VIDEO_CODINGTYPE)cpls->param.codec_id;
+                }else if (cpls->param.type == OMX_COMPONENT_AUDIO){
+                    portDef.format.audio.eEncoding = (OMX_AUDIO_CODINGTYPE)cpls->param.codec_id;
+                }else if (cpls->param.type == OMX_COMPONENT_OTHER){
                 }else{
-                    AGILE_LOGE("Unsupportted component type: %d", compDesc->param.type);
+                    AGILE_LOGE("Unsupportted component type: %d", cpls->param.type);
                     return OMX_ErrorBadParameter;
                 }   
 
-                err = OMX_SetParameter(compDesc->hComp, OMX_IndexParamPortDefinition, &portDef);
+                err = OMX_SetParameter(cpls->hComp, OMX_IndexParamPortDefinition, &portDef);
                 if(err != OMX_ErrorNone){
                     AGILE_LOGE("Error in setting comp[%s] port[%d] OMX_PARAM_PORTDEFINITIONTYPE parameter", 
                                 compName, i);
@@ -209,72 +211,73 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Prepare(
 
                 if (portDef.eDomain == thiz->mDomain){
                     if (portDef.eDir == OMX_DirOutput){
-                        if (!isLastComp){
-                            if (port_out_idx == kInvalidCompPortNumber){
-                                port_out_idx     = i;
-                                tmp_port_out_idx = kInvalidCompPortNumber;
-                                comp_out_hanlde  = compDesc->hComp;
-                                strcpy(comp_out_name, compName);
-                            }else{
-                                tmp_port_out_idx = i;
-                            }
-                        }else{
-                            hPort = getPort(ooc_cast(compDesc->hComp, MagOmxComponentImpl), i);
-                            base->addPort(base, START_PORT_INDEX + thiz->mPortCount, hPort);
-                            thiz->mOutputPortMap[thiz->mPortCount].hComp   = compDesc->hComp;
-                            thiz->mOutputPortMap[thiz->mPortCount].portIdx = i;
-                            thiz->mPortCount++;
-                            AGILE_LOGD("[Last Comp]: to add the component %s port %d to the codec pipeline", compName, i);
-                        }
-                        
-                    }else{
-                        if (port_out_idx != kInvalidCompPortNumber){
-                            err = OMX_SetupTunnel(comp_out_hanlde, port_out_idx, compDesc->hComp, i);
-                            if(err != OMX_ErrorNone){
-                                AGILE_LOGE("To setup up tunnel between &s[port: %d] and %s[port: %d] - FAILURE!",
-                                            comp_out_name, compName,
-                                            port_out_idx, i);
-                                return MAG_UNKNOWN_ERROR;
-                            }else{
-                                AGILE_LOGI("To setup tunnel between &s[port: %d] and %s[port: %d] - OK!",
-                                            comp_out_name, compName,
-                                            port_out_idx, i);
-                            }
-                        }
-
-                        if (tmp_port_out_idx != kInvalidCompPortNumber){
-                            port_out_idx     = tmp_port_out_idx;
-                            comp_out_hanlde  = compDesc->hComp;
+                        if (port_out_idx == kInvalidCompPortNumber){
+                            port_out_idx     = i;
+                            tmp_port_out_idx = kInvalidCompPortNumber;
+                            comp_out_hanlde  = cpls->hComp;
                             strcpy(comp_out_name, compName);
                         }else{
-                            port_out_idx    = kInvalidCompPortNumber;
-                            comp_out_hanlde = NULL;
-                            memset(comp_out_hanlde, 0, 128);
+                            tmp_port_out_idx = i;
                         }
-                        tmp_port_out_idx = kInvalidCompPortNumber;
+                    }else{
+                        if (comp_out_hanlde != NULL && comp_out_hanlde != cpls->hComp){
+                            if (port_out_idx != kInvalidCompPortNumber){
+                                err = OMX_SetupTunnel(comp_out_hanlde, port_out_idx, cpls->hComp, i);
+                                if(err != OMX_ErrorNone){
+                                    AGILE_LOGE("To setup up tunnel between &s[port: %d] and %s[port: %d] - FAILURE!",
+                                                comp_out_name, port_out_idx,
+                                                compName, i);
+                                    return MAG_UNKNOWN_ERROR;
+                                }else{
+                                    AGILE_LOGI("To setup tunnel between &s[port: %d] and %s[port: %d] - OK!",
+                                                comp_out_name, port_out_idx,
+                                                compName, i);
+                                }
+                            }
+
+                            if (tmp_port_out_idx != kInvalidCompPortNumber){
+                                port_out_idx     = tmp_port_out_idx;
+                                comp_out_hanlde  = cpls->hComp;
+                                strcpy(comp_out_name, compName);
+                            }else{
+                                port_out_idx    = kInvalidCompPortNumber;
+                                comp_out_hanlde = NULL;
+                                memset(comp_out_name, 0, 128);
+                            }
+                            tmp_port_out_idx = kInvalidCompPortNumber;
+                        }
                     }
-                }else{
-                    hPort = getPort(ooc_cast(compDesc->hComp, MagOmxComponentImpl), i);
+                }
+
+                if ( (compIdx == 1 && portDef.eDir == OMX_DirInput) ||
+                     (compIdx == thiz->mCompCount && portDef.eDir == OMX_DirOutput) ||
+                     (portDef.eDomain != thiz->mDomain) ){
+                    hPort = getPort(ooc_cast(cpls->hComp, MagOmxComponentImpl), i);
                     base->addPort(base, START_PORT_INDEX + thiz->mPortCount, hPort);
-                    thiz->mOutputPortMap[thiz->mPortCount].hComp   = compDesc->hComp;
+                    thiz->mOutputPortMap[thiz->mPortCount].hComp   = cpls->hComp;
                     thiz->mOutputPortMap[thiz->mPortCount].portIdx = i;
                     thiz->mPortCount++;
-                    AGILE_LOGD("To add the component %s port %d to the codec pipeline", compName, i);
+                    AGILE_LOGD("To add the component %s %s port %d to the codec pipeline", 
+                                compName, 
+                                portDef.eDir == OMX_DirInput ? "Input" : "Output",
+                                i);
                 }
             }
         }else{
             AGILE_LOGE("Failed to get component name with role name %s", role);
             return MAG_NAME_NOT_FOUND;
         }
+
+        compIdx++;
         next = next->next;
     }
 
     next = thiz->mLinkList.next;
     while (next != &thiz->mLinkList){
-        compDesc = (MagOmxPipelineCodecComp *)list_entry( next, 
-                                                          MagOmxPipelineCodecComp, 
-                                                          node);
-        OMX_SendCommand(compDesc->hComp, OMX_CommandStateSet, OMX_StateIdle, NULL);
+        cpls = (MagOmxCodecPipelineSetting *)list_entry( next, 
+                                                         MagOmxCodecPipelineSetting, 
+                                                         node);
+        OMX_SendCommand(cpls->hComp, OMX_CommandStateSet, OMX_StateIdle, NULL);
         next = next->next;
     }
 
@@ -294,16 +297,16 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Stop(
                                         OMX_IN  OMX_HANDLETYPE hComponent){
     MagOmxPipelineCodec thiz;
     List_t next;
-    MagOmxPipelineCodecComp *compDesc;
+    MagOmxCodecPipelineSetting *cpls;
 
     thiz = ooc_cast(hComponent, MagOmxPipelineCodec);
 
     next = thiz->mLinkList.next;
     while (next != &thiz->mLinkList){
-        compDesc = (MagOmxPipelineCodecComp *)list_entry( next, 
-                                                          MagOmxPipelineCodecComp, 
+        cpls = (MagOmxCodecPipelineSetting *)list_entry( next, 
+                                                          MagOmxCodecPipelineSetting, 
                                                           node);
-        OMX_SendCommand(compDesc->hComp, OMX_CommandStateSet, OMX_StateIdle, NULL);
+        OMX_SendCommand(cpls->hComp, OMX_CommandStateSet, OMX_StateIdle, NULL);
         next = next->next;
     }
 
@@ -318,16 +321,16 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Start(
                                         OMX_IN  OMX_HANDLETYPE hComponent){
     MagOmxPipelineCodec thiz;
     List_t next;
-    MagOmxPipelineCodecComp *compDesc;
+    MagOmxCodecPipelineSetting *cpls;
 
     thiz = ooc_cast(hComponent, MagOmxPipelineCodec);
 
     next = thiz->mLinkList.next;
     while (next != &thiz->mLinkList){
-        compDesc = (MagOmxPipelineCodecComp *)list_entry( next, 
-                                                          MagOmxPipelineCodecComp, 
+        cpls = (MagOmxCodecPipelineSetting *)list_entry( next, 
+                                                          MagOmxCodecPipelineSetting, 
                                                           node);
-        OMX_SendCommand(compDesc->hComp, OMX_CommandStateSet, OMX_StateExecuting, NULL);
+        OMX_SendCommand(cpls->hComp, OMX_CommandStateSet, OMX_StateExecuting, NULL);
         next = next->next;
     }
 
@@ -342,16 +345,16 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Pause(
                                         OMX_IN  OMX_HANDLETYPE hComponent){
     MagOmxPipelineCodec thiz;
     List_t next;
-    MagOmxPipelineCodecComp *compDesc;
+    MagOmxCodecPipelineSetting *cpls;
 
     thiz = ooc_cast(hComponent, MagOmxPipelineCodec);
 
     next = thiz->mLinkList.next;
     while (next != &thiz->mLinkList){
-        compDesc = (MagOmxPipelineCodecComp *)list_entry( next, 
-                                                          MagOmxPipelineCodecComp, 
+        cpls = (MagOmxCodecPipelineSetting *)list_entry( next, 
+                                                          MagOmxCodecPipelineSetting, 
                                                           node);
-        OMX_SendCommand(compDesc->hComp, OMX_CommandStateSet, OMX_StatePause, NULL);
+        OMX_SendCommand(cpls->hComp, OMX_CommandStateSet, OMX_StatePause, NULL);
         next = next->next;
     }
 
@@ -366,16 +369,16 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Resume(
                                         OMX_IN  OMX_HANDLETYPE hComponent){
     MagOmxPipelineCodec thiz;
     List_t next;
-    MagOmxPipelineCodecComp *compDesc;
+    MagOmxCodecPipelineSetting *cpls;
 
     thiz = ooc_cast(hComponent, MagOmxPipelineCodec);
 
     next = thiz->mLinkList.next;
     while (next != &thiz->mLinkList){
-        compDesc = (MagOmxPipelineCodecComp *)list_entry( next, 
-                                                          MagOmxPipelineCodecComp, 
+        cpls = (MagOmxCodecPipelineSetting *)list_entry( next, 
+                                                          MagOmxCodecPipelineSetting, 
                                                           node);
-        OMX_SendCommand(compDesc->hComp, OMX_CommandStateSet, OMX_StateExecuting, NULL);
+        OMX_SendCommand(cpls->hComp, OMX_CommandStateSet, OMX_StateExecuting, NULL);
         next = next->next;
     }
 
@@ -420,11 +423,11 @@ OMX_ERRORTYPE MagOmxPipelineCodec_EventHandlerCB(
                                             OMX_U32 Data1,
                                             OMX_U32 Data2,
                                             OMX_PTR pEventData){
-    MagOmxPipelineCodecComp *compDesc;
+    MagOmxCodecPipelineSetting *cpls;
     MagOmxComponent compRoot;
 
-    compDesc = (MagOmxPipelineCodecComp *)(pAppData);
-    compRoot = ooc_cast(compDesc->hComp, MagOmxComponent);
+    cpls = (MagOmxCodecPipelineSetting *)(pAppData);
+    compRoot = ooc_cast(cpls->hComp, MagOmxComponent);
     
     COMP_LOGD(compRoot, "event: %d", eEvent);
     if(eEvent == OMX_EventCmdComplete) {
@@ -440,7 +443,7 @@ OMX_ERRORTYPE MagOmxPipelineCodec_EventHandlerCB(
                 case OMX_StatePause:
                 case OMX_StateWaitForResources:
                     COMP_LOGD(compRoot, "state: %d", Data2);
-                    Mag_SetEvent(compDesc->stateTransitEvent); 
+                    Mag_SetEvent(cpls->stateTransitEvent); 
                     break;
             }
         }else if (Data1 == OMX_CommandPortEnable){
@@ -493,7 +496,8 @@ static void MagOmxPipelineCodec_constructor(MagOmxPipelineCodec thiz, const void
     Mag_CreateEventGroup(&thiz->mStateTransitEvtGrp);
     thiz->mPortCount = 0;
     INIT_LIST(&thiz->mLinkList);
-    thiz->mDomain = OMX_PortDomainMax;
+    thiz->mDomain    = OMX_PortDomainMax;
+    thiz->mCompCount = 0;
 }
 
 static void MagOmxPipelineCodec_destructor(MagOmxPipelineCodec thiz, MagOmxPipelineCodecVtable vtab){

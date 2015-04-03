@@ -30,7 +30,7 @@ typedef struct{
     OMX_HANDLETYPE   hComp;
     OMX_CALLBACKTYPE callbacks;
     MagEventHandle   stateTransitEvent;
-}MagOmxPipelineCodecComp;
+}MagOmxCodecPipelineSetting;
 
 typedef struct{
     OMX_HANDLETYPE   hComp;
@@ -55,6 +55,7 @@ ClassMembers(MagOmxPipelineCodec, MagOmxComponentImpl, \
 )
     List_t             mLinkList;
     OMX_PORTDOMAINTYPE mDomain;
+    OMX_U32            mCompCount;
     OMX_U32            mPortCount;
     MagOmxPipelineCompMap mOutputPortMap[MAG_PIPELINE_MAX_OUTPUT_PORTS];
     MagEventGroupHandle mStateTransitEvtGrp;
