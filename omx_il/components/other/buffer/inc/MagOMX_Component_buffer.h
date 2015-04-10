@@ -28,6 +28,11 @@ enum{
     MagOmxComponentBuffer_PushBufferMsg = 0
 };
 
+typedef struct MAG_BUFFER_AVFRAME{
+    List_t                   node;
+    OMX_DEMUXER_AVFRAME      frame;
+}MAG_BUFFER_AVFRAME;
+
 DeclareClass(MagOmxComponentBuffer, MagOmxComponentImpl);
 
 Virtuals(MagOmxComponentBuffer, MagOmxComponentImpl) 
@@ -36,17 +41,16 @@ Virtuals(MagOmxComponentBuffer, MagOmxComponentImpl)
 EndOfVirtuals;
 
 ClassMembers(MagOmxComponentBuffer, MagOmxComponentImpl, \
-    _status_t getPushBufferLooper(OMX_HANDLETYPE handle); \
-    MagMessageHandle createPushBufMessage(OMX_HANDLETYPE handle, ui32 what);  \
-    MagOmxMediaBuffer_t *(*Queue_Get)(MagOmxComponentBuffer compBuf); \
-    OMX_ERRORTYPE (*Queue_Add)(MagOmxComponentBuffer compBuf, MagOmxMediaBuffer_t *mb); \
-    OMX_ERRORTYPE (*Queue_Put)(MagOmxComponentBuffer compBuf, MagOmxMediaBuffer_t *mb); \
+    _status_t (*getPushBufferLooper)(OMX_HANDLETYPE handle); \
+    MagMessageHandle (*createPushBufMessage)(OMX_HANDLETYPE handle, ui32 what);  \
+    OMX_DEMUXER_AVFRAME *(*Queue_Get)(MagOmxComponentBuffer compBuf); \
+    OMX_ERRORTYPE (*Queue_Add)(MagOmxComponentBuffer compBuf, OMX_DEMUXER_AVFRAME *frame); \
+    OMX_ERRORTYPE (*Queue_Put)(MagOmxComponentBuffer compBuf, OMX_DEMUXER_AVFRAME *frame); \
     OMX_ERRORTYPE (*Queue_Flush)(MagOmxComponentBuffer compBuf); \
     OMX_S32       (*Ringbuffer_Read)(MagOmxComponentBuffer compBuf, OMX_U8* pData, OMX_U32 length); \
-    OMX_ERRORTYPE (*Ringbuffer_Write)(MagOmxComponentBuffer compBuf, MagOmxMediaBuffer_t *mb); \
+    OMX_ERRORTYPE (*Ringbuffer_Write)(MagOmxComponentBuffer compBuf, OMX_U8 *data, OMX_U32 len); \
     OMX_ERRORTYPE (*Ringbuffer_Seek)(MagOmxComponentBuffer compBuf, OMX_S64 offset, OMX_SEEK_WHENCE whence); \
-    void          (*CalcBufferPercentage)(MagOmxComponentBuffer compBuf); \
-
+    OMX_U32       (*CalcBufferPercentage)(MagOmxComponentBuffer compBuf); \
 )
     MagMutexHandle         mhMutex;
     
@@ -69,16 +73,16 @@ ClassMembers(MagOmxComponentBuffer, MagOmxComponentImpl, \
     OMX_U32                mUseRateEstimate;     /*Estimate the bitrate of the stream to calculate time level.(in bytes/second)*/
 
     MagRingBufferHandle    mhRingBuffer;
-    magMempoolHandle       mhFrameBufferPool;
+    MagMemoryPoolHandle    mhFrameBufferPool;
     List_t                 mFrameBufferList;
     List_t                 mFrameBufferFreeList;
 
     OMX_TICKS              mFrameBufferStartPTS;
     OMX_TICKS              mFrameBufferEndPTS;
-    OMX_S32                mFrameBufferDuration;  //the duration of the frame buffer (in ns)
-    OMX_U32                mFrameBufferNumber;    //the number of the frames in the buffer
+    OMX_S32                mFrameBufferDuration;  /*the duration of the frame buffer (in ns)*/
+    OMX_U32                mFrameBufferNumber;    /*the number of the frames in the buffer*/
     
-    OMX_U32                mBufferBytes;          //the bytes of the frame buffer OR ring buffer
+    OMX_U32                mBufferBytes;          /*the bytes of the frame buffer OR ring buffer*/
 
     OMX_BOOL               mbWaitOnFreeSpace;
     MagEventHandle         mBufferFreeEvt;

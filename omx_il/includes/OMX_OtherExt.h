@@ -20,7 +20,7 @@ typedef enum OMX_BUFFER_MODE{
 }OMX_BUFFER_MODE;
 
 typedef enum OMX_BUFFER_TYPE{
-    OMX_BUFFER_TYPE_NONE = 0,
+    OMX_BUFFER_TYPE_NONE = 0,   /*no buffer needed*/
     OMX_BUFFER_TYPE_BYTE,
     OMX_BUFFER_TYPE_FRAME
 }OMX_BUFFER_TYPE;
@@ -121,11 +121,34 @@ typedef struct OMX_PLAYBACK_PIPELINE_SETTING {
     OMX_BOOL        free_run;              /*OMX_TRUE: no clock component connected.*/
     
     OMX_BUFFER_TYPE buffer_type;
-    OMX_U32         buffer_size;           /*in KB*/  
-    OMX_U32         buffer_time;           /*in ms units*/
-    OMX_U32         buffer_low_threshold;  /*n%. play when the percentage of buffering data >= n, pause when the percentage < n*/
-    OMX_U32         buffer_high_threshold;
+    OMX_S32         buffer_size;           /*in KB*/  
+    OMX_S32         buffer_time;           /*in ms units*/
+    OMX_S32         buffer_low_threshold;  /*< n%: pause*/
+    OMX_S32         buffer_play_threshold; /*> n%. play*/
+    OMX_S32         buffer_high_threshold; /*> n%. stop buffering*/
 }OMX_PLAYBACK_PIPELINE_SETTING;
+
+typedef enum OMX_DEMUXER_AVFRAME_FLAG{
+  OMX_AVFRAME_FLAG_NONE        = 0,
+  OMX_AVFRAME_FLAG_KEY_FRAME   = (1 << 0),
+  OMX_AVFRAME_FLAG_EOS         = (1 << 1)
+} OMX_DEMUXER_AVFRAME_FLAG;
+
+typedef struct OMX_DEMUXER_AVFRAME{
+    OMX_U32                  stream_id;    /*the id of the stream that the frame belongs to*/
+    OMX_U32                  size;         /*the size of frame buffer*/
+    OMX_U8                   *buffer;      /*point to frame buffer*/
+    OMX_TICKS                pts;          /*in 90K*/
+    OMX_TICKS                dts;          /*in 90K*/  
+
+    OMX_S32                  duration;     /*Duration of this packet in ns*/
+    OMX_S64                  position;     /*byte position in stream*/
+    OMX_DEMUXER_AVFRAME_FLAG flag;
+
+    OMX_PTR                   priv;        /*point to low-level avpacket*/
+    OMX_PTR                   opaque;      
+    void                      (*releaseFrame)(OMX_HANDLETYPE hComponent, OMX_PTR frame);
+}OMX_DEMUXER_AVFRAME;
 
 #ifdef __cplusplus
 }

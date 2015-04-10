@@ -41,6 +41,7 @@
 #include "Mag_thread.h"
 #include "Mag_FrameworkVer.h"
 #include "Mag_timer.h"
+#include "Mag_ringbuffer.h"
 
 #ifdef __cplusplus
 #include "tinyxml2.h"

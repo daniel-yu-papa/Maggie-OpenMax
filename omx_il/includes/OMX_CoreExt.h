@@ -55,9 +55,9 @@ typedef struct OMX_DEMUXER_STREAM_INFO
 
 typedef enum OMX_EVENTTYPE_EXT
 {
-    OMX_EventKhronosExtensions, /**< Reserved region for introducing Khronos Standard Extensions */ 
-    OMX_EventDynamicPortAdding,
-    OMX_EventAVStreamInfo
+    OMX_EventExtExtension = OMX_EventKhronosExtensions, /**< Reserved region for introducing Khronos Standard Extensions */ 
+    OMX_EventExtDynamicPortAdding,
+    OMX_EventExtAVStreamInfo
 } OMX_EVENTTYPE_EXT;
 
 #ifdef __cplusplus

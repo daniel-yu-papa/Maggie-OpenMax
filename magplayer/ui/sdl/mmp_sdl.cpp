@@ -31,8 +31,7 @@ extern "C" {
 /*#include "SDL_ttf.h"*/
 
 #include "framework/MagFramework.h"
-#include "mmp.h"
-#include "MagInvokeDef.h"
+#include "MagMediaPlayer.h"
 #include "OMX_Core.h"
 
 #define SEEK_ONCE_TIME (10 * 1000) /*in ms*/
@@ -43,9 +42,6 @@ const int black_V = 128;
 //Screen dimension constants
 const int DEFAULT_SCREEN_WIDTH  = 640;
 const int DEFAULT_SCREEN_HEIGHT = 480;
-
-static VideoMetaData_t *gpVideoMetaData = NULL;
-static AudioMetaData_t *gpAudioMetaData = NULL;
 
 static bool gStopped = true;
 
@@ -65,60 +61,57 @@ static void eventCallback(mmp_event_t evt, void *handler, unsigned int param1, u
     MagMediaPlayer *pMplayer = static_cast<MagMediaPlayer *>(handler);
 
     switch (evt){
-        case MMP_PLAYER_EVT_PLAYBACK_ERROR:
+        case MMP_EVENT_ERROR:
 
             break;
 
-        case MMP_PLAYER_EVT_PLAYBACK_COMPLETE:
+        case MMP_EVENT_PLAYBACK_COMPLETE:
             gStopped = true;
             AGILE_LOGD("get playback complete event!");
             break;
 
-        case MMP_PLAYER_EVT_BUFFER_STATUS:
+        case MMP_EVENT_BUFFER_STATUS:
 
             break;
 
-        case MMP_PLAYER_EVT_SEEK_COMPLETE:
+        case MMP_EVENT_SEEK_COMPLETE:
             Mag_SetEvent(gSeekCompleteEvent);
             break;
 
-        case MMP_PLAYER_EVT_FLUSH_DONE:
+        case MMP_EVENT_FLUSH_COMPLETE:
             Mag_SetEvent(gFlushDoneEvent);
             break;
 
-        case MMP_PLAYER_EVT_PREPARE_COMPLETE:
-        {
+        case MMP_EVENT_NEW_STREAM_REPORT:
+            int sid = param1;
             void *p;
-            printf("get event: PREPARE_COMPLETE\n");
-            if (gpVideoMetaData == NULL){
-                gpVideoMetaData = (VideoMetaData_t *)mag_mallocz(sizeof(VideoMetaData_t));
+            mmp_meta_data_t *md;
+
+            pMplayer->invoke(MMP_INVOKE_READ_STREAM_META_DATA, &sid, &p);
+            md = static_cast<mmp_meta_data_t *>(p);
+
+            if (md->type == MMP_STREAM_TYPE_VIDEO){
+                AGILE_LOGD("video: w[%d], h[%d], fps[%f], bps[%d], codec[%s]",
+                            md->vMetaData.width,
+                            md->vMetaData.height,
+                            md->vMetaData.fps,
+                            md->vMetaData.bps,
+                            md->vMetaData.codec);
+                gSet_win_width  = md->vMetaData.width;
+                gSet_win_height = md->vMetaData.height;
+            }(md->type == MMP_STREAM_TYPE_AUDIO){
+                AGILE_LOGD("audio: hz[%d], bps[%d], codec[%s]",
+                            md->aMetaData.hz,
+                            md->aMetaData.bps,
+                            md->aMetaData.codec);
             }
+            
+            break;
 
-            if (gpAudioMetaData == NULL){
-                gpAudioMetaData = (AudioMetaData_t *)mag_mallocz(sizeof(AudioMetaData_t));
-            }
-
-            p = static_cast<void *>(gpVideoMetaData);
-            pMplayer->invoke(INVOKE_ID_GET_VIDEO_META_DATA, NULL, &p);
-
-            p = static_cast<void *>(gpAudioMetaData);
-            pMplayer->invoke(INVOKE_ID_GET_AUDIO_META_DATA, NULL, &p);
-
-            AGILE_LOGD("video: w[%d], h[%d], fps[%f], bps[%d], codec[%s]",
-                        gpVideoMetaData->width,
-                        gpVideoMetaData->height,
-                        gpVideoMetaData->fps,
-                        gpVideoMetaData->bps,
-                        gpVideoMetaData->codec);
-
-            AGILE_LOGD("audio: hz[%d], bps[%d], codec[%s]",
-                        gpAudioMetaData->hz,
-                        gpAudioMetaData->bps,
-                        gpAudioMetaData->codec);
-
-            gSet_win_width  = gpVideoMetaData->width;
-            gSet_win_height = gpVideoMetaData->height;
-
+        case MMP_EVENT_PREPARE_COMPLETE:
+        {
+            AGILE_LOGD("get event: PREPARE_COMPLETE\n");
+            
             Mag_SetEvent(gPrepareCompleteEvent);
         }
 
@@ -417,7 +410,7 @@ int main(int argc, char *argv[]){
         }
 
         if (!gStopped && !paused){
-            if (player->invoke(INVOKE_ID_GET_DECODED_VIDEO_FRAME, NULL, &pVideoFrame) == MAG_NO_ERROR){
+            if (player->invoke(MMP_INVOKE_GET_DECODED_VIDEO_FRAME, NULL, &pVideoFrame) == MAG_NO_ERROR){
                 OMX_BUFFERHEADERTYPE *buf;
                 AVFrame *frame;
 
@@ -440,7 +433,7 @@ int main(int argc, char *argv[]){
                     }
 
                     /* Create the overlay */
-                    pVideoOverlay = SDL_CreateYUVOverlay(gpVideoMetaData->width, gpVideoMetaData->height, SDL_YV12_OVERLAY, pWindow);
+                    pVideoOverlay = SDL_CreateYUVOverlay(gSet_win_width, gSet_win_height, SDL_YV12_OVERLAY, pWindow);
                     if ( pVideoOverlay == NULL ) {
                         AGILE_LOGE("Couldn't create overlay: %s\n", SDL_GetError());
                         return -1;
@@ -469,7 +462,7 @@ int main(int argc, char *argv[]){
                 display_win_height = gSet_win_height;
 
                 UpdateVideoOverlay(pVideoOverlay, frame);
-                player->invoke(INVOKE_ID_PUT_USED_VIDEO_FRAME, pVideoFrame, NULL);
+                player->invoke(MMP_INVOKE_PUT_USED_VIDEO_FRAME, pVideoFrame, NULL);
                 Mag_TimeTakenStatistic(MAG_TRUE, __FUNCTION__, NULL);
                 SDL_DisplayYUVOverlay(pVideoOverlay, &VideoDestRect);
                 Mag_TimeTakenStatistic(MAG_FALSE, __FUNCTION__, "SDL_DisplayYUVOverlay");

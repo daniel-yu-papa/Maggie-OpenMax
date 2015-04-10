@@ -417,11 +417,11 @@ static OMX_ERRORTYPE virtual_FFmpeg_Demuxer_ReadFrame(
     avFrame = parent->getAVFrame(parent);
     if (res >= 0) {
         av_dup_packet(pPacket);
-        thiz->fillAVFrame(thiz, pPacket, avFrame, pDataSource);
+        thiz->fillAVFrame(thiz, pPacket, &avFrame->frame, pDataSource);
     }else{
         if ( (res == AVERROR_EOF || url_feof(avFormat->pb)) ||
                  (avFormat->pb && avFormat->pb->error) ){
-            thiz->fillAVFrame(thiz, NULL, avFrame, pDataSource);
+            thiz->fillAVFrame(thiz, NULL, &avFrame->frame, pDataSource);
         }
     }
 
@@ -438,7 +438,7 @@ static int FFmpeg_Demuxer_demux_interrupt_cb(void *ctx){
 
 static void FFmpeg_Demuxer_fillAVFrame(MagOmxComponent_FFmpeg_Demuxer thiz, 
                                        AVPacket *pPacket, 
-                                       MAG_DEMUXER_AVFRAME *avFrame, 
+                                       OMX_DEMUXER_AVFRAME *avFrame, 
                                        OMX_IN MAG_DEMUXER_DATA_SOURCE *pDataSource){
     AVRational timeBase;
     AVRational newBase;
@@ -480,15 +480,17 @@ static void FFmpeg_Demuxer_fillAVFrame(MagOmxComponent_FFmpeg_Demuxer thiz,
 static void FFmpeg_Demuxer_releaseAVFrame(OMX_HANDLETYPE hComponent, OMX_PTR frame){
     AVPacket *pPacket;
     MagOmxComponentDemuxer *demuxer;
-    MAG_DEMUXER_AVFRAME *avframe;
+    OMX_DEMUXER_AVFRAME *avframe;
+    MAG_DEMUXER_AVFRAME *avframeItem;
 
     demuxer = ooc_cast(hComponent, MagOmxComponentDemuxer);
 
-    avframe = (MAG_DEMUXER_AVFRAME *)frame;
+    avframe = (OMX_DEMUXER_AVFRAME *)frame;
+    avframeItem = (MAG_DEMUXER_AVFRAME *)avframe->opaque;
     pPacket = (AVPacket *)avframe->priv;
 
     av_free_packet(pPacket);
-    demuxer->putAVFrame(demuxer, avframe);
+    demuxer->putAVFrame(demuxer, avframeItem);
 }
 
 /*Class Constructor/Destructor*/

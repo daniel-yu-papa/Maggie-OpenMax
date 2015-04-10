@@ -156,7 +156,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Playback_CreateCodecPipeline(
             param_table[0].stream_handle = ple->portDesc->stream_info->stream_hanlde;
 
             param_table[1].role          = OMX_ROLE_AUDIO_RENDERER_PCM;
-            param_table[1].stream_handle = NULL;
+            param_table[1].stream_handle = ple->portDesc->stream_info->stream_hanlde;
             for (i = 0; i < 2; i++){
                 param_table[i].buffer_number = AUDIO_PIPELINE_BUFFER_NUMBER;
                 param_table[i].buffer_size   = 0;

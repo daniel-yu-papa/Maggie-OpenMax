@@ -134,7 +134,7 @@ static OMX_ERRORTYPE allocateBufferInternal(
                       OMX_U32 nSizeBytes){
 
     OMX_BUFFERHEADERTYPE *pPortBufHeader;
-    OMX_U8 *pBuffer;
+    OMX_U8 *pBuffer = NULL;
     MagOmxPortImpl base;
     MagOmxPort     root;
     OMX_ERRORTYPE  ret;

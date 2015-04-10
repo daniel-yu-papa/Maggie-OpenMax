@@ -209,43 +209,24 @@ SDL_TTF_LIB_PATH = env.GetBuildPath('#/Targets/'+env['target']+'/'+env['build_co
 FRAMEWORK_INC_PATH = '../Targets/'+env['target']+'/'+env['build_config']+'/include'
 OMXIL_COMMON_INC_PATH = '../Targets/'+env['target']+'/'+env['build_config']+'/include/omxil_common'
 
-COMMON_SOURCE_CODE_PATH = """src/BufferManagement 
-                             src/ContentPipe 
-                             src/DataSource 
-                             src/Demuxer/base 
-                             src/Demuxer/ffmpeg 
-                             src/MagPlayer 
-                             src/MagPlayerDriver"""
-
-PIPELINE_SOURCE_CODE_PATH = """src/Pipeline 
-                               src/Pipeline/factory 
-                               src/Pipeline/vendor/omxil 
-                               src/Pipeline/mgr"""
-
 COMMON_HEADERS_PATH = """inc 
-                         inc/common 
-                         inc/omx 
-                         inc/lmp 
-                         src/StreamBuffer/inc 
-                         src/Pipeline/inc 
-                         src/Pipeline/inc/vendor/omxil"""
+                         inc/public"""
 
 FFMPEG_HEADERS_PATH = "../external/ffmpeg"
 SDL_HEADERS_PATH = "../external/SDL/include"
 SDL_TTF_HEADERS_PATH = "../external/SDL_ttf/"
 
-if env['OS_TYPE'] == 'ANDROID':
-  EXTRA_HEADERS_PATH = 'inc/platform/android'
-else:
-  EXTRA_HEADERS_PATH = 'inc/platform/linux'
+#if env['OS_TYPE'] == 'ANDROID':
+#  EXTRA_HEADERS_PATH = 'inc/platform/android'
+#else:
+#  EXTRA_HEADERS_PATH = 'inc/platform/linux'
 
-LibraryModule(name                  = 'MagPipeline',
-              build_source_dirs     = Split(PIPELINE_SOURCE_CODE_PATH),
+
+LibraryModule(name                  = 'MagMediaPlayer',
+              build_source_dirs     = ['src'],
               build_include_dirs    = Split(COMMON_HEADERS_PATH)+
-                                      Split(FRAMEWORK_INC_PATH)+
                                       Split(OMXIL_COMMON_INC_PATH)+
-                                      Split(FFMPEG_HEADERS_PATH)+
-                                      Split(EXTRA_HEADERS_PATH),
+                                      Split(FRAMEWORK_INC_PATH),
               extra_libs            = ['libMagAgilelog.so', 
                                        'libMagFramework.so',
                                        'libMagOmxIL_Core.so'],
@@ -254,44 +235,9 @@ LibraryModule(name                  = 'MagPipeline',
               install               = True)
 
 
-LibraryModule(name                  = 'MagPlayer',
-              build_source_dirs     = Split(COMMON_SOURCE_CODE_PATH),
-              build_include_dirs    = Split(COMMON_HEADERS_PATH)+
-                                      Split(OMXIL_COMMON_INC_PATH)+
-                                      Split(FFMPEG_HEADERS_PATH)+
-                                      Split(FRAMEWORK_INC_PATH)+
-                                      Split(EXTRA_HEADERS_PATH),
-              extra_libs            = ['libMagAgilelog.so', 
-                                       'libMagFramework.so',
-                                       'libMagOmxIL_Core.so',
-                                       'libMagPipeline.so',
-                                       'libavformat.so',
-                                       'libavutil.so',
-                                       'libavcodec.so'],
-              extra_lib_path        = Split(FRAMEWORK_LIB_PATH) + 
-                                      Split(FFMPEG_LIB_PATH) + 
-                                      Split(MAGPLAYER_LIB_PATH),
-              shared                = True,
-              install               = True)
-
-
-LibraryModule(name                  = 'mmp',
-              build_source_dirs     = ['player/src'],
-              build_include_dirs    = ['inc', 'inc/common', 'inc/lmp', 'player/inc']+Split(FRAMEWORK_INC_PATH),
-              extra_libs            = ['libMagAgilelog.so', 
-                                       'libMagFramework.so',
-                                       'libMagPlayer.so'],
-              extra_lib_path        = Split(FRAMEWORK_LIB_PATH) + 
-                                      Split(FFMPEG_LIB_PATH) + 
-                                      Split(MAGPLAYER_LIB_PATH),
-              shared                = True,
-              install               = True)
-
-
 Application(name                    = 'mmp_sdl',
             dir                     = 'ui/sdl',
-            extra_include_path      = ['player/inc', 
-                                       'inc/common', 
+            extra_include_path      = ['inc/public', 
                                        FRAMEWORK_INC_PATH,
                                        OMXIL_COMMON_INC_PATH,
                                        SDL_HEADERS_PATH, 

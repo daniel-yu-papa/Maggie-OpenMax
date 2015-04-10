@@ -249,7 +249,7 @@ static void MagRingBufferFlush(struct MagRingBuffer *self){
     pthread_mutex_unlock(&self->mutex);
 }
 
-static MagRingBufferSetSourcePos(struct MagRingBuffer *self, i64 source_offset){
+static void MagRingBufferSetSourcePos(struct MagRingBuffer *self, i64 source_offset){
     pthread_mutex_lock(&self->mutex);
     self->source_offset = source_offset;
     pthread_mutex_unlock(&self->mutex);
@@ -295,7 +295,7 @@ MagRingBufferHandle Mag_createRingBuffer(i32 bytes, ui32 flags){
     hRB->write          = MagRingBufferWrite;
     hRB->seek           = MagRingBufferSeek;
     hRB->flush          = MagRingBufferFlush;
-    hRB->setSourcePos   = MagRingBufferSetSourcePos
+    hRB->setSourcePos   = MagRingBufferSetSourcePos;
     hRB->getSourceRange = MagGetSourceRange;
 
     return hRB;

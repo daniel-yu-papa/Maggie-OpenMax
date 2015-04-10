@@ -38,9 +38,7 @@ Virtuals(MagOmxComponent_FFmpeg_DataSource, MagOmxComponentDataSource)
 EndOfVirtuals;
 
 ClassMembers(MagOmxComponent_FFmpeg_DataSource, MagOmxComponentDataSource, \
-	int  (*demux_interrupt_cb)(void *ctx); \
-    void (*fillAVFrame)(MagOmxComponent_FFmpeg_DataSource thiz, AVPacket *pPacket, MAG_DEMUXER_AVFRAME *avFrame, OMX_IN MAG_DEMUXER_DATA_SOURCE *pDataSource); \
-    void (*releaseAVFrame)(OMX_HANDLETYPE hComponent, OMX_PTR frame); \
+	void (*self)(void); \
 )
     AVIOContext *mAVIO;
     

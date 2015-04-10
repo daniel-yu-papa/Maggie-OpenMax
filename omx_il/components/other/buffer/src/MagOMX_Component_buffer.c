@@ -54,7 +54,7 @@ static void onPushBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv
         return;
     }
 
-    if (!msg->findUInt32(msg, "dest_port", &hPort)){
+    if (!msg->findPointer(msg, "dest_port", &hPort)){
         COMP_LOGE(root, "failed to find the hPort!");
         return;
     }
@@ -64,14 +64,14 @@ static void onPushBufferMessageReceived(const MagMessageHandle msg, OMX_PTR priv
     switch (cmd){
         case MagOmxComponentBuffer_PushBufferMsg:
         {
-            MagOmxStreamFrame_t  *frame = NULL;
+            OMX_DEMUXER_AVFRAME  *frame = NULL;
             OMX_BUFFERHEADERTYPE *destbufHeader;
 
             destbufHeader = MagOmxPortVirtual(port)->GetOutputBuffer(port);
 
             frame = thiz->Queue_Get(thiz);
             if (frame){
-                destbufHeader->pBuffer    = frame;
+                destbufHeader->pBuffer    = (OMX_PTR)frame;
                 destbufHeader->nFilledLen = frame->size;
                 destbufHeader->nTimeStamp = frame->pts;
                 MagOmxPortVirtual(port)->sendOutputBuffer(port, destbufHeader);
@@ -175,7 +175,7 @@ static OMX_ERRORTYPE virtual_MagOmxComponentBuffer_SetParameter(
         }
     		break;
 
-        case OMX_IndexConfigExtSeekData:
+        /*case OMX_IndexConfigExtSeekData:
         {
             OMX_CONFIG_SEEKDATABUFFER *seekConfig;
 
@@ -188,7 +188,7 @@ static OMX_ERRORTYPE virtual_MagOmxComponentBuffer_SetParameter(
                 return OMX_ErrorNotImplemented;
             }
         }
-            break;
+            break;*/
 
     	default:
     		break;
@@ -226,7 +226,7 @@ static OMX_ERRORTYPE virtual_MagOmxComponentBuffer_Prepare(
     root = ooc_cast(hComponent, MagOmxComponent);
 
     if (thiz->mRingBufferMaxSize > 0){
-        mhRingBuffer = Mag_createRingBuffer(thiz->mRingBufferMaxSize, 0);
+        thiz->mhRingBuffer = Mag_createRingBuffer(thiz->mRingBufferMaxSize, 0);
     }else{
         bp_size_time = (thiz->mMaxSizeTime * thiz->mUseRateEstimate) / 1000000;
 
@@ -239,7 +239,7 @@ static OMX_ERRORTYPE virtual_MagOmxComponentBuffer_Prepare(
         AGILE_LOGV("buffer pool size by time: %d, param mMaxSizeBytes: %d. final buffer pool size: %d",
                     bp_size_time, thiz->mMaxSizeBytes, buffer_pool_size);
 
-        thiz->mhFrameBufferPool = magMemPoolCreate(buffer_pool_size, 0);
+        thiz->mhFrameBufferPool = Mag_createMemoryPool(buffer_pool_size, 0);
         if (thiz->mhFrameBufferPool == NULL){
             AGILE_LOGE("Failed to create the buffer pool with size %d!", buffer_pool_size);
             return OMX_ErrorInsufficientResources;
@@ -282,14 +282,16 @@ static OMX_ERRORTYPE virtual_MagOmxComponentBuffer_ProceedBuffer(
                     OMX_IN  OMX_BUFFERHEADERTYPE *srcbufHeader,
                     OMX_IN  OMX_HANDLETYPE hDestPort){
     MagOmxComponentBuffer compBuf;
-    MagOmxStreamFrame_t *frame;
+    OMX_DEMUXER_AVFRAME *frame;
+    OMX_U8 *data;
 
     compBuf = ooc_cast(hComponent, MagOmxComponentBuffer);
-    frame = (MagOmxStreamFrame_t *)srcbufHeader->pBuffer;
 
-    if (thiz->mRingBufferMaxSize > 0){
-        compBuf->Ringbuffer_Write(compBuf, frame);
+    if (compBuf->mRingBufferMaxSize > 0){
+        data = (OMX_U8 *)srcbufHeader->pBuffer;
+        compBuf->Ringbuffer_Write(compBuf, data, srcbufHeader->nFilledLen);
     }else{
+        frame = (OMX_DEMUXER_AVFRAME *)srcbufHeader->pBuffer;
         compBuf->Queue_Add(compBuf, frame);
 
         if (compBuf->mMode == OMX_BUFFER_MODE_PUSH){
@@ -309,10 +311,10 @@ static  OMX_ERRORTYPE virtual_MagOmxComponentBuffer_ProceedUsedBuffer(
                     OMX_IN  OMX_HANDLETYPE hComponent, 
                     OMX_IN  OMX_BUFFERHEADERTYPE *usedBufHeader){
     MagOmxComponentBuffer compBuf;
-    MagOmxStreamFrame_t *frame;
+    OMX_DEMUXER_AVFRAME *frame;
 
     compBuf = ooc_cast(hComponent, MagOmxComponentBuffer);
-    frame = (MagOmxStreamFrame_t *)srcbufHeader->pBuffer;
+    frame = (OMX_DEMUXER_AVFRAME *)usedBufHeader->pBuffer;
     return compBuf->Queue_Put(compBuf, frame);
 }
 
@@ -346,29 +348,32 @@ static OMX_ERRORTYPE virtual_MagOmxComponentBuffer_SeekData(
     }
 }
 
-static MagOmxStreamFrame_t* MagOmxComponentBuffer_Queue_Get(MagOmxComponentBuffer compBuf){
+static OMX_DEMUXER_AVFRAME* MagOmxComponentBuffer_Queue_Get(MagOmxComponentBuffer compBuf){
+    MagOmxComponentImpl base;
     List_t *head;
-    MagOmxStreamFrame_t *item = NULL;
+    MAG_BUFFER_AVFRAME *item = NULL;
     OMX_U32 buf_perc = 0;
+
+    base = ooc_cast(compBuf, MagOmxComponentImpl);
 
     head = compBuf->mFrameBufferList.next;
     if (!is_list_empty(&compBuf->mFrameBufferList)){
-        item = (MagOmxStreamFrame_t *)list_entry(head, 
-                                                 MagOmxStreamFrame_t, 
+        item = (MAG_BUFFER_AVFRAME *)list_entry(head, 
+                                                 MAG_BUFFER_AVFRAME, 
                                                  node);
         list_del(head);
 
         Mag_AcquireMutex(compBuf->mhMutex);
-        if (item->duration > 0){
-            compBuf->mFrameBufferDuration -= item->duration;
+        if (item->frame.duration > 0){
+            compBuf->mFrameBufferDuration -= item->frame.duration;
         }else{
-            if (item->pts != kInvalidTimeStamp){
-                compBuf->mFrameBufferStartPTS = item->pts;
+            if (item->frame.pts != kInvalidTimeStamp){
+                compBuf->mFrameBufferStartPTS = item->frame.pts;
                 compBuf->mFrameBufferDuration = (OMX_U32)((compBuf->mFrameBufferEndPTS - compBuf->mFrameBufferStartPTS) * 1000/90);
             }
         }
         compBuf->mFrameBufferNumber--;
-        compBuf->mBufferBytes -= item->size;
+        compBuf->mBufferBytes -= item->frame.size;
         Mag_ReleaseMutex(compBuf->mhMutex);
 
         buf_perc = compBuf->CalcBufferPercentage(compBuf);
@@ -378,19 +383,19 @@ static MagOmxStreamFrame_t* MagOmxComponentBuffer_Queue_Get(MagOmxComponentBuffe
         compBuf->mCurrentLevel = buf_perc;
 
         /*AGILE_LOGV("%s: delete buffer(0x%x, pts: 0x%x) from stream track queue", 
-                        getInfo()->name, item->buffer, item->pts);*/
+                        getInfo()->name, item->frame.buffer, item->pts);*/
     }
 
-    return item;
+    return &item->frame;
 }
 
 /*it is blocking call*/
 static OMX_ERRORTYPE MagOmxComponentBuffer_Queue_Add(MagOmxComponentBuffer compBuf, 
-                                                     MagOmxStreamFrame_t *frame){
+                                                     OMX_DEMUXER_AVFRAME *frame){
     MagOmxComponentImpl   base;
     void *buf;
     MagErr_t err;
-    MagOmxStreamFrame_t *dest_frame;
+    MAG_BUFFER_AVFRAME *dest_frame;
     List_t *next = NULL;
     OMX_U32 buf_perc = 0;
 
@@ -398,43 +403,44 @@ static OMX_ERRORTYPE MagOmxComponentBuffer_Queue_Add(MagOmxComponentBuffer compB
 
 again:
     buf_perc = compBuf->CalcBufferPercentage(compBuf);
-    if (buf_perc < mHighPercent){
-        err = mhFrameBufferPool->get(mhFrameBufferPool, frame->size, &buf);
+    if (buf_perc < compBuf->mHighPercent){
+        err = compBuf->mhFrameBufferPool->get(compBuf->mhFrameBufferPool, frame->size, &buf);
         if (MAG_ErrNone == err){
             if (!is_list_empty(&compBuf->mFrameBufferFreeList)){
                 next = compBuf->mFrameBufferFreeList.next;
-                dest_frame = (MagOmxStreamFrame_t *)list_entry(next, MagOmxStreamFrame_t, node);
+                dest_frame = (MAG_BUFFER_AVFRAME *)list_entry(next, MAG_BUFFER_AVFRAME, node);
                 list_del(next);
             }else{
-                dest_frame = (MagOmxStreamFrame_t *)mag_mallocz(sizeof(MagOmxStreamFrame_t));
+                dest_frame = (MAG_BUFFER_AVFRAME *)mag_mallocz(sizeof(MAG_BUFFER_AVFRAME));
                 if (NULL != dest_frame){
                     INIT_LIST(&dest_frame->node);
+                    dest_frame->frame.opaque = dest_frame;
                 }else{
-                    AGILE_LOGE("Failed to malloc the MagOmxStreamFrame_t!!");
+                    AGILE_LOGE("Failed to malloc the MAG_BUFFER_AVFRAME!!");
                     return OMX_ErrorInsufficientResources;
                 }
             }
 
             memcpy(buf, frame->buffer, frame->size);
 
-            dest_frame->buffer   = buf;
-            dest_frame->size     = frame->size;
-            dest_frame->pts      = frame->pts;
-            dest_frame->dts      = frame->dts;
-            dest_frame->duration = frame->duration;
-            dest_frame->position = frame->position;
-            dest_frame->flag     = frame->flag;
+            dest_frame->frame.buffer   = buf;
+            dest_frame->frame.size     = frame->size;
+            dest_frame->frame.pts      = frame->pts;
+            dest_frame->frame.dts      = frame->dts;
+            dest_frame->frame.duration = frame->duration;
+            dest_frame->frame.position = frame->position;
+            dest_frame->frame.flag     = frame->flag;
 
             Mag_AcquireMutex(compBuf->mhMutex);
             if (is_list_empty(&compBuf->mFrameBufferList)){
-                compBuf->mFrameBufferStartPTS = dest_frame->pts;
+                compBuf->mFrameBufferStartPTS = dest_frame->frame.pts;
             }
-            compBuf->mFrameBufferEndPTS = dest_frame->pts;
+            compBuf->mFrameBufferEndPTS = dest_frame->frame.pts;
             compBuf->mFrameBufferNumber++;
-            if (dest_frame->duration > 0){
-                compBuf->mFrameBufferDuration += dest_frame->duration;
+            if (dest_frame->frame.duration > 0){
+                compBuf->mFrameBufferDuration += dest_frame->frame.duration;
             }else{
-                if (dest_frame->pts != kInvalidTimeStamp){
+                if (dest_frame->frame.pts != kInvalidTimeStamp){
                     compBuf->mFrameBufferDuration = (OMX_U32)((compBuf->mFrameBufferEndPTS - compBuf->mFrameBufferStartPTS) * 1000/90);
                 }
             }
@@ -454,21 +460,24 @@ again:
         }
     }
 
-    Mag_ClearEvent(thiz->mBufferFreeEvt);
+    Mag_ClearEvent(compBuf->mBufferFreeEvt);
     compBuf->mbWaitOnFreeSpace = OMX_TRUE;
     AGILE_LOGE("No room for filling in the frame[%d bytes], wait...", frame->size);
-    Mag_WaitForEventGroup(thiz->mBufferFreeEvtGrp, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
+    Mag_WaitForEventGroup(compBuf->mBufferFreeEvtGrp, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
     goto again;
 
     return OMX_ErrorNone;
 }
 
-static OMX_ERRORTYPE MagOmxComponentBuffer_Queue_Put(MagOmxComponentBuffer compBuf, MagOmxStreamFrame_t *frame){
+static OMX_ERRORTYPE MagOmxComponentBuffer_Queue_Put(MagOmxComponentBuffer compBuf, OMX_DEMUXER_AVFRAME *frame){
+    MAG_BUFFER_AVFRAME *item;
+
     if (frame != NULL){
-        mhFrameBufferPool->put(mhFrameBufferPool, frame->buffer);
-        list_add_tail(&frame->node, &compBuf->mFrameBufferFreeList);
+        compBuf->mhFrameBufferPool->put(compBuf->mhFrameBufferPool, frame->buffer);
+        item = (MAG_BUFFER_AVFRAME *)frame->opaque;
+        list_add_tail(&item->node, &compBuf->mFrameBufferFreeList);
         if (compBuf->mbWaitOnFreeSpace){
-            Mag_SetEvent(thiz->mBufferFreeEvt);
+            Mag_SetEvent(compBuf->mBufferFreeEvt);
         }
         return OMX_ErrorNone;
     }else{
@@ -479,15 +488,15 @@ static OMX_ERRORTYPE MagOmxComponentBuffer_Queue_Put(MagOmxComponentBuffer compB
 static OMX_ERRORTYPE MagOmxComponentBuffer_Queue_Flush(MagOmxComponentBuffer compBuf){
     MagOmxComponentImpl compBufImpl;
     List_t *next;
-    MagOmxStreamFrame_t *item = NULL;
+    MAG_BUFFER_AVFRAME *item = NULL;
 
     compBufImpl = ooc_cast(compBuf, MagOmxComponentImpl);
 
     compBufImpl->flushPort(compBufImpl, OMX_ALL);
     while (!is_list_empty(&compBuf->mFrameBufferList)){
         next = compBuf->mFrameBufferList.next;
-        item = (MagOmxStreamFrame_t *)list_entry(next, 
-                                                 MagOmxStreamFrame_t, 
+        item = (MAG_BUFFER_AVFRAME *)list_entry(next, 
+                                                 MAG_BUFFER_AVFRAME, 
                                                  node);
         list_del(next);
         list_add_tail(&item->node, &compBuf->mFrameBufferFreeList);  
@@ -508,27 +517,27 @@ static OMX_S32 MagOmxComponentBuffer_Ringbuffer_Read(MagOmxComponentBuffer compB
 
     read = compBuf->mhRingBuffer->read( compBuf->mhRingBuffer, length, pData );
     if (compBuf->mbWaitOnFreeSpace){
-        Mag_SetEvent(thiz->mBufferFreeEvt);
+        Mag_SetEvent(compBuf->mBufferFreeEvt);
     }
 
     return read;
 }
 
 /*blocking call*/
-static OMX_ERRORTYPE MagOmxComponentBuffer_Ringbuffer_Write(MagOmxComponentBuffer compBuf, MagOmxMediaBuffer_t *mb){
+static OMX_ERRORTYPE MagOmxComponentBuffer_Ringbuffer_Write(MagOmxComponentBuffer compBuf, OMX_U8 *data, OMX_U32 len){
     OMX_S32 wnum;
     OMX_U32 remaining;
 
-    remaining = mb->size;
+    remaining = len;
 
 write_again:
-    wnum = compBuf->mhRingBuffer->write( compBuf->mhRingBuffer, remaining, ((OMX_U8 *)mb->buffer + (mb->size - remaining)) );
+    wnum = compBuf->mhRingBuffer->write( compBuf->mhRingBuffer, remaining, (data + (len - remaining)) );
     if (wnum < remaining){
-        Mag_ClearEvent(thiz->mBufferFreeEvt);
+        Mag_ClearEvent(compBuf->mBufferFreeEvt);
         compBuf->mbWaitOnFreeSpace = OMX_TRUE;
         AGILE_LOGE("No room for filling in the ring buffer[%d vs %d bytes], wait...", wnum, remaining);
         remaining -= wnum;
-        Mag_WaitForEventGroup(thiz->mBufferFreeEvtGrp, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
+        Mag_WaitForEventGroup(compBuf->mBufferFreeEvtGrp, MAG_EG_OR, MAG_TIMEOUT_INFINITE);
         goto write_again;
     }
 }
@@ -558,7 +567,7 @@ static OMX_ERRORTYPE MagOmxComponentBuffer_Ringbuffer_Seek(MagOmxComponentBuffer
         MagOmxPort port;
         MagOmxPortImpl portImpl;
         MagOmxComponent tunneledComp;
-        OMX_CONFIG_DATABUFFER config_seek;
+        OMX_CONFIG_SEEKDATABUFFER config_seek;
 
         compBufImpl = ooc_cast(compBuf, MagOmxComponentImpl);
         compBufImpl->flushPort(compBufImpl, OMX_ALL);
@@ -625,7 +634,7 @@ static OMX_U32 MagOmxComponentBuffer_CalcBufferPercentage(MagOmxComponentBuffer 
         }
 
         AGILE_LOGD("[frame buffer percentage]time: %d, bytes: %d, frames: %d, final: %d",
-                    time_percentage, bytes_percentage, frames_percentage, buffer_percentage, )
+                    time_percentage, bytes_percentage, frames_percentage, buffer_percentage);
     }else{
         bytes_percentage = (compBuf->mBufferBytes * 100) / compBuf->mRingBufferMaxSize;
         buffer_percentage = bytes_percentage;
@@ -770,7 +779,7 @@ static void MagOmxComponentBuffer_constructor(MagOmxComponentBuffer thiz, const 
 
 static void MagOmxComponentBuffer_destructor(MagOmxComponentBuffer thiz, MagOmxComponentBufferVtable vtab){
     List_t *next;
-    MagOmxStreamFrame_t *item = NULL;
+    MAG_BUFFER_AVFRAME *item = NULL;
 
 	AGILE_LOGV("Enter!");
 
@@ -781,11 +790,11 @@ static void MagOmxComponentBuffer_destructor(MagOmxComponentBuffer thiz, MagOmxC
     if (thiz->mhFrameBufferPool){
         while (!is_list_empty(&thiz->mFrameBufferFreeList)){
             next = thiz->mFrameBufferFreeList.next;
-            item = (MagOmxStreamFrame_t *)list_entry(next, 
-                                                     MagOmxStreamFrame_t, 
+            item = (MAG_BUFFER_AVFRAME *)list_entry(next, 
+                                                     MAG_BUFFER_AVFRAME, 
                                                      node);
             list_del(next);
-            mag_freep(&item);
+            mag_freep((void **)&item);
         }
 
         Mag_destroyMemoryPool(&thiz->mhFrameBufferPool);

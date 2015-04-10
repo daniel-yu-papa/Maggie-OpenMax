@@ -639,14 +639,11 @@ static OMX_ERRORTYPE virtual_FFmpeg_Aren_SetParameter(
     thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Aren);
 
     switch (nIndex){
-        case OMX_IndexConfigExtFFMpegData:
+        case OMX_IndexConfigExtStreamHandle:
         {
-            OMX_CONFIG_FFMPEG_DATA_TYPE *ffmpegData = (OMX_CONFIG_FFMPEG_DATA_TYPE *)pComponentParameterStructure;
-            AGILE_LOGI("set parameter: avstream=%p, avformat=%p",
-                        ffmpegData->avstream,
-                        ffmpegData->avformat);
-            thiz->mpAudioStream = (AVStream *)ffmpegData->avstream;
-            thiz->mpAVFormat    = (AVFormatContext *)ffmpegData->avformat;
+            OMX_CONFIG_STREAM_HANDLE *hStrm = (OMX_CONFIG_STREAM_HANDLE *)pComponentParameterStructure;
+            AGILE_LOGI("set parameter: avstream=%p", hStrm->avstream);
+            thiz->mpAudioStream = (AVStream *)hStrm->hAVStream;
         }
             break;
 
@@ -692,7 +689,6 @@ static void MagOmxComponent_FFmpeg_Aren_constructor(MagOmxComponent_FFmpeg_Aren 
     thiz->resetBuf         = FFmpeg_Aren_resetBuf;
 
     thiz->mpAudioStream = NULL;
-    thiz->mpAVFormat    = NULL;
     thiz->mpSwrCtx      = NULL;
 
     thiz->mStopped      = OMX_TRUE;

@@ -21,6 +21,11 @@
 #include "MagOMX_Component_demuxer.h"
 #include "MagOMX_Port_demuxer.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "MagOMX_CompDemux"
+
 #define FRAME_LOOPER_NAME "CompFrameLooper%d"
 
 AllocateClass(MagOmxComponentDemuxer, MagOmxComponentImpl);
@@ -100,7 +105,7 @@ static void MagOmxComponentDemuxer_StreamEvtCallback(OMX_HANDLETYPE hComponent,
     if (pDataSource == NULL || pSInfo == NULL){
         /*report out the end*/
         base->sendEvents( thiz,
-                      OMX_EventDynamicPortAdding,
+                      OMX_EventExtDynamicPortAdding,
                       kInvalidCompPortNumber,
                       OMX_DynamicPort_Unknown,
                       NULL );
@@ -174,7 +179,7 @@ static void MagOmxComponentDemuxer_StreamEvtCallback(OMX_HANDLETYPE hComponent,
     pDataSource->streamTable[pSInfo->stream_id] = outputPort;
 
     base->sendEvents( thiz,
-                      OMX_EventDynamicPortAdding,
+                      OMX_EventExtDynamicPortAdding,
                       portIndex,
                       outputPort->portType,
                       (OMX_PTR)(outputPort) );
@@ -209,21 +214,21 @@ static void onSendFrameMessageReceived(const MagMessageHandle msg, OMX_PTR priv)
             MAG_DEMUXER_AVFRAME   *avframe = (MAG_DEMUXER_AVFRAME *)frame;
             OMX_BUFFERHEADERTYPE  *destbufHeader;
 
-            portDesc = pDataSource->streamTable[avframe->stream_id];
+            portDesc = pDataSource->streamTable[avframe->frame.stream_id];
             port = portDesc->hPort;
             destbufHeader = MagOmxPortVirtual(port)->GetOutputBuffer(port);
 
             if (destbufHeader){
                 if (avframe){
                     if (avframe->flag != MAG_AVFRAME_FLAG_EOS){
-                        destbufHeader->pAppPrivate = (OMX_PTR)(avframe);
-                        destbufHeader->pBuffer     = avframe->buffer;
-                        destbufHeader->nAllocLen   = avframe->size;
-                        destbufHeader->nFilledLen  = avframe->size;
+                        destbufHeader->pAppPrivate = (OMX_PTR)(&avframe->frame);
+                        destbufHeader->pBuffer     = avframe->frame.buffer;
+                        destbufHeader->nAllocLen   = avframe->frame.size;
+                        destbufHeader->nFilledLen  = avframe->frame.size;
                         destbufHeader->nOffset     = 0;
-                        destbufHeader->nTimeStamp  = avframe->pts;
+                        destbufHeader->nTimeStamp  = avframe->frame.pts;
                     }else{
-                        destbufHeader->pAppPrivate = (OMX_PTR)(avframe);
+                        destbufHeader->pAppPrivate = (OMX_PTR)(&avframe->frame);
                         destbufHeader->pBuffer     = NULL;
                         destbufHeader->nAllocLen   = 0;
                         destbufHeader->nFilledLen  = 0;
@@ -243,7 +248,7 @@ static void onSendFrameMessageReceived(const MagMessageHandle msg, OMX_PTR priv)
                 }
             }else{
                 /*the port is not running, so drop it*/
-                avframe->releaseFrame(thiz, avframe);
+                avframe->frame.releaseFrame(thiz, avframe);
             }
 
             break;
@@ -335,7 +340,7 @@ static OMX_ERRORTYPE virtual_MagOmxComponentDemuxer_SetParameter(
                 base->addPort(base, portIndex, bufferPort);
 
                 base->sendEvents( thiz,
-                                  OMX_EventDynamicPortAdding,
+                                  OMX_EventExtDynamicPortAdding,
                                   portIndex,
                                   OMX_DynamicPort_Buffer,
                                   (OMX_PTR)(setting->cStreamUrl) );
@@ -638,6 +643,7 @@ static MAG_DEMUXER_AVFRAME *MagOmxComponentDemuxer_getAVFrame(MagOmxComponentDem
     if ( is_list_empty(&thiz->mFreeAVFrameList) ){
         frame = (MAG_DEMUXER_AVFRAME *)mag_mallocz(sizeof(MAG_DEMUXER_AVFRAME));
         INIT_LIST(&frame->node);
+        frame->frame.opaque = frame;
     }else{
         next = thiz->mFreeAVFrameList.next;
         frame = (MAG_DEMUXER_AVFRAME *)list_entry(next, 

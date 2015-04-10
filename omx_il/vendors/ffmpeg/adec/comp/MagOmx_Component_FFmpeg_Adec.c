@@ -260,7 +260,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_ProceedBuffer(
     MagOmxComponent_FFmpeg_Adec adecComp;
     OMX_BOOL continueDec = OMX_TRUE;
     AVRational tb;
-    MagOmxMediaBuffer_t *pMbuf;
+    OMX_DEMUXER_AVFRAME *pAVFrame;
     int i;
     void *side_data;
 
@@ -272,7 +272,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_ProceedBuffer(
     port = ooc_cast(hDestPort, MagOmxPort);
 
     adecComp     = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Adec);
-    pMbuf = (MagOmxMediaBuffer_t *)srcbufHeader->pAppPrivate;
+    pAVFrame = (OMX_DEMUXER_AVFRAME *)srcbufHeader->pAppPrivate;
 
     av_init_packet(&codedPkt);
 
@@ -282,23 +282,10 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_ProceedBuffer(
         codedPkt.pts  = srcbufHeader->nTimeStamp;
         codedPkt.dts  = srcbufHeader->nTimeStamp;
 
-        codedPkt.stream_index = pMbuf->stream_index;
-        codedPkt.flags = ((pMbuf->flag == STREAM_FRAME_FLAG_KEY_FRAME) ? AV_PKT_FLAG_KEY : 0);
-        codedPkt.duration = pMbuf->duration;
-        codedPkt.pos = pMbuf->pos;
-
-        if (pMbuf->side_data_elems){
-            side_data = mag_mallocz(sizeof(*pMbuf->side_data)*pMbuf->side_data_elems);
-            memcpy(side_data, pMbuf->side_data, sizeof(*pMbuf->side_data)*pMbuf->side_data_elems);
-            codedPkt.side_data = side_data;
-            for (i = 0; i < pMbuf->side_data_elems; i++) {
-                side_data = mag_mallocz(pMbuf->side_data[i].size);
-                memcpy(side_data, pMbuf->side_data[i].data, pMbuf->side_data[i].size);
-                codedPkt.side_data[i].data = side_data;
-                codedPkt.side_data[i].size = pMbuf->side_data[i].size;
-                codedPkt.side_data[i].type = pMbuf->side_data[i].type;
-            }
-        }
+        codedPkt.stream_index = pAVFrame->stream_id;
+        codedPkt.flags = ((pAVFrame->flag == MAG_AVFRAME_FLAG_KEY_FRAME) ? AV_PKT_FLAG_KEY : 0);
+        codedPkt.duration = pAVFrame->duration;
+        codedPkt.pos = pAVFrame->position;
     }else{
         codedPkt.data = NULL;
         codedPkt.size = 0;

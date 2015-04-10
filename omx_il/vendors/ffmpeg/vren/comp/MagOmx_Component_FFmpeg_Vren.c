@@ -210,6 +210,11 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vren_ProceedBuffer(
 
     destFrame = av_frame_alloc();
     ret = av_frame_ref(destFrame, (AVFrame *)srcbufHeader->pBuffer);
+
+    if (destbufHeader->pBuffer){
+        /*release the old avframe*/
+        av_frame_unref((AVFrame *)destbufHeader->pBuffer);
+    }
     destbufHeader->pBuffer = (OMX_U8 *)destFrame;
 
     MagOmxPortVirtual(destPort)->sendOutputBufferToAPP(destPort, destbufHeader);

@@ -20,6 +20,11 @@
 
 #include "MagOmx_Pipeline_playback.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "MagOMX_PipelinePlayback"
+
 #define DFAULT_BUFFER_SIZE (1 * 1024 * 1024)
 #define DFAULT_BUFFER_TIME (30000)
 #define DFAULT_BUFFER_LOW_THRESHOLD  (20)
@@ -608,7 +613,7 @@ static OMX_ERRORTYPE MagOmxPipelinePlayback_Demuxer_EventHandlerCB(
         }else if (Data1 == OMX_CommandFlush){
             COMP_LOGD(compRoot, "component flushes port %d is done!", Data2);
         }
-    }else if (eEvent == OMX_EventDynamicPortAdding){
+    }else if (eEvent == OMX_EventExtDynamicPortAdding){
         OMX_DYNAMIC_PORT_TYPE portType;
         MagOmxPipelineCodec   codecPipeline = NULL;
         OMX_PARAM_PORTDEFINITIONTYPE portDef;
@@ -746,7 +751,7 @@ static OMX_ERRORTYPE MagOmxPipelinePlayback_Demuxer_EventHandlerCB(
 
             /*send out the stream info to APP*/
             base->sendEvents( thiz,
-                              OMX_EventAVStreamInfo,
+                              OMX_EventExtAVStreamInfo,
                               portType,
                               0,
                               (OMX_PTR)(ple->portDesc->stream_info) );
@@ -852,10 +857,12 @@ static OMX_ERRORTYPE MagOmxPipelinePlayback_Buf_EventHandlerCB(
                                             OMX_U32 Data2,
                                             OMX_PTR pEventData){
     PlaybackPipelineDatasource *dsDesc;
-    MagOmxComponent compRoot;
+    MagOmxComponent     compRoot;
+    MagOmxComponentImpl compBase;
 
     dsDesc = (PlaybackPipelineDatasource *)(pAppData);
     compRoot = ooc_cast(dsDesc->hComp, MagOmxComponent);
+    compBase = ooc_cast(dsDesc->hComp, MagOmxComponentImpl);
     
     COMP_LOGD(compRoot, "event: %d", eEvent);
     if(eEvent == OMX_EventCmdComplete) {
@@ -882,7 +889,13 @@ static OMX_ERRORTYPE MagOmxPipelinePlayback_Buf_EventHandlerCB(
             COMP_LOGD(compRoot, "component flushes port %d is done!", Data2);
         }
     }else if (eEvent == OMX_EventBufferFlag){
-        COMP_LOGD(compRoot, "buffer level %d%%!", Data1);
+        COMP_LOGD(compRoot, "buffer level %d%%, buffer time %d ms!", Data1, Data2);
+        /*send out the buffer status change to APP*/
+        compBase->sendEvents( hComponent,
+                              OMX_EventBufferFlag,
+                              Data1,
+                              Data2,
+                              pEventData );
     }else{
         COMP_LOGD(compRoot, "unsupported event: %d, Data1: %u, Data2: %u\n", eEvent, Data1, Data2);
     }

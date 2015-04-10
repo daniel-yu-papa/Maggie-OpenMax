@@ -222,6 +222,9 @@ MAG_OMX_VENDOR_INC_PATH = """adec/comp
                              vren/port 
                              vsch/comp 
                              vsch/port 
+                             demuxer/comp 
+                             playback/pipeline 
+                             dsrc/comp 
                              includes"""
 
 LibraryModule(name                  = 'MagOmxIL_ffmpeg_adec',
@@ -328,6 +331,57 @@ LibraryModule(name                  = 'MagOmxIL_ffmpeg_vsch',
                                        'vsch/port',
                                        'vren/port',
                                        'clk/port'],
+              build_include_dirs    = Split(FRAMEWORK_INC_PATH)+
+                                      Split(OMXIL_INC_PATH)+
+                                      Split(OMXIL_COMMON_INC_PATH)+
+                                      Split(MAG_OMX_VENDOR_INC_PATH)+
+                                      Split(FFMPEG_INC_PATH),
+              extra_libs            = ['libMagAgilelog.so', 
+                                       'libMagFramework.so',
+                                       'libMagOmxIL_Base.so',
+                                       'libavformat.so',
+                                       'libavutil.so',
+                                       'libavcodec.so'],
+              extra_lib_path        = Split(FRAMEWORK_LIB_PATH) + Split(FFMPEG_LIB_PATH),
+              shared                =  True,
+              install               =  True)
+
+LibraryModule(name                  = 'MagOmxIL_ffmpeg_demuxer',
+              build_source_dirs     = ['demuxer/comp'],
+              build_include_dirs    = Split(FRAMEWORK_INC_PATH)+
+                                      Split(OMXIL_INC_PATH)+
+                                      Split(OMXIL_COMMON_INC_PATH)+
+                                      Split(MAG_OMX_VENDOR_INC_PATH)+
+                                      Split(FFMPEG_INC_PATH),
+              extra_libs            = ['libMagAgilelog.so', 
+                                       'libMagFramework.so',
+                                       'libMagOmxIL_Base.so',
+                                       'libavformat.so',
+                                       'libavutil.so',
+                                       'libavcodec.so'],
+              extra_lib_path        = Split(FRAMEWORK_LIB_PATH) + Split(FFMPEG_LIB_PATH),
+              shared                =  True,
+              install               =  True)
+
+LibraryModule(name                  = 'MagOmxIL_ffmpeg_datasource',
+              build_source_dirs     = ['dsrc/comp'],
+              build_include_dirs    = Split(FRAMEWORK_INC_PATH)+
+                                      Split(OMXIL_INC_PATH)+
+                                      Split(OMXIL_COMMON_INC_PATH)+
+                                      Split(MAG_OMX_VENDOR_INC_PATH)+
+                                      Split(FFMPEG_INC_PATH),
+              extra_libs            = ['libMagAgilelog.so', 
+                                       'libMagFramework.so',
+                                       'libMagOmxIL_Base.so',
+                                       'libavformat.so',
+                                       'libavutil.so',
+                                       'libavcodec.so'],
+              extra_lib_path        = Split(FRAMEWORK_LIB_PATH) + Split(FFMPEG_LIB_PATH),
+              shared                =  True,
+              install               =  True)
+
+LibraryModule(name                  = 'MagOmxIL_pl_ffmpeg_playback',
+              build_source_dirs     = ['playback/pipeline'],
               build_include_dirs    = Split(FRAMEWORK_INC_PATH)+
                                       Split(OMXIL_INC_PATH)+
                                       Split(OMXIL_COMMON_INC_PATH)+

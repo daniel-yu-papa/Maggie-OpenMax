@@ -223,7 +223,12 @@ MAG_OMX_INC_PATH = """core/inc
                       components/base/inc 
                       components/audio/inc 
                       components/video/inc 
-                      components/other/clock/inc"""
+                      components/other/clock/inc 
+                      components/other/buffer/inc 
+                      components/other/data_source/inc 
+                      components/other/demuxer/inc 
+                      components/pipeline/codec/inc 
+                      components/pipeline/playback/inc"""
 
 MAG_OMX_COMMON_INC_PATH = """includes 
                              includes/internal"""
@@ -232,7 +237,12 @@ LibraryModule(name                  = 'MagOmxIL_Base',
               build_source_dirs     = ['components/base/src', 
                                        'components/audio/src', 
                                        'components/video/src',
-                                       'components/other/clock/src'],
+                                       'components/other/clock/src',
+                                       'components/other/buffer/src',
+                                       'components/other/data_source/src',
+                                       'components/other/demuxer/src',
+                                       'components/pipeline/codec/src',
+                                       'components/pipeline/playback/src'],
               build_include_dirs    = Split(FRAMEWORK_INC_PATH)+
                                       Split(MAG_OMX_INC_PATH)+
                                       Split(MAG_OMX_COMMON_INC_PATH),

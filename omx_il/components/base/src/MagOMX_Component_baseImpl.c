@@ -1497,27 +1497,26 @@ static OMX_ERRORTYPE virtual_ComponentTunnelRequest(
     }
     
     comp = getBase(hComponent);
-    if (MagOmxComponentImplVirtual(comp)->MagOMX_Pipeline_Map)
+    if (MagOmxComponentImplVirtual(comp)->MagOMX_Pipeline_Map){
         OMX_HANDLETYPE h;
         OMX_U32        idx;
 
         MagOmxComponentImplVirtual(comp)->MagOMX_Pipeline_Map(hComponent, nPort, &h, &idx);
         comp = getBase(h);
         port = ooc_cast(comp->getPort(comp, idx), MagOmxPort);
-    else{
+    }else{
         port = ooc_cast(comp->getPort(comp, nPort), MagOmxPort);
     } 
     
-    
     if (hTunneledComp){
         tunneledComp = getBase(hTunneledComp);
-        if (MagOmxComponentImplVirtual(tunneledComp)->MagOMX_Pipeline_Map)
+        if (MagOmxComponentImplVirtual(tunneledComp)->MagOMX_Pipeline_Map){
             OMX_HANDLETYPE h;
             
             MagOmxComponentImplVirtual(tunneledComp)->MagOMX_Pipeline_Map(hTunneledComp, nTunneledPort, &h, &tunneledPortId);
             tunneledComp = getBase(h);
             tunneledPort = ooc_cast(tunneledComp->getPort(tunneledComp, tunneledPortId), MagOmxPort);
-        else{
+        }else{
             tunneledPort = ooc_cast(tunneledComp->getPort(tunneledComp, nTunneledPort), MagOmxPort);
         } 
 
@@ -2781,10 +2780,12 @@ static OMX_ERRORTYPE MagOmxComponentImpl_doFlush(
                         OMX_IN MagOmxComponentImpl hComponent,
                         OMX_IN OMX_U32 portId){
     MagOmxComponent     root;
+    MagOmxComponentImpl base;
     OMX_ERRORTYPE       ret;
 
     root = getRoot(hComponent);
-
+    base = getBase(hComponent);
+    
     COMP_LOGD(root, "start the flushing");
 
     hComponent->mFlushing = OMX_TRUE;
@@ -2804,7 +2805,7 @@ static OMX_ERRORTYPE MagOmxComponentImpl_doFlush(
 
     hComponent->mbGetStartTime = OMX_FALSE;
     hComponent->mFlushing = OMX_FALSE;
-    comp->sendEvents(hComponent, OMX_EventCmdComplete, OMX_CommandFlush, portId, &ret);
+    base->sendEvents(hComponent, OMX_EventCmdComplete, OMX_CommandFlush, portId, &ret);
     
     COMP_LOGD(root, "end the flushing");
 }

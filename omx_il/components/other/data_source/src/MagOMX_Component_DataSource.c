@@ -21,6 +21,11 @@
 #include "MagOMX_Component_DataSource.h"
 #include "MagOMX_Port_buffer.h"
 
+#ifdef MODULE_TAG
+#undef MODULE_TAG
+#endif          
+#define MODULE_TAG "MagOMX_CompDS"
+
 #define DATA_SOURCE_LOOPER_NAME        "CompDataSrcLooper"
 
 AllocateClass(MagOmxComponentDataSource, MagOmxComponentImpl);
@@ -54,7 +59,6 @@ static void onReadDataMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
     switch (cmd){
         case MagOmxComponentDataSource_ReadDataMsg:
         {
-            MagOmxStreamFrame_t  *frame = NULL;
             OMX_BUFFERHEADERTYPE *destbufHeader;
 
             destbufHeader = MagOmxPortVirtual(port)->GetOutputBuffer(port);

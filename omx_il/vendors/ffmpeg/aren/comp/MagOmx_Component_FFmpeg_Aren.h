@@ -62,7 +62,6 @@ ClassMembers(MagOmxComponent_FFmpeg_Aren, MagOmxComponentAudio, \
     void (*resetBuf)(MagOmxComponent_FFmpeg_Aren thiz); \
 )
     AVStream *mpAudioStream;
-    AVFormatContext *mpAVFormat;
     struct SwrContext *mpSwrCtx;
     AudioParams mAudioParameters;
 

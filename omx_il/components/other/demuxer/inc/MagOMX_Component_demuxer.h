@@ -72,27 +72,10 @@ typedef struct MAG_DEMUXER_DATA_SOURCE{
     MagMessageHandle sendFrameMessage;
 }MAG_DEMUXER_DATA_SOURCE;
 
-typedef enum MAG_DEMUXER_AVFRAME_FLAG{
-  MAG_AVFRAME_FLAG_NONE        = 0,
-  MAG_AVFRAME_FLAG_KEY_FRAME   = (1 << 0),
-  MAG_AVFRAME_FLAG_EOS         = (1 << 1),
-} MAG_DEMUXER_AVFRAME_FLAG;
 
 typedef struct MAG_DEMUXER_AVFRAME{
     List_t                   node;
-
-    OMX_U32                  stream_id;    /*the id of the stream that the frame belongs to*/
-    OMX_U32                  size;         /*the size of frame buffer*/
-    OMX_U8                   *buffer;      /*point to frame buffer*/
-    OMX_TICKS                pts;          /*in 90K*/
-    OMX_TICKS                dts;          /*in 90K*/  
-
-    OMX_S32                  duration;     /*Duration of this packet in ns*/
-    OMX_S64                  position;     /*byte position in stream*/
-    MAG_DEMUXER_AVFRAME_FLAG flag;
-
-    OMX_PTR                   priv;        /*point to low-level avpacket*/
-    void                      (*releaseFrame)(OMX_HANDLETYPE hComponent, OMX_PTR frame);
+    OMX_DEMUXER_AVFRAME      frame;
 }MAG_DEMUXER_AVFRAME;
 
 DeclareClass(MagOmxComponentDemuxer, MagOmxComponentImpl);
