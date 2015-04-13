@@ -47,8 +47,8 @@ Virtuals(MagOmxComponentDataSource, MagOmxComponentImpl)
 EndOfVirtuals;
 
 ClassMembers(MagOmxComponentDataSource, MagOmxComponentImpl, \
-    _status_t getReadDataLooper(OMX_HANDLETYPE handle); \
-    MagMessageHandle createReadDataMessage(OMX_HANDLETYPE handle, ui32 what);  \
+    _status_t (*getReadDataLooper)(OMX_HANDLETYPE handle); \
+    MagMessageHandle (*createReadDataMessage)(OMX_HANDLETYPE handle, ui32 what);  \
 )
     MagMutexHandle         mhMutex;
 

@@ -23,6 +23,8 @@
 
 #include "MagOMX_Component_base.h"
 #include "MagOMX_Component_baseImpl.h"
+#include "MagOmx_Pipeline_codec.h"
+#include "MagOMX_Component_demuxer.h"
 
 typedef struct {
     List_t node;
@@ -133,6 +135,7 @@ ClassMembers(MagOmxPipelinePlayback, MagOmxComponentImpl, \
     OMX_CALLBACKTYPE    mDemuxerCallbacks;
     OMX_CALLBACKTYPE    mBufferCallbacks;
     OMX_CALLBACKTYPE    mDataSrcCallbacks;
+    OMX_CALLBACKTYPE    mCodecPipelineCallbacks;
 
     MagEventHandle      mClockStateEvent;
     MagEventGroupHandle mClockStateEvtGrp;

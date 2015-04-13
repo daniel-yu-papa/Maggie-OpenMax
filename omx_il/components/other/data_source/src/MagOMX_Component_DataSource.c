@@ -68,7 +68,7 @@ static void onReadDataMessageReceived(const MagMessageHandle msg, OMX_PTR priv){
                 MagOmxPortVirtual(port)->sendOutputBuffer(port, destbufHeader);
             }else{
                 COMP_LOGE(root, "pure virtual function MagOMX_DataSource_Read() should be overrided");
-                return OMX_ErrorNotImplemented;
+                return;
             }
 
             msg->postMessage(msg, 0);
@@ -125,8 +125,8 @@ static OMX_ERRORTYPE virtual_MagOmxComponentDataSource_SetParameter(
 
             seekConfig = (OMX_CONFIG_SEEKDATABUFFER *)pComponentParameterStructure;
 
-            if (MagOmxComponentBufferVirtual(thiz)->MagOMX_DataSource_Seek){
-                seekConfig->sCurPos = MagOmxComponentBufferVirtual(thiz)->MagOMX_DataSource_Seek(thiz, seekConfig->sOffset, seekConfig->sWhence);
+            if (MagOmxComponentDataSourceVirtual(thiz)->MagOMX_DataSource_Seek){
+                seekConfig->sCurPos = MagOmxComponentDataSourceVirtual(thiz)->MagOMX_DataSource_Seek(thiz, seekConfig->sOffset, seekConfig->sWhence);
             }else{
                 COMP_LOGE(root, "pure virtual function MagOMX_DataSource_Seek() should be overrided");
                 return OMX_ErrorNotImplemented;
@@ -198,7 +198,7 @@ static OMX_ERRORTYPE virtual_MagOmxComponentDataSource_Start(
         thiz->mReadDataMsg = thiz->createReadDataMessage(thiz, MagOmxComponentDataSource_ReadDataMsg);
     }
 
-    thiz->mReadDataMsg->postMessage(pDataSource->mReadDataMsg, 0);
+    thiz->mReadDataMsg->postMessage(thiz->mReadDataMsg, 0);
     return OMX_ErrorNone;
 }
 

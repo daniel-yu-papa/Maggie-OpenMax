@@ -29,10 +29,6 @@
 
 #define MAG_DEMUX_START_PORT_INDEX    kCompPortStartNumber
 
-typedef void (*StreamEvtCallback)(OMX_HANDLETYPE hComponent,  \
-                                  MAG_DEMUXER_DATA_SOURCE *pDataSource, \
-                                  OMX_DEMUXER_STREAM_INFO sInfo) cbNewStreamAdded
-
 enum{
     MagOmxComponentDemuxer_SendFrameMsg = 0
 };
@@ -70,6 +66,8 @@ typedef struct MAG_DEMUXER_DATA_SOURCE{
     MagLooperHandle  sendFrameLooper;
     MagHandlerHandle sendFrameHandler;
     MagMessageHandle sendFrameMessage;
+
+    OMX_HANDLETYPE   hBufferComp;
 }MAG_DEMUXER_DATA_SOURCE;
 
 
@@ -78,6 +76,8 @@ typedef struct MAG_DEMUXER_AVFRAME{
     OMX_DEMUXER_AVFRAME      frame;
 }MAG_DEMUXER_AVFRAME;
 
+typedef void (*StreamEvtCallback)(OMX_HANDLETYPE hComponent,  MAG_DEMUXER_DATA_SOURCE *pDataSource, OMX_DEMUXER_STREAM_INFO *pSInfo);
+
 DeclareClass(MagOmxComponentDemuxer, MagOmxComponentImpl);
 
 Virtuals(MagOmxComponentDemuxer, MagOmxComponentImpl) 
@@ -85,7 +85,7 @@ Virtuals(MagOmxComponentDemuxer, MagOmxComponentImpl)
     OMX_ERRORTYPE (*MagOMX_Demuxer_DetectStreams)(
                                     OMX_IN OMX_HANDLETYPE hComponent,
                                     MAG_DEMUXER_DATA_SOURCE *pDataSource,
-                                    OMX_IN cbNewStreamAdded fn);
+                                    OMX_IN StreamEvtCallback fn);
 
     OMX_ERRORTYPE (*MagOMX_Demuxer_ReadFrame)(
                                     OMX_IN OMX_HANDLETYPE hComponent,
@@ -93,11 +93,14 @@ Virtuals(MagOmxComponentDemuxer, MagOmxComponentImpl)
 EndOfVirtuals;
 
 ClassMembers(MagOmxComponentDemuxer, MagOmxComponentImpl, \
-    _status_t (*getSendFrameLooper)(OMX_HANDLETYPE handle); \
-    MagMessageHandle (*createSendFrameMessage)(OMX_HANDLETYPE handle, ui32 what);  \
+    _status_t (*getSendFrameLooper)(MAG_DEMUXER_DATA_SOURCE *pDataSource, OMX_U32 index); \
+    MagMessageHandle (*createSendFrameMessage)(MagOmxComponentDemuxer thiz, 
+                                               MAG_DEMUXER_DATA_SOURCE *pDataSource, 
+                                               OMX_U32 index, 
+                                               OMX_U32 what);  \
     OMX_ERRORTYPE (*getPortIndex)(MagOmxComponentDemuxer thiz, OMX_U32 *pIdx); \
     OMX_ERRORTYPE (*returnPortIndex)(MagOmxComponentDemuxer thiz, OMX_U32 Index); \
-    MAG_DATA_SOURCE (*getDataHandler)(MagOmxComponentDemuxer thiz); \
+    MAG_DEMUXER_DATA_SOURCE (*getDataHandler)(MagOmxComponentDemuxer thiz); \
     OMX_S32 (*readDataBuffer)(OMX_PTR opaque, OMX_U8* pData, OMX_U32 length); \
     OMX_S32 (*writeDataBuffer)(OMX_PTR opaque, OMX_U8* pData, OMX_U32 length); \
     OMX_S64 (*seekDataBuffer)(OMX_PTR opaque, OMX_S64 offset, OMX_SEEK_WHENCE whence); \

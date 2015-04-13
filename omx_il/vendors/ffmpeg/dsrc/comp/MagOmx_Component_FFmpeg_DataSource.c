@@ -20,6 +20,7 @@
 
 #include "MagOmx_Component_FFmpeg_DataSource.h"
 #include "MagOMX_IL.h"
+#include "MagOMX_Port_DataSource.h"
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
@@ -54,6 +55,9 @@ static OMX_ERRORTYPE virtual_FFmpeg_DataSource_Read(
                                 OMX_IN OMX_HANDLETYPE hComponent,
                                 OMX_IN OMX_BUFFERHEADERTYPE *bufHeader){
     int n;
+    MagOmxComponent_FFmpeg_DataSource thiz;
+
+    thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_DataSource);
 
     n = avio_read(thiz->mAVIO, bufHeader->pBuffer, bufHeader->nAllocLen);
     if (n != bufHeader->nAllocLen){
@@ -163,7 +167,7 @@ static OMX_ERRORTYPE MagOmxComponent_FFmpeg_DataSource_Init(OMX_OUT OMX_HANDLETY
 
     ooc_init_class(MagOmxComponent_FFmpeg_DataSource);
 
-    param[0] = MAG_START_PORT_INDEX;
+    param[0] = START_PORT_INDEX;
 
     hDataSourceComp = (MagOmxComponent_FFmpeg_DataSource) ooc_new( MagOmxComponent_FFmpeg_DataSource, (void *)param);
     MAG_ASSERT(hDataSourceComp);

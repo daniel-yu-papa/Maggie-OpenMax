@@ -42,6 +42,45 @@ static void ffmpeg_utiles_PrintLogCallback(void* ptr, int level, const char* fmt
     AGILE_LOGD("[ffmpeg library]: %s", line);
 }
 
+static int ffmpeg_avio_read_packet(void *opaque, uint8_t *buf, int buf_size){
+    MAG_DEMUXER_DATA_SOURCE *pDataSource;
+    OMX_S32 ret;
+
+    pDataSource = (MAG_DEMUXER_DATA_SOURCE *)opaque;
+
+    ret =  pDataSource->Data_Read((OMX_PTR)opaque, (OMX_U8 *)buf, (OMX_U32)buf_size);
+    return (int)ret;
+}
+
+static int ffmpeg_avio_write_packet(void *opaque, uint8_t *buf, int buf_size){
+    MAG_DEMUXER_DATA_SOURCE *pDataSource;
+    OMX_S32 ret;
+
+    pDataSource = (MAG_DEMUXER_DATA_SOURCE *)opaque;
+
+    ret =  pDataSource->Data_Write((OMX_PTR)opaque, (OMX_U8 *)buf, (OMX_U32)buf_size);
+    return (int)ret;
+}
+                  
+static int64_t ffmpeg_avio_seek(void *opaque, int64_t offset, int whence){
+    MAG_DEMUXER_DATA_SOURCE *pDataSource;
+    OMX_SEEK_WHENCE omx_whence;
+    OMX_S64 ret;
+
+    pDataSource = (MAG_DEMUXER_DATA_SOURCE *)opaque;
+
+    if (whence == SEEK_SET){
+        omx_whence = OMX_SEEK_SET;
+    }else if(whence == SEEK_CUR){
+        omx_whence = OMX_SEEK_CUR;
+    }else if(whence == SEEK_END){
+        omx_whence = OMX_SEEK_END;
+    }
+
+    ret =  pDataSource->Data_Seek((OMX_PTR)opaque, (OMX_S64)offset, omx_whence);
+    return (int64_t)ret;
+}
+
 static AVIOContext *ffmpeg_utiles_CreateAVIO(MAG_DEMUXER_DATA_SOURCE *ds){
     OMX_U32 size;
     OMX_U8  *buffer;
@@ -60,9 +99,9 @@ static AVIOContext *ffmpeg_utiles_CreateAVIO(MAG_DEMUXER_DATA_SOURCE *ds){
                      size ,
                      0,
                      ds->opaque,
-                     ds->Data_Read,
-                     ds->Data_Write,
-                     ds->Data_Seek);
+                     ffmpeg_avio_read_packet,
+                     ffmpeg_avio_write_packet,
+                     ffmpeg_avio_seek);
         
     if (NULL == context){
         AGILE_LOGE("Failed to create the AVIO context!");
@@ -224,12 +263,13 @@ static OMX_U32 ffmpeg_utiles_ConvertCodecIdToOMX(enum AVCodecID ffmpegCodec, enu
 
 static void ffmpeg_utiles_ReportStreamInfo(MagOmxComponent_FFmpeg_Demuxer thiz,
                                            MAG_DEMUXER_DATA_SOURCE *dataSource, 
-                                           cbNewStreamAdded callBack){
+                                           StreamEvtCallback callBack){
     OMX_DEMUXER_STREAM_INFO *pStInfo;
     OMX_U32    i;
     AVStream   *st;
     const char *profile;
     AVFormatContext  *avFormat;
+    OMX_U32 stream_id;
 
     avFormat = (AVFormatContext *)dataSource->hDemuxer;
     for (i = 0; i < avFormat->nb_streams; i++){
@@ -239,7 +279,7 @@ static void ffmpeg_utiles_ReportStreamInfo(MagOmxComponent_FFmpeg_Demuxer thiz,
 
         if (st->codec->codec_type == AVMEDIA_TYPE_VIDEO){
             pStInfo->type = OMX_DynamicPort_Video;
-            pStInfo->format.video.witdh  = st->codec->width;
+            pStInfo->format.video.width  = st->codec->width;
             pStInfo->format.video.height = st->codec->height;
 
             if (st->avg_frame_rate.den && st->avg_frame_rate.num)
@@ -251,7 +291,7 @@ static void ffmpeg_utiles_ReportStreamInfo(MagOmxComponent_FFmpeg_Demuxer thiz,
 
             profile = av_get_profile_name(avcodec_find_decoder(st->codec->codec_id), st->codec->profile);
             if (profile)
-                strncpy(pStInfo->codec_info, profile, sizeof(pStInfo->codec_info));
+                strncpy((char *)pStInfo->codec_info, profile, sizeof(pStInfo->codec_info));
 
             pStInfo->codec_id = ffmpeg_utiles_ConvertCodecIdToOMX(st->codec->codec_id, AVMEDIA_TYPE_VIDEO);
         }else if (st->codec->codec_type == AVMEDIA_TYPE_AUDIO){
@@ -261,12 +301,12 @@ static void ffmpeg_utiles_ReportStreamInfo(MagOmxComponent_FFmpeg_Demuxer thiz,
             pStInfo->type = OMX_DynamicPort_Audio;
             profile = av_get_profile_name(avcodec_find_decoder(st->codec->codec_id), st->codec->profile);
             if (profile)
-                strncpy(pStInfo->codec_info, profile, sizeof(pStInfo->codec_info));
+                strncpy((char *)pStInfo->codec_info, profile, sizeof(pStInfo->codec_info));
 
             pStInfo->format.audio.hz = st->codec->sample_rate;
 
             bits_per_sample = av_get_bits_per_sample(st->codec->codec_id);
-            bit_rate = bits_per_sample ? st->codec->sample_rate * st->codec->channels * bits_per_sample : aStream->codec->bit_rate;
+            bit_rate = bits_per_sample ? st->codec->sample_rate * st->codec->channels * bits_per_sample : st->codec->bit_rate;
             pStInfo->format.audio.bps = bit_rate / 1000;
 
             pStInfo->codec_id = ffmpeg_utiles_ConvertCodecIdToOMX(st->codec->codec_id, AVMEDIA_TYPE_AUDIO);
@@ -290,7 +330,7 @@ static void ffmpeg_utiles_ReportStreamInfo(MagOmxComponent_FFmpeg_Demuxer thiz,
         }
 
         dataSource->streamNumber = avFormat->nb_streams;
-        *dataSource->streamTable = (MAG_DEMUXER_PORT_DESC *)mag_mallocz(sizeof(MAG_DEMUXER_PORT_DESC *) * avFormat->nb_streams);
+        *dataSource->streamTable = (MAG_DEMUXER_OUTPUTPORT_DESC *)mag_mallocz(sizeof(MAG_DEMUXER_OUTPUTPORT_DESC *) * avFormat->nb_streams);
 
         callBack(thiz, dataSource, pStInfo);
     }
@@ -321,7 +361,7 @@ static OMX_ERRORTYPE localSetupComponent(
 static OMX_ERRORTYPE virtual_FFmpeg_Demuxer_DetectStreams(
                                     OMX_IN OMX_HANDLETYPE hComponent,
                                     MAG_DEMUXER_DATA_SOURCE *pDataSource,
-                                    OMX_IN cbNewStreamAdded fn){
+                                    OMX_IN StreamEvtCallback fn){
     MagOmxComponent_FFmpeg_Demuxer thiz;
     AVIOContext *avioContext = NULL;
     OMX_S32 err;
@@ -330,7 +370,8 @@ static OMX_ERRORTYPE virtual_FFmpeg_Demuxer_DetectStreams(
     OMX_S32 orig_nb_streams = 0;
     AVFormatContext  *avFormat;
     AVDictionary     *avFormatOpts;
-    AVDictionary     *avCodecOpts;
+    AVDictionary     *avCodecOpts = NULL;
+    OMX_S32 i;
 
     thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Demuxer);
 
@@ -340,7 +381,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Demuxer_DetectStreams(
     avFormat->interrupt_callback.opaque   = &thiz->mPlayState;
 
     if (pDataSource->hPort == NULL){
-        /*directly retrieve the data from URL*/
+        /*To retrieve the data from URL directly*/
         err = avformat_open_input(&avFormat, 
                                   pDataSource->url, 
                                   NULL, 
@@ -406,6 +447,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Demuxer_ReadFrame(
     MAG_DEMUXER_AVFRAME *avFrame;
     MagOmxComponentDemuxer parent;
     MagOmxComponent_FFmpeg_Demuxer thiz;
+    AVRational timeBase;
 
     parent = ooc_cast(hComponent, MagOmxComponentDemuxer);
     thiz   = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Demuxer);
@@ -417,11 +459,15 @@ static OMX_ERRORTYPE virtual_FFmpeg_Demuxer_ReadFrame(
     avFrame = parent->getAVFrame(parent);
     if (res >= 0) {
         av_dup_packet(pPacket);
-        thiz->fillAVFrame(thiz, pPacket, &avFrame->frame, pDataSource);
+
+        timeBase.num = pDataSource->streamTable[pPacket->stream_index]->stream_info->time_base_num;
+        timeBase.den = pDataSource->streamTable[pPacket->stream_index]->stream_info->time_base_den;
+        
+        thiz->fillAVFrame(thiz, pPacket, &avFrame->frame, timeBase);
     }else{
         if ( (res == AVERROR_EOF || url_feof(avFormat->pb)) ||
                  (avFormat->pb && avFormat->pb->error) ){
-            thiz->fillAVFrame(thiz, NULL, &avFrame->frame, pDataSource);
+            thiz->fillAVFrame(thiz, NULL, &avFrame->frame, timeBase);
         }
     }
 
@@ -439,12 +485,9 @@ static int FFmpeg_Demuxer_demux_interrupt_cb(void *ctx){
 static void FFmpeg_Demuxer_fillAVFrame(MagOmxComponent_FFmpeg_Demuxer thiz, 
                                        AVPacket *pPacket, 
                                        OMX_DEMUXER_AVFRAME *avFrame, 
-                                       OMX_IN MAG_DEMUXER_DATA_SOURCE *pDataSource){
-    AVRational timeBase;
+                                       AVRational timeBase){
     AVRational newBase;
 
-    timeBase.num = pDataSource->time_base_num;
-    timeBase.den = pDataSource->time_base_den;
     newBase.num  = 1;
     newBase.den  = 90000;
 
@@ -460,7 +503,7 @@ static void FFmpeg_Demuxer_fillAVFrame(MagOmxComponent_FFmpeg_Demuxer thiz,
         }
         avFrame->dts         = av_rescale_q(pPacket->dts, timeBase, newBase);
         if (AV_PKT_FLAG_KEY == pPacket->flags)
-            avFrame->flag = MAG_AVFRAME_FLAG_KEY_FRAME;
+            avFrame->flag = OMX_AVFRAME_FLAG_KEY_FRAME;
 
         avFrame->stream_id = pPacket->stream_index;
         avFrame->duration  = pPacket->duration;
@@ -471,7 +514,7 @@ static void FFmpeg_Demuxer_fillAVFrame(MagOmxComponent_FFmpeg_Demuxer thiz,
         avFrame->size   = 0;
         avFrame->pts    = 0;
         avFrame->dts    = 0;
-        avFrame->flag   = MAG_AVFRAME_FLAG_EOS;
+        avFrame->flag   = OMX_AVFRAME_FLAG_EOS;
     }
     avFrame->priv = pPacket;
     avFrame->releaseFrame = thiz->releaseAVFrame;
@@ -479,7 +522,7 @@ static void FFmpeg_Demuxer_fillAVFrame(MagOmxComponent_FFmpeg_Demuxer thiz,
 
 static void FFmpeg_Demuxer_releaseAVFrame(OMX_HANDLETYPE hComponent, OMX_PTR frame){
     AVPacket *pPacket;
-    MagOmxComponentDemuxer *demuxer;
+    MagOmxComponentDemuxer demuxer;
     OMX_DEMUXER_AVFRAME *avframe;
     MAG_DEMUXER_AVFRAME *avframeItem;
 
@@ -510,8 +553,8 @@ static void MagOmxComponent_FFmpeg_Demuxer_constructor(MagOmxComponent_FFmpeg_De
 
     thiz->demux_interrupt_cb = FFmpeg_Demuxer_demux_interrupt_cb;
     thiz->releaseAVFrame     = FFmpeg_Demuxer_releaseAVFrame;
+    thiz->fillAVFrame        = FFmpeg_Demuxer_fillAVFrame;
 
-    INIT_LIST(&thiz->mDataSourceList);
     Mag_CreateMutex(&thiz->mhFFMpegMutex);
 }
 

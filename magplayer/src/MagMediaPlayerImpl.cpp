@@ -18,9 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "MagMediaPlayer.h"
-#include "MagEventType.h"
-#include "MagVersion.h"
+#include "MagMediaPlayerImpl.h"
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
@@ -94,21 +92,21 @@ OMX_ERRORTYPE MagMediaPlayerImpl::playbackPipelineEventHandler(
             Mag_SetEvent(thiz->mPipelineFlushDoneEvent);
         }
     }else if (eEvent == OMX_EventBufferFlag){
-        mBufferLevel = Data1;
-        mBufferTime  = Data2;
-        if (mBufferLevel >= mPlaybackPipelineConfig.buffer_play_threshold){
-            if (mState == ST_BUFFERING){
-                mPlayMsg->postMessage(mPlayMsg, 0);
+        thiz->mBufferLevel = Data1;
+        thiz->mBufferTime  = Data2;
+        if (thiz->mBufferLevel >= thiz->mPlaybackPipelineConfig.buffer_play_threshold){
+            if (thiz->mState == ST_BUFFERING){
+                thiz->mPlayMsg->postMessage(thiz->mPlayMsg, 0);
             }
-        }else if (mBufferLevel < mPlaybackPipelineConfig.buffer_low_threshold){
-            if (mState == ST_PLAYING){
-                mState = ST_BUFFERING;
-                doPauseAction();
+        }else if (thiz->mBufferLevel < thiz->mPlaybackPipelineConfig.buffer_low_threshold){
+            if (thiz->mState == ST_PLAYING){
+                thiz->mState = ST_BUFFERING;
+                thiz->doPauseAction();
             }
         }
 
-        sendEvent(MMP_EVENT_BUFFER_STATUS, mBufferLevel, mBufferTime);
-    }else if (eEvent == OMX_EventExtAVStreamInfo){
+        thiz->sendEvent(MMP_EVENT_BUFFER_STATUS, thiz->mBufferLevel, thiz->mBufferTime);
+    }else if (eEvent == (OMX_EVENTTYPE)OMX_EventExtAVStreamInfo){
         OMX_DEMUXER_STREAM_INFO *streamInfo;
         StreamInfo_t *item;
 
@@ -117,12 +115,12 @@ OMX_ERRORTYPE MagMediaPlayerImpl::playbackPipelineEventHandler(
         item->streamMetaData = (mmp_meta_data_t *)mag_mallocz(sizeof(mmp_meta_data_t));
         INIT_LIST(&item->node);
 
-        fillStreamMetaData(item->streamMetaData, streamInfo);
+        thiz->fillStreamMetaData(item->streamMetaData, streamInfo);
         item->streamInfo = streamInfo;
-        item->streamTableId = mStreamTotal++;
-        list_add_tail(&item->node, &mStreamList);
+        item->streamTableId = thiz->mStreamTotal++;
+        list_add_tail(&item->node, &thiz->mStreamList);
 
-        sendEvent(MMP_EVENT_NEW_STREAM_REPORT, item->streamTableId, 0);
+        thiz->sendEvent(MMP_EVENT_NEW_STREAM_REPORT, item->streamTableId, 0);
     }else{
         AGILE_LOGD("unsupported event: %d, Data1: %u, Data2: %u\n", eEvent, Data1, Data2);
     }
@@ -176,11 +174,11 @@ void MagMediaPlayerImpl::fillStreamMetaData(mmp_meta_data_t *md,
         md->metadata.vMetaData.height = streamInfo->format.video.height;
         md->metadata.vMetaData.fps = streamInfo->format.video.fps;
         md->metadata.vMetaData.bps = streamInfo->format.video.bps;
-        strcpy(md->metadata.vMetaData.codec, streamInfo->codec_info);
+        strcpy(md->metadata.vMetaData.codec, (char *)streamInfo->codec_info);
     }else if (streamInfo->type == OMX_DynamicPort_Audio){
         md->metadata.aMetaData.hz  = streamInfo->format.audio.hz;
         md->metadata.aMetaData.bps = streamInfo->format.audio.bps;
-        strcpy(md->metadata.aMetaData.codec, streamInfo->codec_info);
+        strcpy(md->metadata.aMetaData.codec, (char *)streamInfo->codec_info);
     }else if (streamInfo->type == OMX_DynamicPort_Subtitle){
 
     }
@@ -227,9 +225,8 @@ void MagMediaPlayerImpl::doResetAction(){
     mhPlaybackPipeline = NULL;
 
     Mag_ClearEvent(mCompletePrepareEvt);
-    Mag_ClearEvent(mCompleteSeekEvt);
-    Mag_ClearEvent(mCompleteFlushEvt);
-    Mag_ClearEvent(mErrorEvt);
+    Mag_ClearEvent(mPipelineStateEvent);
+    Mag_ClearEvent(mPipelineFlushDoneEvent);
 
     AGILE_LOGD("exit!");
 }
@@ -262,7 +259,7 @@ void MagMediaPlayerImpl::onSourceNotify(MagMessageHandle msg){
             return;
         }
 
-        err = OMX_ComponentOfRoleEnum(compName, OMX_ROLE_PIPELINE_PLAYBACK, 1);
+        err = OMX_ComponentOfRoleEnum((OMX_STRING)compName, OMX_ROLE_PIPELINE_PLAYBACK, 1);
         if (err == OMX_ErrorNone){
             err = OMX_GetHandle(&mhPlaybackPipeline, compName, (OMX_PTR)this, &mPlaybackPipelineCb);
             if(err != OMX_ErrorNone) {
@@ -276,7 +273,7 @@ void MagMediaPlayerImpl::onSourceNotify(MagMessageHandle msg){
             return;
         }
 
-        mpUrl = mag_strdup(url);
+        mPlaybackPipelineConfig.url = mag_strdup(url);
     }else if(!strcmp(type, "file")){
 
     }else if(!strcmp(type, "source")){
@@ -322,10 +319,11 @@ int MagMediaPlayerImpl::setDataSource(unsigned int fd, signed long long offset, 
 }
 
 void MagMediaPlayerImpl::onPrepared(MagMessageHandle msg){
-    _status_t ret;
     OMX_PORT_PARAM_TYPE plPortParam;
     OMX_PARAM_PORTDEFINITIONTYPE portDef;
     i32 voutportIdx;
+    OMX_ERRORTYPE err = OMX_ErrorNone;
+    OMX_U32 i;
 
     if (mState == ST_INITIALIZED){
         if ( mPlaybackPipelineConfig.url == NULL ){
@@ -334,11 +332,11 @@ void MagMediaPlayerImpl::onPrepared(MagMessageHandle msg){
             return;
         }
 
-        err = OMX_SetParameter(mhPlaybackPipeline, OMX_IndexParamPlaybackPipelineSetting, &mPlaybackPipelineConfig);
+        err = OMX_SetParameter(mhPlaybackPipeline, (OMX_INDEXTYPE)OMX_IndexParamPlaybackPipelineSetting, &mPlaybackPipelineConfig);
         if(err != OMX_ErrorNone){
-            AGILE_LOGE("Error in setting %s OMX_IndexParamPlaybackPipelineSetting parameter", compName);
+            AGILE_LOGE("Error in setting playback pipeline OMX_IndexParamPlaybackPipelineSetting parameter");
             sendEvent(MMP_EVENT_ERROR, E_WHAT_PREPARE, E_EXTRA_UNKNOWN);
-            return err;
+            return;
         }
 
         if (mReturnDecodedVideo){
@@ -440,8 +438,8 @@ void MagMediaPlayerImpl::onStart(MagMessageHandle msg){
     if (ST_PLAYBACK_COMPLETED == mState){
         seekTo(0);
     }else{
-        if !(ST_PREPARED == mState ||
-             ST_PAUSED == mState){
+        if ( !(ST_PREPARED == mState ||
+               ST_PAUSED == mState) ){
             AGILE_LOGE("At wrong state: %s. QUIT!", state2String(mState));
             sendEvent(MMP_EVENT_ERROR, E_WHAT_START, E_EXTRA_WRONG_STATE);
         }
@@ -462,9 +460,10 @@ int MagMediaPlayerImpl::start(){
 
 void MagMediaPlayerImpl::onPlay(MagMessageHandle msg){
     OMX_BUFFERHEADERTYPE *pBufHeader;
+    OMX_ERRORTYPE ret;
 
     if (ST_BUFFERING == mState){
-        while (pBufHeader = mPlaybackPipelineCb->get()){
+        while ( (pBufHeader = mpPipelineBufferMgr->get()) != NULL ){
             pBufHeader->pBuffer = NULL;
             ret = OMX_FillThisBuffer(mhPlaybackPipeline, pBufHeader);
             if (ret != OMX_ErrorNone){
@@ -567,9 +566,6 @@ int MagMediaPlayerImpl::getDuration(int* msec){
 }
 
 void MagMediaPlayerImpl::onFlush(MagMessageHandle msg){
-    boolean ret;
-    i32 seek_flush;
-
     if ( (ST_PLAYING  == mState) ||
          (ST_PAUSED   == mState) ||
          (ST_PLAYBACK_COMPLETED == mState) ){
@@ -581,7 +577,7 @@ void MagMediaPlayerImpl::onFlush(MagMessageHandle msg){
         AGILE_LOGE("At wrong state: %s. QUIT!", state2String(mState));
     }
 
-    thiz->sendEvent(MMP_EVENT_FLUSH_COMPLETE, 0, 0);
+    sendEvent(MMP_EVENT_FLUSH_COMPLETE, 0, 0);
 }
 
 int MagMediaPlayerImpl::flush(){
@@ -615,10 +611,8 @@ void MagMediaPlayerImpl::onSeek(MagMessageHandle msg){
 
         doSeekAction(seekTarget);
 
-        thiz->sendEvent(MMP_EVENT_SEEK_COMPLETE, 0, 0);
+        sendEvent(MMP_EVENT_SEEK_COMPLETE, 0, 0);
     }
-
-    Mag_SetEvent(mCompleteSeekEvt);
 }
 
 int MagMediaPlayerImpl::seekTo(i32 msec){
@@ -678,13 +672,20 @@ int MagMediaPlayerImpl::reset(){
     return MAG_NO_ERROR;
 }
 
-int MagMediaPlayerImpl::setParameters(int key, void *request){
+int MagMediaPlayerImpl::setParameter(int key, void *request){
     switch (key){
         case MMP_PARAMETER_BUFFER_SETTING:
         {
             mmp_buffer_setting_t *config = static_cast<mmp_buffer_setting_t *>(request);
 
-            mPlaybackPipelineConfig.buffer_type = config->buffer_type;
+            if (config->buffer_type == 1){
+                mPlaybackPipelineConfig.buffer_type = OMX_BUFFER_TYPE_FRAME;
+            }else if (config->buffer_type == 0){
+                mPlaybackPipelineConfig.buffer_type = OMX_BUFFER_TYPE_BYTE;
+            }else{
+                mPlaybackPipelineConfig.buffer_type = OMX_BUFFER_TYPE_NONE;
+            }
+
             mPlaybackPipelineConfig.buffer_size = config->buffer_size;
             mPlaybackPipelineConfig.buffer_time = config->buffer_time;
             mPlaybackPipelineConfig.buffer_low_threshold  = config->buffer_low_level;
@@ -697,7 +698,7 @@ int MagMediaPlayerImpl::setParameters(int key, void *request){
         {
             i32 *free_run = static_cast<i32 *>(request);
 
-            mPlaybackPipelineConfig.free_run = *free_run;
+            mPlaybackPipelineConfig.free_run = *free_run ? OMX_TRUE : OMX_FALSE;
         }
             break;
 
@@ -738,7 +739,7 @@ int MagMediaPlayerImpl::setParameters(int key, void *request){
     return MAG_NO_ERROR;
 }
 
-int MagMediaPlayerImpl::getParameters(int key, void **reply){
+int MagMediaPlayerImpl::getParameter(int key, void **reply){
     return MAG_NO_ERROR;
 }
 
@@ -795,6 +796,8 @@ int MagMediaPlayerImpl::invoke(const unsigned int methodID, void *request, void 
         }
             break;
     }
+
+    return 0;
 }
 
 ui32 MagMediaPlayerImpl::getVersion(){
@@ -841,10 +844,6 @@ void MagMediaPlayerImpl::onMessageReceived(const MagMessageHandle msg, void *pri
             
         case MagMsg_Fast:
             thiz->onFast(msg);
-            break;
-            
-        case MagMsg_SetVolume:
-            thiz->onSetVolume(msg);
             break;
 
         default:
@@ -932,9 +931,9 @@ void MagMediaPlayerImpl::initialize(){
     mhPlaybackPipeline = NULL;
     mAppHandler        = NULL;
 
-    mAppEventCallback.EventHandler    = MagMediaPlayerImpl::playbackPipelineEventHandler;
-    mAppEventCallback.EmptyBufferDone = MagMediaPlayerImpl::playbackPipelineEmptyBufferDone;
-    mAppEventCallback.FillBufferDone  = MagMediaPlayerImpl::playbackPipelineFillBufferDone;
+    mPlaybackPipelineCb.EventHandler    = MagMediaPlayerImpl::playbackPipelineEventHandler;
+    mPlaybackPipelineCb.EmptyBufferDone = MagMediaPlayerImpl::playbackPipelineEmptyBufferDone;
+    mPlaybackPipelineCb.FillBufferDone  = MagMediaPlayerImpl::playbackPipelineFillBufferDone;
 
     mpSubtitleUrl      = NULL;
 
@@ -973,7 +972,6 @@ void MagMediaPlayerImpl::initialize(){
     mPauseMsg                = createMessage(MagMsg_Pause);
     mFlushMsg                = createMessage(MagMsg_Flush);
     mFastMsg                 = createMessage(MagMsg_Fast);
-    mSetVolumeMsg            = createMessage(MagMsg_SetVolume);
     mSeekToMsg               = createMessage(MagMsg_SeekTo);
 
     INIT_LIST(&mStreamList);
@@ -996,7 +994,6 @@ void MagMediaPlayerImpl::cleanup(){
     destroyMagMessage(&mPauseMsg);
     destroyMagMessage(&mFlushMsg);
     destroyMagMessage(&mFastMsg);
-    destroyMagMessage(&mSetVolumeMsg);
     destroyMagMessage(&mSeekToMsg);
 
     destroyLooper(&mLooper);
@@ -1018,7 +1015,6 @@ _status_t MagMediaPlayerImpl::getAudioMetaData(AudioMetaData_t *pAmd){
 
 _status_t MagMediaPlayerImpl::getDecodedVideoFrame(void **ppVideoFrame){
     OMX_BUFFERHEADERTYPE* pBuffer;
-    ui64 time;
 
     Mag_TimeTakenStatistic(MAG_TRUE, __FUNCTION__, NULL);
     pBuffer = mpVDecodedBufferMgr->get();
@@ -1034,8 +1030,6 @@ _status_t MagMediaPlayerImpl::getDecodedVideoFrame(void **ppVideoFrame){
 
 _status_t MagMediaPlayerImpl::putUsedVideoFrame(void *pVideoFrame){
     OMX_BUFFERHEADERTYPE* pBuffer;
-    AVFrame *frame;
-    bool postBuf = false;
 
     pBuffer = static_cast<OMX_BUFFERHEADERTYPE *>(pVideoFrame);
     AGILE_LOGV("Put used frame %p!", pBuffer);

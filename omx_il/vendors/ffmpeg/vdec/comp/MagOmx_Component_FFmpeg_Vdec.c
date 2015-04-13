@@ -22,7 +22,6 @@
 #include "MagOmx_Port_FFmpeg_Vdec.h"
 #include "MagOmx_Port_FFmpeg_Vsch.h"
 #include "MagOMX_IL.h"
-#include "MagOmx_Buffer.h"
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
@@ -74,10 +73,10 @@ static OMX_ERRORTYPE localSetupComponent(
 	MagOmxPort_Constructor_Param_t param;
 	MagOmxComponentImpl            vdecCompImpl;
 	MagOmxComponent                vdecComp;
-    MagOmxComponent_FFmpeg_Vdec    thiz;
+    /*MagOmxComponent_FFmpeg_Vdec    thiz;*/
 
 	AGILE_LOGV("enter!");
-    thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vdec);
+    /*thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vdec);*/
 
 	param.portIndex    = START_PORT_INDEX + 0;
 	param.isInput      = OMX_TRUE;
@@ -274,8 +273,6 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_ProceedBuffer(
 	AVFrame *decodedFrame = NULL;
 	MagOmxComponent_FFmpeg_Vdec vdecComp;
 	OMX_DEMUXER_AVFRAME *pAVFrame;
-	int i;
-	void *side_data;
 
 	if (hDestPort == NULL){
 		return OMX_ErrorBadParameter;
@@ -296,7 +293,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_ProceedBuffer(
 		codedPkt.dts  = srcbufHeader->nTimeStamp;
 
 		codedPkt.stream_index = pAVFrame->stream_id;
-		codedPkt.flags        = ((pAVFrame->flag == MAG_AVFRAME_FLAG_KEY_FRAME) ? AV_PKT_FLAG_KEY : 0);
+		codedPkt.flags        = ((pAVFrame->flag == OMX_AVFRAME_FLAG_KEY_FRAME) ? AV_PKT_FLAG_KEY : 0);
 		codedPkt.duration     = pAVFrame->duration;
 		codedPkt.pos          = pAVFrame->position;
     }else{
@@ -423,7 +420,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vdec_SetParameter(
         case OMX_IndexConfigExtStreamHandle:
         {
             OMX_CONFIG_STREAM_HANDLE *hStrm = (OMX_CONFIG_STREAM_HANDLE *)pComponentParameterStructure;
-            AGILE_LOGI("set parameter: avstream=%p", hStrm->avstream);
+            AGILE_LOGI("set parameter: avstream=%p", hStrm->hAVStream);
             thiz->mpVideoStream = (AVStream *)hStrm->hAVStream;
         }
         	break;

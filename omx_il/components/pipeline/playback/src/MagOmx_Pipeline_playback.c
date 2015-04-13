@@ -402,6 +402,7 @@ static OMX_ERRORTYPE virtual_MagOmxPipelinePlayback_Start(
     OMX_DEMUXER_KICKOFF kickoffdemuxer;
     OMX_S32 strm_id[64];
     OMX_U32 total_strms = 0;
+    OMX_ERRORTYPE err;
 
     thiz = ooc_cast(hComponent, MagOmxPipelinePlayback);
 
@@ -577,24 +578,26 @@ static OMX_ERRORTYPE MagOmxPipelinePlayback_Demuxer_EventHandlerCB(
                                             OMX_U32 Data2,
                                             OMX_PTR pEventData){
     PlaybackPipelineDatasource *dsDesc;
-    MagOmxComponent compRoot;
+    MagOmxComponent        root;
     MagOmxPipelinePlayback thiz;
     MagOmxComponentImpl    base;
     OMX_ERRORTYPE ret;
-
+    OMX_PARAM_PORTDEFINITIONTYPE portDef;
+    OMX_ERRORTYPE err;
+    
     dsDesc = (PlaybackPipelineDatasource *)(pAppData);
-    compRoot = ooc_cast(dsDesc->hComp, MagOmxComponent);
-    thiz     = ooc_cast(hComponent, MagOmxPipelinePlayback);
-    base     = ooc_cast(hComponent, MagOmxComponentImpl);
+    root   = ooc_cast(hComponent, MagOmxComponent);
+    thiz   = ooc_cast(hComponent, MagOmxPipelinePlayback);
+    base   = ooc_cast(hComponent, MagOmxComponentImpl);
 
-    COMP_LOGD(compRoot, "event: %d", eEvent);
+    COMP_LOGD(root, "event: %d", eEvent);
 
     initHeader(&portDef, sizeof(OMX_PARAM_PORTDEFINITIONTYPE));    
     if(eEvent == OMX_EventCmdComplete) {
         if (Data1 == OMX_CommandStateSet) {
             switch ((int)Data2) {
                 case OMX_StateMax:
-                    COMP_LOGD(compRoot, "state: OMX_StateMax");
+                    COMP_LOGD(root, "state: OMX_StateMax");
                     break;
 
                 case OMX_StateLoaded:
@@ -602,16 +605,16 @@ static OMX_ERRORTYPE MagOmxPipelinePlayback_Demuxer_EventHandlerCB(
                 case OMX_StateExecuting:
                 case OMX_StatePause:
                 case OMX_StateWaitForResources:
-                    COMP_LOGD(compRoot, "state: %d", Data2);
+                    COMP_LOGD(root, "state: %d", Data2);
                     Mag_SetEvent(dsDesc->demuxerCompStateEvent); 
                     break;
             }
         }else if (Data1 == OMX_CommandPortEnable){
-            COMP_LOGD(compRoot, "component enables port %d is done!", Data2);
+            COMP_LOGD(root, "component enables port %d is done!", Data2);
         }else if (Data1 == OMX_CommandPortDisable){
-            COMP_LOGD(compRoot, "component disables port %d is done!", Data2);
+            COMP_LOGD(root, "component disables port %d is done!", Data2);
         }else if (Data1 == OMX_CommandFlush){
-            COMP_LOGD(compRoot, "component flushes port %d is done!", Data2);
+            COMP_LOGD(root, "component flushes port %d is done!", Data2);
         }
     }else if (eEvent == OMX_EventExtDynamicPortAdding){
         OMX_DYNAMIC_PORT_TYPE portType;
@@ -681,7 +684,7 @@ static OMX_ERRORTYPE MagOmxPipelinePlayback_Demuxer_EventHandlerCB(
                 }else{
                     ple->pipeline = NULL;
                     ple->demuxerOutPortIdx = Data1;
-                    COMP_LOGD(compRoot, "failed to create the codec pipeline[type: %d]", portType);
+                    COMP_LOGD(root, "failed to create the codec pipeline[type: %d]", portType);
                 }
 
                 /*Set the pipeline ports and connect to demuxer component*/
@@ -740,12 +743,12 @@ static OMX_ERRORTYPE MagOmxPipelinePlayback_Demuxer_EventHandlerCB(
                 }
                 
 
-                COMP_LOGD(compRoot, "To add the codec pipeline[type: %d, port index: %d, hpl: %p] to the list", 
+                COMP_LOGD(root, "To add the codec pipeline[type: %d, port index: %d, hpl: %p] to the list", 
                                      portType, ple->demuxerOutPortIdx, ple->pipeline);
 
                 list_add_tail(&ple->node, &dsDesc->codecPipelineList);
             }else{
-                COMP_LOGE(getRoot(hComponent), "pure virtual func: MagOMX_Playback_CreateCodecPipeline() is not overrided!!");
+                COMP_LOGE(root, "pure virtual func: MagOMX_Playback_CreateCodecPipeline() is not overrided!!");
                 ret = OMX_ErrorNotImplemented;
             }
 
@@ -761,7 +764,7 @@ static OMX_ERRORTYPE MagOmxPipelinePlayback_Demuxer_EventHandlerCB(
             char compName[128];
             OMX_CONFIG_UI32TYPE newPortConfig;
 
-            COMP_LOGD(compRoot, "All codec pipelines are created.");
+            COMP_LOGD(root, "All codec pipelines are created.");
 
             if (!dsDesc->free_run){
                 err = OMX_ComponentOfRoleEnum(compName, (OMX_STRING)OMX_ROLE_CLOCK_BINARY, 1);
@@ -843,7 +846,7 @@ static OMX_ERRORTYPE MagOmxPipelinePlayback_Demuxer_EventHandlerCB(
             Mag_SetEvent(thiz->mCodecPlAllReadyEvent); 
         }
     }else{
-        COMP_LOGD(compRoot, "unsupported event: %d, Data1: %u, Data2: %u\n", eEvent, Data1, Data2);
+        COMP_LOGD(root, "unsupported event: %d, Data1: %u, Data2: %u\n", eEvent, Data1, Data2);
     }
 
     return OMX_ErrorNone;
@@ -857,19 +860,19 @@ static OMX_ERRORTYPE MagOmxPipelinePlayback_Buf_EventHandlerCB(
                                             OMX_U32 Data2,
                                             OMX_PTR pEventData){
     PlaybackPipelineDatasource *dsDesc;
-    MagOmxComponent     compRoot;
-    MagOmxComponentImpl compBase;
+    MagOmxComponent     root;
+    MagOmxComponentImpl bufCompBase;
 
     dsDesc = (PlaybackPipelineDatasource *)(pAppData);
-    compRoot = ooc_cast(dsDesc->hComp, MagOmxComponent);
-    compBase = ooc_cast(dsDesc->hComp, MagOmxComponentImpl);
+    root   = ooc_cast(hComponent, MagOmxComponent);
+    bufCompBase = ooc_cast(dsDesc->hBufferComponent, MagOmxComponentImpl);
     
-    COMP_LOGD(compRoot, "event: %d", eEvent);
+    COMP_LOGD(root, "event: %d", eEvent);
     if(eEvent == OMX_EventCmdComplete) {
         if (Data1 == OMX_CommandStateSet) {
             switch ((int)Data2) {
                 case OMX_StateMax:
-                    COMP_LOGD(compRoot, "state: OMX_StateMax");
+                    COMP_LOGD(root, "state: OMX_StateMax");
                     break;
 
                 case OMX_StateLoaded:
@@ -877,27 +880,27 @@ static OMX_ERRORTYPE MagOmxPipelinePlayback_Buf_EventHandlerCB(
                 case OMX_StateExecuting:
                 case OMX_StatePause:
                 case OMX_StateWaitForResources:
-                    COMP_LOGD(compRoot, "state: %d", Data2);
+                    COMP_LOGD(root, "state: %d", Data2);
                     Mag_SetEvent(dsDesc->bufCompStateEvent); 
                     break;
             }
         }else if (Data1 == OMX_CommandPortEnable){
-            COMP_LOGD(compRoot, "component enables port %d is done!", Data2);
+            COMP_LOGD(root, "component enables port %d is done!", Data2);
         }else if (Data1 == OMX_CommandPortDisable){
-            COMP_LOGD(compRoot, "component disables port %d is done!", Data2);
+            COMP_LOGD(root, "component disables port %d is done!", Data2);
         }else if (Data1 == OMX_CommandFlush){
-            COMP_LOGD(compRoot, "component flushes port %d is done!", Data2);
+            COMP_LOGD(root, "component flushes port %d is done!", Data2);
         }
     }else if (eEvent == OMX_EventBufferFlag){
-        COMP_LOGD(compRoot, "buffer level %d%%, buffer time %d ms!", Data1, Data2);
+        COMP_LOGD(root, "buffer level %d%%, buffer time %d ms!", Data1, Data2);
         /*send out the buffer status change to APP*/
-        compBase->sendEvents( hComponent,
+        bufCompBase->sendEvents( hComponent,
                               OMX_EventBufferFlag,
                               Data1,
                               Data2,
                               pEventData );
     }else{
-        COMP_LOGD(compRoot, "unsupported event: %d, Data1: %u, Data2: %u\n", eEvent, Data1, Data2);
+        COMP_LOGD(root, "unsupported event: %d, Data1: %u, Data2: %u\n", eEvent, Data1, Data2);
     }
 
     return OMX_ErrorNone;
@@ -911,17 +914,17 @@ static OMX_ERRORTYPE MagOmxPipelinePlayback_DS_EventHandlerCB(
                                             OMX_U32 Data2,
                                             OMX_PTR pEventData){
     PlaybackPipelineDatasource *dsDesc;
-    MagOmxComponent compRoot;
+    MagOmxComponent root;
 
     dsDesc = (PlaybackPipelineDatasource *)(pAppData);
-    compRoot = ooc_cast(dsDesc->hComp, MagOmxComponent);
+    root = ooc_cast(hComponent, MagOmxComponent);
     
-    COMP_LOGD(compRoot, "event: %d", eEvent);
+    COMP_LOGD(root, "event: %d", eEvent);
     if(eEvent == OMX_EventCmdComplete) {
         if (Data1 == OMX_CommandStateSet) {
             switch ((int)Data2) {
                 case OMX_StateMax:
-                    COMP_LOGD(compRoot, "state: OMX_StateMax");
+                    COMP_LOGD(root, "state: OMX_StateMax");
                     break;
 
                 case OMX_StateLoaded:
@@ -929,19 +932,19 @@ static OMX_ERRORTYPE MagOmxPipelinePlayback_DS_EventHandlerCB(
                 case OMX_StateExecuting:
                 case OMX_StatePause:
                 case OMX_StateWaitForResources:
-                    COMP_LOGD(compRoot, "state: %d", Data2);
+                    COMP_LOGD(root, "state: %d", Data2);
                     Mag_SetEvent(dsDesc->dsCompStateEvent); 
                     break;
             }
         }else if (Data1 == OMX_CommandPortEnable){
-            COMP_LOGD(compRoot, "component enables port %d is done!", Data2);
+            COMP_LOGD(root, "component enables port %d is done!", Data2);
         }else if (Data1 == OMX_CommandPortDisable){
-            COMP_LOGD(compRoot, "component disables port %d is done!", Data2);
+            COMP_LOGD(root, "component disables port %d is done!", Data2);
         }else if (Data1 == OMX_CommandFlush){
-            COMP_LOGD(compRoot, "component flushes port %d is done!", Data2);
+            COMP_LOGD(root, "component flushes port %d is done!", Data2);
         }
     }else{
-        COMP_LOGD(compRoot, "unsupported event: %d, Data1: %u, Data2: %u\n", eEvent, Data1, Data2);
+        COMP_LOGD(root, "unsupported event: %d, Data1: %u, Data2: %u\n", eEvent, Data1, Data2);
     }
 
     return OMX_ErrorNone;
@@ -955,17 +958,17 @@ static OMX_ERRORTYPE MagOmxPipelinePlayback_CPL_EventHandlerCB(
                                             OMX_U32 Data2,
                                             OMX_PTR pEventData){
     CodecPipelineEntry *cple;
-    MagOmxComponent compRoot;
+    MagOmxComponent root;
 
     cple = (CodecPipelineEntry *)(pAppData);
-    compRoot = ooc_cast(dsDesc->hComp, MagOmxComponent);
+    root = ooc_cast(hComponent, MagOmxComponent);
     
-    COMP_LOGD(compRoot, "event: %d", eEvent);
+    COMP_LOGD(root, "event: %d", eEvent);
     if(eEvent == OMX_EventCmdComplete) {
         if (Data1 == OMX_CommandStateSet) {
             switch ((int)Data2) {
                 case OMX_StateMax:
-                    COMP_LOGD(compRoot, "state: OMX_StateMax");
+                    COMP_LOGD(root, "state: OMX_StateMax");
                     break;
 
                 case OMX_StateLoaded:
@@ -973,19 +976,19 @@ static OMX_ERRORTYPE MagOmxPipelinePlayback_CPL_EventHandlerCB(
                 case OMX_StateExecuting:
                 case OMX_StatePause:
                 case OMX_StateWaitForResources:
-                    COMP_LOGD(compRoot, "state: %d", Data2);
+                    COMP_LOGD(root, "state: %d", Data2);
                     Mag_SetEvent(cple->pipelineStateEvent); 
                     break;
             }
         }else if (Data1 == OMX_CommandPortEnable){
-            COMP_LOGD(compRoot, "component enables port %d is done!", Data2);
+            COMP_LOGD(root, "component enables port %d is done!", Data2);
         }else if (Data1 == OMX_CommandPortDisable){
-            COMP_LOGD(compRoot, "component disables port %d is done!", Data2);
+            COMP_LOGD(root, "component disables port %d is done!", Data2);
         }else if (Data1 == OMX_CommandFlush){
-            COMP_LOGD(compRoot, "component flushes port %d is done!", Data2);
+            COMP_LOGD(root, "component flushes port %d is done!", Data2);
         }
     }else{
-        COMP_LOGD(compRoot, "unsupported event: %d, Data1: %u, Data2: %u\n", eEvent, Data1, Data2);
+        COMP_LOGD(root, "unsupported event: %d, Data1: %u, Data2: %u\n", eEvent, Data1, Data2);
     }
 
     return OMX_ErrorNone;
@@ -999,17 +1002,17 @@ static OMX_ERRORTYPE MagOmxPipelinePlayback_Clk_EventHandlerCB(
                                             OMX_U32 Data2,
                                             OMX_PTR pEventData){
     MagOmxPipelinePlayback thiz;
-    MagOmxComponent compRoot;
+    MagOmxComponent root;
 
-    thiz     = ooc_cast(hComponent, MagOmxPipelinePlayback);
-    compRoot = ooc_cast(hComponent, MagOmxComponent);
+    thiz = ooc_cast(hComponent, MagOmxPipelinePlayback);
+    root = ooc_cast(hComponent, MagOmxComponent);
     
-    COMP_LOGD(compRoot, "event: %d", eEvent);
+    COMP_LOGD(root, "event: %d", eEvent);
     if(eEvent == OMX_EventCmdComplete) {
         if (Data1 == OMX_CommandStateSet) {
             switch ((int)Data2) {
                 case OMX_StateMax:
-                    COMP_LOGD(compRoot, "state: OMX_StateMax");
+                    COMP_LOGD(root, "state: OMX_StateMax");
                     break;
 
                 case OMX_StateLoaded:
@@ -1017,26 +1020,21 @@ static OMX_ERRORTYPE MagOmxPipelinePlayback_Clk_EventHandlerCB(
                 case OMX_StateExecuting:
                 case OMX_StatePause:
                 case OMX_StateWaitForResources:
-                    COMP_LOGD(compRoot, "state: %d", Data2);
+                    COMP_LOGD(root, "state: %d", Data2);
                     Mag_SetEvent(thiz->mClockStateEvent); 
                     break;
             }
         }else if (Data1 == OMX_CommandPortEnable){
-            COMP_LOGD(compRoot, "component enables port %d is done!", Data2);
+            COMP_LOGD(root, "component enables port %d is done!", Data2);
         }else if (Data1 == OMX_CommandPortDisable){
-            COMP_LOGD(compRoot, "component disables port %d is done!", Data2);
+            COMP_LOGD(root, "component disables port %d is done!", Data2);
         }else if (Data1 == OMX_CommandFlush){
-            COMP_LOGD(compRoot, "component flushes port %d is done!", Data2);
+            COMP_LOGD(root, "component flushes port %d is done!", Data2);
         }
     }else{
-        COMP_LOGD(compRoot, "unsupported event: %d, Data1: %u, Data2: %u\n", eEvent, Data1, Data2);
+        COMP_LOGD(root, "unsupported event: %d, Data1: %u, Data2: %u\n", eEvent, Data1, Data2);
     }
 
-    return OMX_ErrorNone;
-}
-
-static OMX_ERRORTYPE localSetupComponent(
-                    OMX_IN  OMX_HANDLETYPE hComponent){
     return OMX_ErrorNone;
 }
 

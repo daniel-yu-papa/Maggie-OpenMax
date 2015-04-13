@@ -79,7 +79,6 @@ static OMX_ERRORTYPE virtual_MagOmxPortBuffer_GetPortSpecificDef(OMX_HANDLETYPE 
 static OMX_ERRORTYPE virtual_MagOmxPortBuffer_ProceedReturnedBuffer(OMX_HANDLETYPE port, OMX_BUFFERHEADERTYPE* pBufHeader){
 	MagOmxPort            root;
 	MagOmxComponentImpl   hCompImpl;
-	MagOmxStreamFrame_t   *frame;
 
 	root = ooc_cast(port, MagOmxPort);
 

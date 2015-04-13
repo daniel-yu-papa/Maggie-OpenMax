@@ -207,13 +207,13 @@ OMX_API OMX_ERRORTYPE OMX_APIENTRY OMX_Deinit(void){
         while(tmpHandleNode != &comp->compHandleList){
             compHandle = (Component_Handle_t *)list_entry(tmpHandleNode, Component_Handle_t, node);
             ((OMX_COMPONENTTYPE *)compHandle->compHandle)->ComponentDeInit(compHandle->compHandle);
+            if (NULL != comp->deregFunc){
+                comp->deregFunc(compHandle->compHandle);
+            }
+        
             list_del(tmpHandleNode);
             mag_freep((void **)&compHandle);
             tmpHandleNode = comp->compHandleList.next;
-        }
-        
-        if (NULL != comp->deregFunc){
-            comp->deregFunc(comp->compHandle);
         }
         
         dlclose(comp->libHandle);

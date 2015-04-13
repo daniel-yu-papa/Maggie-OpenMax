@@ -178,6 +178,8 @@ static int FFmpeg_Aren_openAudio(MagOmxComponent_FFmpeg_Aren thiz){
 
         AGILE_LOGD("SDL_OpenAudio() succeed!!!");
     }
+
+    return 0;
 }
 
 static void FFmpeg_Aren_resetBuf(MagOmxComponent_FFmpeg_Aren thiz){
@@ -201,9 +203,9 @@ static void FFmpeg_Aren_resetBuf(MagOmxComponent_FFmpeg_Aren thiz){
 static MagOmx_Aren_BufferNode_t *FFmpeg_Aren_getBuffer(MagOmxComponent_FFmpeg_Aren thiz){
     List_t *next = NULL;
     MagOmx_Aren_BufferNode_t *bufNode = NULL;
-    MagOmxComponentImpl         arenCompImpl;
+    /*MagOmxComponentImpl      arenCompImpl;
 
-    arenCompImpl = ooc_cast(thiz, MagOmxComponentImpl);
+    arenCompImpl = ooc_cast(thiz, MagOmxComponentImpl);*/
 
 get_again:
     Mag_AcquireMutex(thiz->mListMutex);
@@ -264,11 +266,11 @@ static OMX_ERRORTYPE localSetupComponent(
 	MagOmxPort_Constructor_Param_t param;
 	MagOmxComponentImpl            arenCompImpl;
 	MagOmxComponent                arenComp;
-	MagOmxComponent_FFmpeg_Aren    thiz;
+	/*MagOmxComponent_FFmpeg_Aren    thiz;*/
 
 	AGILE_LOGV("enter!");
 
-	thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Aren);
+	/*thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Aren);*/
 
 	param.portIndex    = START_PORT_INDEX + 0;
 	param.isInput      = OMX_TRUE;
@@ -642,7 +644,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Aren_SetParameter(
         case OMX_IndexConfigExtStreamHandle:
         {
             OMX_CONFIG_STREAM_HANDLE *hStrm = (OMX_CONFIG_STREAM_HANDLE *)pComponentParameterStructure;
-            AGILE_LOGI("set parameter: avstream=%p", hStrm->avstream);
+            AGILE_LOGI("set parameter: avstream=%p", hStrm->hAVStream);
             thiz->mpAudioStream = (AVStream *)hStrm->hAVStream;
         }
             break;

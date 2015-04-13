@@ -22,7 +22,6 @@
 #include "MagOmx_Port_FFmpeg_Adec.h"
 #include "MagOmx_Port_FFmpeg_Aren.h"
 #include "MagOMX_IL.h"
-#include "MagOmx_Buffer.h"
 
 #ifdef MODULE_TAG
 #undef MODULE_TAG
@@ -259,10 +258,8 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_ProceedBuffer(
     AVFrame *decodedFrame = NULL;
     MagOmxComponent_FFmpeg_Adec adecComp;
     OMX_BOOL continueDec = OMX_TRUE;
-    AVRational tb;
+    /*AVRational tb;*/
     OMX_DEMUXER_AVFRAME *pAVFrame;
-    int i;
-    void *side_data;
 
     if (hDestPort == NULL){
         return OMX_ErrorBadParameter;
@@ -283,7 +280,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_ProceedBuffer(
         codedPkt.dts  = srcbufHeader->nTimeStamp;
 
         codedPkt.stream_index = pAVFrame->stream_id;
-        codedPkt.flags = ((pAVFrame->flag == MAG_AVFRAME_FLAG_KEY_FRAME) ? AV_PKT_FLAG_KEY : 0);
+        codedPkt.flags = ((pAVFrame->flag == OMX_AVFRAME_FLAG_KEY_FRAME) ? AV_PKT_FLAG_KEY : 0);
         codedPkt.duration = pAVFrame->duration;
         codedPkt.pos = pAVFrame->position;
     }else{
@@ -349,7 +346,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_ProceedBuffer(
              *mpAudioStream->codec->time_base = {1, 48000}
              *mpAudioStream->time_base = {1, 90000}
             */
-            tb = (AVRational){1, decodedFrame->sample_rate};
+            /*tb = (AVRational){1, decodedFrame->sample_rate};*/
             if (decodedFrame->pts != AV_NOPTS_VALUE){
                 /*decodedFrame->pts = av_rescale_q(decodedFrame->pts, 
                                                  adecComp->mpAudioStream->codec->time_base, 
@@ -411,7 +408,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Adec_SetParameter(
         case OMX_IndexConfigExtStreamHandle:
         {
             OMX_CONFIG_STREAM_HANDLE *hStrm = (OMX_CONFIG_STREAM_HANDLE *)pComponentParameterStructure;
-            AGILE_LOGI("set parameter: avstream=%p", hStrm->avstream);
+            AGILE_LOGI("set parameter: avstream=%p", hStrm->hAVStream);
             thiz->mpAudioStream = (AVStream *)hStrm->hAVStream;
         }
             break;

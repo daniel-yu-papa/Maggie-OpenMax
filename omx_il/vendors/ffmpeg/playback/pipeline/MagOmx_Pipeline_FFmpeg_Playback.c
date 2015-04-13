@@ -54,7 +54,7 @@ static OMX_STRING localDecideVideoRole(OMX_U32 codec_id){
             return OMX_ROLE_VIDEO_DECODER_H263;
 
         default:
-            AGILE_LOGE("Unrecognized Video OMX Codec: 0x%x", OMXCodec);
+            AGILE_LOGE("Unrecognized Video OMX Codec: 0x%x", codec_id);
             return NULL;
     }
 }
@@ -80,7 +80,7 @@ static OMX_STRING localDecideAudioRole(OMX_U32 codec_id){
             return OMX_ROLE_AUDIO_DECODER_EXT_DTS;
 
         default:
-            AGILE_LOGE("Unrecognized Audio OMX Codec: 0x%x", OMXCodec);
+            AGILE_LOGE("Unrecognized Audio OMX Codec: 0x%x", codec_id);
             return NULL;
     }
 }
@@ -96,6 +96,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Playback_CreateCodecPipeline(
                                     OMX_IN OMX_PTR pAppData,
                                     OMX_IN OMX_CALLBACKTYPE *pCb,
                                     OMX_OUT MagOmxPipelineCodec *phCodecPipeline){
+    OMX_HANDLETYPE hPL_codec;
     MagOmxPipelineCodec pl_codec;
     OMX_ERRORTYPE err;
     char compName[128];
@@ -109,11 +110,13 @@ static OMX_ERRORTYPE virtual_FFmpeg_Playback_CreateCodecPipeline(
     if (plt == OMX_DynamicPort_Video){
         err = OMX_ComponentOfRoleEnum(compName, OMX_ROLE_PIPELINE_VIDEO_DECODER, 1);
         if (err == OMX_ErrorNone){
-            err = OMX_GetHandle(&pl_codec, compName, pAppData, pCb);
+            err = OMX_GetHandle(&hPL_codec, compName, pAppData, pCb);
             if(err != OMX_ErrorNone) {
                 AGILE_LOGE("OMX_GetHandle(%s) gets failure", compName);
                 return err;
             }
+
+            pl_codec = ooc_cast(hPL_codec, MagOmxPipelineCodec);
 
             param_table[0].role          = localDecideVideoRole(ple->portDesc->stream_info->codec_id);
             param_table[0].stream_handle = ple->portDesc->stream_info->stream_hanlde;
@@ -146,12 +149,14 @@ static OMX_ERRORTYPE virtual_FFmpeg_Playback_CreateCodecPipeline(
     }else if (plt == OMX_DynamicPort_Audio){
         err = OMX_ComponentOfRoleEnum(compName, OMX_ROLE_PIPELINE_AUDIO_DECODER, 1);
         if (err == OMX_ErrorNone){
-            err = OMX_GetHandle(&pl_codec, compName, pAppData, pCb);
+            err = OMX_GetHandle(&hPL_codec, compName, pAppData, pCb);
             if(err != OMX_ErrorNone) {
                 AGILE_LOGE("OMX_GetHandle(%s) gets failure", compName);
                 return err;
             }
 
+            pl_codec = ooc_cast(hPL_codec, MagOmxPipelineCodec);
+            
             param_table[0].role          = localDecideAudioRole(ple->portDesc->stream_info->codec_id);
             param_table[0].stream_handle = ple->portDesc->stream_info->stream_hanlde;
 

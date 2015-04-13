@@ -43,11 +43,11 @@ static OMX_ERRORTYPE localSetupComponent(
     MagOmxPort_Constructor_Param_t param;
     MagOmxComponentImpl            vrenCompImpl;
     MagOmxComponent                vrenComp;
-    MagOmxComponent_FFmpeg_Vren    thiz;
+    /*MagOmxComponent_FFmpeg_Vren    thiz;*/
 
     AGILE_LOGV("enter!");
 
-    thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vren);
+    /*thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vren);*/
     vrenCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
     vrenComp     = ooc_cast(hComponent, MagOmxComponent);
 
@@ -107,11 +107,12 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vren_Preroll(
 
 static OMX_ERRORTYPE virtual_FFmpeg_Vren_Start(
                     OMX_IN  OMX_HANDLETYPE hComponent){
+    AGILE_LOGV("enter!");
+
+#ifdef CAPTURE_YUV_DATA_TO_FILE
     MagOmxComponent_FFmpeg_Vren thiz;
     thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vren);
 
-    AGILE_LOGV("enter!");
-#ifdef CAPTURE_YUV_DATA_TO_FILE
     if (!thiz->mfYUVFile){
         thiz->mfYUVFile = fopen("./video.yuv","wb+");
         if (thiz->mfYUVFile == NULL){
@@ -124,11 +125,12 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vren_Start(
 
 static OMX_ERRORTYPE virtual_FFmpeg_Vren_Stop(
                     OMX_IN  OMX_HANDLETYPE hComponent){
+	AGILE_LOGV("enter!");
+
+#ifdef CAPTURE_YUV_DATA_TO_FILE
     MagOmxComponent_FFmpeg_Vren thiz;
     thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vren);
 
-	AGILE_LOGV("enter!");
-#ifdef CAPTURE_YUV_DATA_TO_FILE
     if (thiz->mfYUVFile){
         fclose(thiz->mfYUVFile);
         thiz->mfYUVFile = NULL;
@@ -178,13 +180,8 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vren_ProceedBuffer(
     AVFrame                 *destFrame = NULL;
     OMX_BUFFERHEADERTYPE    *destbufHeader;
     MagOmxPort              destPort;
-    int ret;
-    int i;
-
-    MagOmxComponent_FFmpeg_Vren thiz;
 
     vrenCompImpl = ooc_cast(hComponent, MagOmxComponentImpl);
-    thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vren);
     destPort = ooc_cast(hDestPort, MagOmxPort);
 
     if (srcbufHeader->pBuffer    == NULL && 
@@ -209,7 +206,7 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vren_ProceedBuffer(
     destbufHeader->nTimeStamp = srcbufHeader->nTimeStamp;
 
     destFrame = av_frame_alloc();
-    ret = av_frame_ref(destFrame, (AVFrame *)srcbufHeader->pBuffer);
+    av_frame_ref(destFrame, (AVFrame *)srcbufHeader->pBuffer);
 
     if (destbufHeader->pBuffer){
         /*release the old avframe*/
@@ -220,26 +217,31 @@ static OMX_ERRORTYPE virtual_FFmpeg_Vren_ProceedBuffer(
     MagOmxPortVirtual(destPort)->sendOutputBufferToAPP(destPort, destbufHeader);
 
 #ifdef CAPTURE_YUV_DATA_TO_FILE
-    if (thiz->mfYUVFile){
-        for (i = 0; i < decodedFrame->height; i++){
-            fwrite(decodedFrame->data[0] + i * decodedFrame->linesize[0], 
-                   1, decodedFrame->width, 
-                   thiz->mfYUVFile);
-        }
+    {
+        MagOmxComponent_FFmpeg_Vren thiz;
+        int i;
+        thiz = ooc_cast(hComponent, MagOmxComponent_FFmpeg_Vren);
+        if (thiz->mfYUVFile){
+            for (i = 0; i < decodedFrame->height; i++){
+                fwrite(decodedFrame->data[0] + i * decodedFrame->linesize[0], 
+                       1, decodedFrame->width, 
+                       thiz->mfYUVFile);
+            }
 
-        for (i = 0; i < decodedFrame->height / 2; i++){
-            fwrite(decodedFrame->data[1] + i * decodedFrame->linesize[1], 
-                   1, decodedFrame->width / 2, 
-                   thiz->mfYUVFile);
-        }
+            for (i = 0; i < decodedFrame->height / 2; i++){
+                fwrite(decodedFrame->data[1] + i * decodedFrame->linesize[1], 
+                       1, decodedFrame->width / 2, 
+                       thiz->mfYUVFile);
+            }
 
-        for (i = 0; i < decodedFrame->height / 2; i++){
-            fwrite(decodedFrame->data[2] + i * decodedFrame->linesize[2], 
-                   1, decodedFrame->width / 2, 
-                   thiz->mfYUVFile);
-        }
+            for (i = 0; i < decodedFrame->height / 2; i++){
+                fwrite(decodedFrame->data[2] + i * decodedFrame->linesize[2], 
+                       1, decodedFrame->width / 2, 
+                       thiz->mfYUVFile);
+            }
 
-        fflush(thiz->mfYUVFile);
+            fflush(thiz->mfYUVFile);
+        }
     }
 #endif
 

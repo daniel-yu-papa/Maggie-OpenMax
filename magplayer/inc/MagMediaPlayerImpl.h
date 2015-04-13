@@ -18,24 +18,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef __MAG_PLAYER_H__
-#define __MAG_PLAYER_H__
+#ifndef __MAG_MEDIA_PLAYER_IMPLE_H__
+#define __MAG_MEDIA_PLAYER_IMPLE_H__
 
 #include "framework/MagFramework.h"
-#include "MagParameters.h"
-#include "MagContentPipe.h"
-#include "MagDemuxerFFMPEG.h"
-#include "MagAudioPipeline.h"
-#include "MagVideoPipeline.h"
-#include "MagClock.h"
-#include "MagInvokeDef.h"
-#include "MagPipelineManager.h"
-
-#define MOCK_OMX_IL
-
-#define LOOPER_NAME "MagPlayerLooper"
-
-#define PARAMETERS_DB_SIZE   256
+#include "MagOMX_IL.h"
+#include "MagMediaPlayer.h"
+#include "MagMediaPlayerImpl.h"
+#include "MagBufferManager.h"
+#include "MagVersion.h"
+#include "MagSingleton.h"
 
 typedef enum{
     E_WHAT_UNKNOWN = 0,
@@ -49,7 +41,7 @@ typedef enum{
     E_EXTRA_UNKNOWN = 0,
     E_EXTRA_WRONG_STATE,
     E_EXTRA_INVALID_PIPELINE,
-    E_EXTRA_INVALID_PARAMETER,
+    E_EXTRA_INVALID_PARAMETER
 }ErrorExtraCode_t;
 
 typedef struct{
@@ -80,8 +72,8 @@ public:
     int  getDuration(int* msec);
     int  reset();
     int  setVolume(float leftVolume, float rightVolume);
-    int  setParameters(int key, void *request);
-    int  getParameters(int key, void **reply);
+    int  setParameter(int key, void *request);
+    int  getParameter(int key, void **reply);
     int  invoke(const unsigned int methodID, void *request, void **reply);
     int  registerEventCallback(mmp_event_callback_t cb, void *handler);
 
@@ -95,11 +87,7 @@ private:
         MagMsg_Pause,
         MagMsg_Flush,
         MagMsg_Fast,
-        MagMsg_Reset,
-        MagMsg_SetVolume,
-        MagMsg_ComponentNotify,
-        MagMsg_SetParameters,
-        MagMsg_BufferObserverNotify
+        MagMsg_SeekTo
     };
 
     enum State_t{
@@ -160,7 +148,6 @@ private:
 
     ui32       getVersion();
     void       setDisplayWindow(ui32 x, ui32 y, ui32 w, ui32 h);
-    _status_t  getBufferStatus(BufferStatistic_t  *pBufSt);
     _status_t  getVideoMetaData(VideoMetaData_t *pVmd);
     _status_t  getAudioMetaData(AudioMetaData_t *pVmd);
     _status_t  getDecodedVideoFrame(void **ppGetFrame);
@@ -185,8 +172,6 @@ private:
     void onSeek(MagMessageHandle msg);
     void onFast(MagMessageHandle msg);
     void onReset(MagMessageHandle msg);
-    void onSetVolume(MagMessageHandle msg);
-
 
     mmp_event_callback_t mAppEventCallback;
     void                 *mAppHandler;
@@ -212,8 +197,8 @@ private:
     MagEventHandle      mPipelineFlushDoneEvent;
     MagEventGroupHandle mPipelineFlushDoneEvtGrp;
 
-    ui32                mBufferLevel;
-    ui32                mBufferTime; 
+    i32                 mBufferLevel;
+    i32                 mBufferTime; 
 
     MagMessageHandle mSourceNotifyMsg;
     MagMessageHandle mPrepareMsg;
@@ -223,7 +208,6 @@ private:
     MagMessageHandle mPauseMsg;
     MagMessageHandle mFlushMsg;
     MagMessageHandle mFastMsg;
-    MagMessageHandle mSetVolumeMsg;
     MagMessageHandle mSeekToMsg;
         
     State_t mState;

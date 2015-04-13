@@ -45,7 +45,7 @@ EndOfVirtuals;
 
 ClassMembers(MagOmxComponent_FFmpeg_Demuxer, MagOmxComponentDemuxer, \
 	int  (*demux_interrupt_cb)(void *ctx); \
-    void (*fillAVFrame)(MagOmxComponent_FFmpeg_Demuxer thiz, AVPacket *pPacket, OMX_DEMUXER_AVFRAME *avFrame, OMX_IN MAG_DEMUXER_DATA_SOURCE *pDataSource); \
+    void (*fillAVFrame)(MagOmxComponent_FFmpeg_Demuxer thiz, AVPacket *pPacket, OMX_DEMUXER_AVFRAME *avFrame, AVRational timeBase); \
     void (*releaseAVFrame)(OMX_HANDLETYPE hComponent, OMX_PTR frame); \
 )
     MAG_FFMPEG_DEMUXER_PLAY_STATE mPlayState;

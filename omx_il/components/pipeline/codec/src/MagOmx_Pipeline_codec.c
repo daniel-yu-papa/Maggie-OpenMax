@@ -18,6 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include "MagOmx_Pipeline_codec.h"
 #include "MagOMX_Component_DataSource.h"
 #include "MagOMX_Port_buffer.h"
 
@@ -173,10 +174,6 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Prepare(
                 return OMX_ErrorBadParameter;
             }
 
-            if (next->next == &thiz->mLinkList){
-                isLastComp = OMX_TRUE;
-            }
-
             AGILE_LOGD("get component[%s] param: StartPortNumber-%d, Ports-%d",
                         compName,
                         portParam.nStartPortNumber, portParam.nPorts);
@@ -252,7 +249,9 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Prepare(
                 if ( (compIdx == 1 && portDef.eDir == OMX_DirInput) ||
                      (compIdx == thiz->mCompCount && portDef.eDir == OMX_DirOutput) ||
                      (portDef.eDomain != thiz->mDomain) ){
-                    hPort = getPort(ooc_cast(cpls->hComp, MagOmxComponentImpl), i);
+                    MagOmxComponentImpl cplCompBase = ooc_cast(cpls->hComp, MagOmxComponentImpl);
+
+                    hPort = cplCompBase->getPort(cplCompBase, i);
                     base->addPort(base, START_PORT_INDEX + thiz->mPortCount, hPort);
                     thiz->mOutputPortMap[thiz->mPortCount].hComp   = cpls->hComp;
                     thiz->mOutputPortMap[thiz->mPortCount].portIdx = i;
@@ -264,7 +263,7 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Prepare(
                 }
             }
         }else{
-            AGILE_LOGE("Failed to get component name with role name %s", role);
+            AGILE_LOGE("Failed to get component name with role name %s", cpls->param.role);
             return MAG_NAME_NOT_FOUND;
         }
 
@@ -296,7 +295,7 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Preroll(
 static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Stop(
                                         OMX_IN  OMX_HANDLETYPE hComponent){
     MagOmxPipelineCodec thiz;
-    List_t next;
+    List_t *next;
     MagOmxCodecPipelineSetting *cpls;
 
     thiz = ooc_cast(hComponent, MagOmxPipelineCodec);
@@ -320,7 +319,7 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Stop(
 static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Start(
                                         OMX_IN  OMX_HANDLETYPE hComponent){
     MagOmxPipelineCodec thiz;
-    List_t next;
+    List_t *next;
     MagOmxCodecPipelineSetting *cpls;
 
     thiz = ooc_cast(hComponent, MagOmxPipelineCodec);
@@ -344,7 +343,7 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Start(
 static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Pause(
                                         OMX_IN  OMX_HANDLETYPE hComponent){
     MagOmxPipelineCodec thiz;
-    List_t next;
+    List_t *next;
     MagOmxCodecPipelineSetting *cpls;
 
     thiz = ooc_cast(hComponent, MagOmxPipelineCodec);
@@ -368,7 +367,7 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Pause(
 static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Resume(
                                         OMX_IN  OMX_HANDLETYPE hComponent){
     MagOmxPipelineCodec thiz;
-    List_t next;
+    List_t *next;
     MagOmxCodecPipelineSetting *cpls;
 
     thiz = ooc_cast(hComponent, MagOmxPipelineCodec);
@@ -402,7 +401,7 @@ static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_ProceedBuffer(
     return OMX_ErrorNone;
 }
 
-OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Pipeline_Map(
+static OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Pipeline_Map(
                     OMX_IN   OMX_HANDLETYPE hComponent, 
                     OMX_OUT  OMX_U32        mPortIdx,
                     OMX_OUT  OMX_HANDLETYPE *hCompMapped,
@@ -416,7 +415,7 @@ OMX_ERRORTYPE virtual_MagOmxPipelineCodec_Pipeline_Map(
     return OMX_ErrorNone;
 }
 
-OMX_ERRORTYPE MagOmxPipelineCodec_EventHandlerCB(
+static OMX_ERRORTYPE MagOmxPipelineCodec_EventHandlerCB(
                                             OMX_HANDLETYPE hComponent,
                                             OMX_PTR pAppData,
                                             OMX_EVENTTYPE eEvent,
@@ -470,7 +469,7 @@ static void MagOmxPipelineCodec_initialize(Class this){
     AGILE_LOGV("Enter!");
     
     /*Override the base component pure virtual functions*/
-    MagOmxPipelineCodecVtableInstance.MagOmxComponentImpl.MagOMX_getType      = virtual_MagOmxPipelineCodec_getType
+    MagOmxPipelineCodecVtableInstance.MagOmxComponentImpl.MagOMX_getType      = virtual_MagOmxPipelineCodec_getType;
     MagOmxPipelineCodecVtableInstance.MagOmxComponentImpl.MagOMX_GetParameter = virtual_MagOmxPipelineCodec_GetParameter;
     MagOmxPipelineCodecVtableInstance.MagOmxComponentImpl.MagOMX_SetParameter = virtual_MagOmxPipelineCodec_SetParameter;
     MagOmxPipelineCodecVtableInstance.MagOmxComponentImpl.MagOMX_Prepare      = virtual_MagOmxPipelineCodec_Prepare;

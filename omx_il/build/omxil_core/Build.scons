@@ -241,8 +241,20 @@ LibraryModule(name                  = 'MagOmxIL_Base',
                                        'components/other/buffer/src',
                                        'components/other/data_source/src',
                                        'components/other/demuxer/src',
-                                       'components/pipeline/codec/src',
                                        'components/pipeline/playback/src'],
+              build_include_dirs    = Split(FRAMEWORK_INC_PATH)+
+                                      Split(MAG_OMX_INC_PATH)+
+                                      Split(MAG_OMX_COMMON_INC_PATH),
+              extra_libs            = ['librt.so', 'libpthread.so', 'libdl.so',
+                                       'libMagAgilelog.so', 
+                                       'libMagFramework.so'],
+              extra_lib_path        = FRAMEWORK_LIB_PATH,
+              shared                =  True,
+              install               =  True,
+              install_header_dirs   =  Split(MAG_OMX_INC_PATH))
+
+LibraryModule(name                  = 'MagOmxIL_Pipeline_Codec',
+              build_source_dirs     = ['components/pipeline/codec/src'],
               build_include_dirs    = Split(FRAMEWORK_INC_PATH)+
                                       Split(MAG_OMX_INC_PATH)+
                                       Split(MAG_OMX_COMMON_INC_PATH),

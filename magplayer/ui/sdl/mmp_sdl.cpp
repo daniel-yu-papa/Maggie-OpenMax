@@ -83,6 +83,7 @@ static void eventCallback(mmp_event_t evt, void *handler, unsigned int param1, u
             break;
 
         case MMP_EVENT_NEW_STREAM_REPORT:
+        {
             int sid = param1;
             void *p;
             mmp_meta_data_t *md;
@@ -92,20 +93,20 @@ static void eventCallback(mmp_event_t evt, void *handler, unsigned int param1, u
 
             if (md->type == MMP_STREAM_TYPE_VIDEO){
                 AGILE_LOGD("video: w[%d], h[%d], fps[%f], bps[%d], codec[%s]",
-                            md->vMetaData.width,
-                            md->vMetaData.height,
-                            md->vMetaData.fps,
-                            md->vMetaData.bps,
-                            md->vMetaData.codec);
-                gSet_win_width  = md->vMetaData.width;
-                gSet_win_height = md->vMetaData.height;
-            }(md->type == MMP_STREAM_TYPE_AUDIO){
+                            md->metadata.vMetaData.width,
+                            md->metadata.vMetaData.height,
+                            md->metadata.vMetaData.fps,
+                            md->metadata.vMetaData.bps,
+                            md->metadata.vMetaData.codec);
+                gSet_win_width  = md->metadata.vMetaData.width;
+                gSet_win_height = md->metadata.vMetaData.height;
+            }else if(md->type == MMP_STREAM_TYPE_AUDIO){
                 AGILE_LOGD("audio: hz[%d], bps[%d], codec[%s]",
-                            md->aMetaData.hz,
-                            md->aMetaData.bps,
-                            md->aMetaData.codec);
+                            md->metadata.aMetaData.hz,
+                            md->metadata.aMetaData.bps,
+                            md->metadata.aMetaData.codec);
             }
-            
+        }
             break;
 
         case MMP_EVENT_PREPARE_COMPLETE:
@@ -248,7 +249,7 @@ int main(int argc, char *argv[]){
     player->registerEventCallback(eventCallback, player);
     
     ret = player->setDataSource(url);
-    if (ret != MMP_OK){
+    if (ret != 0){
     	AGILE_LOGE("failed to do setDataSource(%s)\n", url);
     	return -1;
     }
@@ -313,7 +314,7 @@ int main(int argc, char *argv[]){
                         if (gStopped){
                             Mag_ClearEvent(gPrepareCompleteEvent);
                             ret = player->prepareAsync();
-                            if (ret != MMP_OK){
+                            if (ret != 0){
                                 AGILE_LOGE("failed to do prepareAsync()\n");
                                 return -1;
                             }
@@ -333,7 +334,7 @@ int main(int argc, char *argv[]){
                         if (gStopped){
                             Mag_ClearEvent(gPrepareCompleteEvent);
                             ret = player->prepareAsync();
-                            if (ret != MMP_OK){
+                            if (ret != 0){
                                 AGILE_LOGE("failed to do prepareAsync()\n");
                                 return -1;
                             }
@@ -360,7 +361,7 @@ int main(int argc, char *argv[]){
                         /*play*/
                         if (gStopped){
                             ret = player->prepareAsync();
-                            if (ret != MMP_OK){
+                            if (ret != 0){
                                 AGILE_LOGE("failed to do prepareAsync()\n");
                                 return -1;
                             }
