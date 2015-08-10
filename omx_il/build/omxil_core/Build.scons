@@ -253,7 +253,7 @@ LibraryModule(name                  = 'MagOmxIL_Base',
               install               =  True,
               install_header_dirs   =  Split(MAG_OMX_INC_PATH))
 
-LibraryModule(name                  = 'MagOmxIL_Pipeline_Codec',
+LibraryModule(name                  = 'MagOmxIL_pl_Codec',
               build_source_dirs     = ['components/pipeline/codec/src'],
               build_include_dirs    = Split(FRAMEWORK_INC_PATH)+
                                       Split(MAG_OMX_INC_PATH)+

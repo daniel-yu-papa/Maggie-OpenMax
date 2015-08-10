@@ -22,14 +22,6 @@
 #include "MagOMX_Component_DataSource.h"
 #include "MagOMX_Port_buffer.h"
 
-#define DATA_SOURCE_LOOPER_NAME        "CompDataSrcLooper"
-
-#ifdef MODULE_TAG
-#undef MODULE_TAG
-#endif          
-#define MODULE_TAG "MagOMX_PipelineCodec"
-
-#define COMPONENT_NAME "OMX.Mag.pipeline.codec"
 #define START_PORT_INDEX kCompPortStartNumber
 
 AllocateClass(MagOmxPipelineCodec, MagOmxComponentImpl);
@@ -459,11 +451,6 @@ static OMX_ERRORTYPE MagOmxPipelineCodec_EventHandlerCB(
     return OMX_ErrorNone;
 }
 
-static OMX_ERRORTYPE localSetupComponent(
-                    OMX_IN  OMX_HANDLETYPE hComponent){
-    return OMX_ErrorNone;
-}
-
 /*Class Constructor/Destructor*/
 static void MagOmxPipelineCodec_initialize(Class this){
     AGILE_LOGV("Enter!");
@@ -502,60 +489,3 @@ static void MagOmxPipelineCodec_constructor(MagOmxPipelineCodec thiz, const void
 static void MagOmxPipelineCodec_destructor(MagOmxPipelineCodec thiz, MagOmxPipelineCodecVtable vtab){
     AGILE_LOGV("Enter!");
 }
-
-static OMX_ERRORTYPE MagOmxPipelineCodec_Init(OMX_OUT OMX_HANDLETYPE *hComponent,  
-                                              OMX_IN  OMX_PTR pAppData,
-                                              OMX_IN  OMX_CALLBACKTYPE* pCallBacks){
-    MagOmxPipelineCodec  hplc;
-    MagOmxComponentImpl  parent;
-    OMX_U32 param[1];
-
-    AGILE_LOGV("enter!");
-
-    ooc_init_class(MagOmxPipelineCodec);
-
-    param[0] = START_PORT_INDEX;
-
-    hplc = (MagOmxPipelineCodec) ooc_new( MagOmxPipelineCodec, (void *)param);
-    MAG_ASSERT(hplc);
-
-    parent = ooc_cast(hplc, MagOmxComponentImpl);
-    *hComponent = MagOmxComponentImplVirtual(parent)->Create(hplc, pAppData, pCallBacks);
-    if (*hComponent){
-        return localSetupComponent(hplc);
-    }else{
-        return OMX_ErrorInsufficientResources;
-    }
-}
-
-static OMX_ERRORTYPE MagOmxPipelineCodec_DeInit(OMX_IN OMX_HANDLETYPE hComponent){
-    OMX_COMPONENTTYPE *compType = (OMX_COMPONENTTYPE *)hComponent;
-    MagOmxPipelineCodec hplc;
-
-    AGILE_LOGD("enter!");
-    hplc = (MagOmxPipelineCodec)compType->pComponentPrivate;
-    ooc_delete((Object)hplc);
-    AGILE_LOGD("exit!");
-
-    return OMX_ErrorNone;
-}
-
-MagOMX_Component_Registration_t *MagOMX_Component_Registration(){
-    static char * roles[] = {OMX_ROLE_PIPELINE_VIDEO_DECODER, 
-                             OMX_ROLE_PIPELINE_AUDIO_DECODER,
-                             OMX_ROLE_PIPELINE_SUBTITLE_DECODER,
-                             OMX_ROLE_PIPELINE_VIDEO_ENCODER,
-                             OMX_ROLE_PIPELINE_AUDIO_ENCODER};
-    static MagOMX_Component_Registration_t comp_reg = {
-        COMPONENT_NAME, roles, 5, MagOmxPipelineCodec_Init
-    };
-
-    return &comp_reg;
-}
-
-void MagOMX_Component_Deregistration(OMX_HANDLETYPE hComponent){
-    MagOmxPipelineCodec_DeInit(hComponent);
-}
-
-#undef COMPONENT_NAME
-#undef START_PORT_INDEX

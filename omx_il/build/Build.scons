@@ -10,4 +10,5 @@ from glob import glob
 Import("env")
 
 SConscript("omxil_core/Build.scons", variant_dir='core', exports='env', duplicate=0)
+SConscript("omxil_vendors/common/Build.scons", variant_dir='vendors/common', exports='env', duplicate=0)
 SConscript("omxil_vendors/ffmpeg/Build.scons", variant_dir='vendors/ffmpeg', exports='env', duplicate=0)

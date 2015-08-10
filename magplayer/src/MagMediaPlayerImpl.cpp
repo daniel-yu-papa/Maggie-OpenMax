@@ -47,6 +47,7 @@ MagMediaPlayer* GetMediaPlayer()
 
 
 MagMediaPlayerImpl::MagMediaPlayerImpl(){
+    AGILE_LOG_CREATE();
     initialize();
 }
 
@@ -55,6 +56,9 @@ MagMediaPlayerImpl::~MagMediaPlayerImpl(){
     reset();
     mLooper->waitOnAllDone(mLooper);
     cleanup();
+
+    AGILE_LOGD("exit!");
+    AGILE_LOG_DESTROY();
 }
 
 OMX_ERRORTYPE MagMediaPlayerImpl::playbackPipelineEventHandler(
@@ -920,6 +924,8 @@ _status_t MagMediaPlayerImpl::getLooper(){
 }
 
 void MagMediaPlayerImpl::initialize(){
+    OMX_ERRORTYPE err;
+
     AGILE_LOGV("Enter!");
 
     mState          = ST_IDLE;
@@ -975,6 +981,11 @@ void MagMediaPlayerImpl::initialize(){
     mSeekToMsg               = createMessage(MagMsg_SeekTo);
 
     INIT_LIST(&mStreamList);
+
+    err = OMX_Init();
+    if(err != OMX_ErrorNone) {
+        AGILE_LOGE("OMX_Init() failed");
+    }
 }
 
 void MagMediaPlayerImpl::cleanup(){
@@ -999,6 +1010,8 @@ void MagMediaPlayerImpl::cleanup(){
     destroyLooper(&mLooper);
     destroyHandler(&mMsgHandler);
     AGILE_LOGV("exit!");
+    
+    OMX_Deinit();
 }
 
 void MagMediaPlayerImpl::setDisplayWindow(ui32 x, ui32 y, ui32 w, ui32 h){
